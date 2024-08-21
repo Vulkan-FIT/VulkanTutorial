@@ -1684,20 +1684,20 @@ public:
 
 
 template<typename Type>
-class Array {
+class Vector {
 protected:
 	Type* _data;
 	size_t _size;
 public:
-	Array() : _data(nullptr), _size(0)  {}
-	Array(size_t size) : _data(new Type[size]), _size(size)  {}
-	Array(Type* data, size_t size) : _data(data), _size(size)  {}
-	~Array()  { delete[] _data; }
+	Vector() : _data(nullptr), _size(0)  {}
+	Vector(size_t size) : _data(new Type[size]), _size(size)  {}
+	Vector(Type* data, size_t size) : _data(data), _size(size)  {}
+	~Vector()  { delete[] _data; }
 	
-	Array(const Array& other);
-	Array(Array&& other) : _data(other._data), _size(other._size)  { other._data = nullptr; other._size = 0; }
-	Array& operator=(const Array& rhs);
-	Array& operator=(Array&& rhs)  { delete[] _data; _data = rhs._data; _size = rhs._size; rhs._data = nullptr; rhs._size = 0; }
+	Vector(const Vector& other);
+	Vector(Vector&& other) : _data(other._data), _size(other._size)  { other._data = nullptr; other._size = 0; }
+	Vector& operator=(const Vector& rhs);
+	Vector& operator=(Vector&& rhs)  { delete[] _data; _data = rhs._data; _size = rhs._size; rhs._data = nullptr; rhs._size = 0; }
 
 	Type& operator[](size_t index)  { return _data[index]; }
 	const Type& operator[](size_t index) const  { return _data[index]; }
@@ -1841,7 +1841,7 @@ public:
 uint32_t enumerateInstanceVersion();
 template<typename T> inline T getInstanceProcAddr(const char* name) noexcept  { return reinterpret_cast<T>(funcs.vkGetInstanceProcAddr(instance(), name)); }
 template<typename T> inline T getDeviceProcAddr(const char* name) noexcept  { return reinterpret_cast<T>(funcs.vkGetDeviceProcAddr(device(), name)); }
-Array<PhysicalDevice> enumeratePhysicalDevices();
+Vector<PhysicalDevice> enumeratePhysicalDevices();
 inline PhysicalDeviceProperties getPhysicalDeviceProperties(PhysicalDevice pd)  { PhysicalDeviceProperties p; funcs.vkGetPhysicalDeviceProperties(pd, &p); return p; }
 
 

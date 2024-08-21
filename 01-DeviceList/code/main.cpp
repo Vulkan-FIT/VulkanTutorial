@@ -38,7 +38,7 @@ int main(int, char**)
 			});
 
 		// print device list
-		vk::Array<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
+		vk::Vector<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
 		cout << "Physical devices:" << endl;
 		for(size_t i=0; i<deviceList.size(); i++) {
 			vk::PhysicalDeviceProperties p = vk::getPhysicalDeviceProperties(deviceList[i]);

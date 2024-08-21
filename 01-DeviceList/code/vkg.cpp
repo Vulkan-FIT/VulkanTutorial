@@ -287,7 +287,7 @@ vk::VkgInitAndCleanUp::~VkgInitAndCleanUp()
 
 
 template<typename Type>
-Array<Type>::Array(const Array& other)
+Vector<Type>::Vector(const Vector& other)
 	: _data(new Type[other._size])
 	, _size(other._size)
 {
@@ -302,7 +302,7 @@ Array<Type>::Array(const Array& other)
 
 
 template<typename Type>
-Array<Type>& Array<Type>::operator=(const Array& rhs)
+Vector<Type>& Vector<Type>::operator=(const Vector& rhs)
 {
 	if(_size == rhs._size)
 		std::copy_n(rhs._data, _size, _data);
@@ -322,7 +322,7 @@ Array<Type>& Array<Type>::operator=(const Array& rhs)
 
 
 template<typename Type>
-void Array<Type>::resize(size_t newSize)
+void Vector<Type>::resize(size_t newSize)
 {
 	if(newSize > size()) {
 		Type* m = reinterpret_cast<Type*>(::operator new(sizeof(Type) * newSize));
@@ -504,9 +504,9 @@ uint32_t vk::enumerateInstanceVersion()
 }
 
 
-Array<PhysicalDevice> vk::enumeratePhysicalDevices()
+Vector<PhysicalDevice> vk::enumeratePhysicalDevices()
 {
-	Array<PhysicalDevice> a;
+	Vector<PhysicalDevice> a;
 	uint32_t n;
 	Result r;
 	do {
