@@ -10,8 +10,10 @@
 </head>
 <body>
 
-<h1>Vulkan Tutorial: 01-DeviceList</h1>
+<h1>Vulkan Tutorial</h1>
 
+<h2>01-DeviceList</h2>
+  
 <p>Vulkan is a low-level, low-overhead API for 3D graphics and computing. Currently, it is one of the most important APIs in its area.</p>
 
 <details><summary>Vulkan history and design</summary>
@@ -38,6 +40,16 @@ On mobile devices, usually only OpenGL ES was supported.
 When looking on Vulkan, it is supported on macOS (through MoltenVk) and majority of modern tablets and mobile phones.</p>
 
 </details>
+
+<p>Vulkan is amazing by its low-level approach, because we can work very effectively with underlying hardware and optimize our code into the details.
+However, it has also its downsides. Few lines of OpenGL code might need tens or even hundreds lines of code when using Vulkan.
+Low-level Vulkan code brings new flexibility. But you might feel unprepared to deal with such amount of low-level code and to understand it.
+And that is where this tutorial makes an attempt to help and tries to introduce a programmer into basics of Vulkan programming.</p>
+
+<p>In our tutorial, we will use modern C++20 or newer. Normally, we would use Vulkan-Hpp as C++ Vulkan binding.
+However, Vulkan-Hpp has some design limitations that advanced user might reach from time to time, but most importantly,
+the current version 1.3.283 takes about quarter of million lines of code that must be included and processed by the compiler.
+It takes roughly about 3-4 seconds to process such large headers by a modern processor of today. </p>
   
 </body>
 </html>
