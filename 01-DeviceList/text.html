@@ -142,5 +142,81 @@ int main(int, char**)
 }
 </pre>
 
+<p>The first thing that might catch our eyes in the code is large initialization of structures
+vk::InstanceCreateInfo and vk::ApplicationInfo.
+And that is the way Vulkan uses to communicate most of the data: through structures.
+We fill the data into the structures and pass them through Vulkan functions.
+Each structure has sType (structure type) member indicating type of the structure and pNext member.
+The pNext member must be null or it must point to another valid Vulkan structure
+which might be a new extension or a kind of a new functionality.</p>
+
+<p>The strange type cast <code>&(const vk::ApplicationInfo&)vk::ApplicationInfo{</code> just avoids
+the harmless warning about using pointer to temporary variable.</p>
+
+<p>Documentation to all the structures and the whole Vulkan can be found on
+<a href="https://registry.khronos.org/vulkan/">Khronos website</a>.
+I recommend the latest Vulkan specification while there are three versions - core API only,
+core + ratified extensions and core + all published extensions.
+I recommend core + ratified extensions, or core only specification.
+Core + all published extensions contains much of content related to various vendor extensions
+which might be misleading and might make it more difficult to understand Vulkan.</p>
+
+<details><summary>Detailed code description</summary>
+
+<p><b>vk::loadLib()</b> - loads Vulkan library. The function loads vulkan-1.dll on Windows and libvulkan.so.1 on Linux.
+Then, it initializes some global Vulkan function pointers.</p>
+
+<p><b>vk::createInstance()</b> - creates Vulkan instance. Instance stores all global per-application state.
+Before we can use Vulkan, Vulkan Instance must be created.
+There are only few functions that can be used before creating Vulkan Instance.
+Once it is created, we can retrive it using vk::instance() function.</p>
+
+<p>To create instance, we need to fill vk::InstanceCreateInfo structure with data.
+We have to set sType and pNext members. The flags member is empty.
+The first interesting member is pApplicationInfo. It is pointer to vk::ApplicationInfo structure.
+So, we create vk::ApplicationInfo and fill it with the data as well.</p>
+
+<p>Again, we initialize sType and pNext members. The pApplicationName is the name of our application.
+Together with applicationVersion it can be used to optimize the driver for particular application
+or application version, or even to workaround problems with particular application or its version.
+We provide application name but we will supply 0 for the application version.</p>
+
+<p>The same idea stands behind pEngineName and engineVersion. The driver might turn on optimizations or workarounds
+for particular engine or engine version. We do not use any engine, so we pass null and zero.</p>
+
+<p>The last member is apiVersion. It is the highest version that our application might use.
+To put it in other words, our application makes promise here to not use higher version that it specifies here.
+The driver might not support so high version, but this does not result in error.
+The driver supported version is reported elsewhere. Here it is about the promise of the application to not use
+functionality of higher version of Vulkan than it specifies in apiVersion member.</p>
+
+<p>Now, we return back to vk::InstanceCreateVersion and to its last four members.
+They are related to layers and extensions. We will speak about layers and extensions on other occasions.
+For now, because we are not using any layers and any extensions, we just set them to null and their count to zero.</p>
+
+<p><b>vk::enumeratePhysicalDevices()</b> - returns the list of physical devices available in the system.
+Each physical device is represented by vk::PhysicalDevice handle.</p>
+</details>
+
+<p>We can download the <a href="">source code</a>, configure it by CMake, compile it and run it.
+I recommend CMake 3.21 or newer. The code was tested with g++ compiler on Linux and Microsoft Visual C++ 2022.
+We also need Vulkan drivers installed on the target system.</p>
+
+<p>When we run the code we might see the following output:</p>
+
+<pre>
+Physical devices:
+   NVIDIA GeForce RTX 4090
+   AMD Radeon RX 7900 XTX
+   Intel(R) UHD Graphics 630
+   llvmpipe (LLVM 15.0.7, 256 bits)
+</pre>
+
+<p>We can see number of graphics cards. Depending on our system, we will usually see one or two devices.
+Here, we see Nvidia and AMD graphics as first two graphics cards.
+So, the user is probably developer who wants to test his applications on various graphics cards and various vendors.
+There is also integrated Intel graphics. The last one is llvmpipe that I often see on Linux.
+It is software implementation of Vulkan. It is useful on some special circumstances.</p>
+
 </body>
 </html>
