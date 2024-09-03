@@ -13,7 +13,7 @@ set(APP_INCLUDES
 
 # target
 add_executable(${APP_NAME} ${APP_SOURCES} ${APP_INCLUDES})
-set_property(TARGET ${APP_NAME} PROPERTY CXX_STANDARD 23)
+set_property(TARGET ${APP_NAME} PROPERTY CXX_STANDARD 20)
 
 # dependencies
 find_package(Vulkan REQUIRED)

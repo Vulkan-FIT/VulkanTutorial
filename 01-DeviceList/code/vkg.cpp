@@ -1,5 +1,6 @@
 #include "vkg.h"
 #include <cassert>
+#include <cstdlib>
 #include <memory>
 #include <string>
 #include <filesystem>
@@ -97,6 +98,8 @@ void vk::createInstance(const vk::InstanceCreateInfo& pCreateInfo)
 		else
 			r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instance);
 	}
+	if(r != SUCCESS)
+		throwResultException("vkCreateInstance", r);
 
 	initInstance(instance);
 }
@@ -360,38 +363,48 @@ void Vector<Type>::resize(size_t newSize)
 
 // convert VkResult to string
 // author: PCJohn (peciva at fit.vut.cz)
-constexpr const char* outOfHostMemoryString = "OutOfHostMemory"; 
-constexpr const char* outOfDeviceMemoryString = "OutOfDeviceMemory"; 
-constexpr const char* initializationFailedString = "InitializationFailed"; 
-constexpr const char* unknownVkResultValueString = "UnknownVkResultValue"; 
+constexpr const char* errorOutOfHostMemoryString = "OutOfHostMemory";
+constexpr const char* errorOutOfDeviceMemoryString = "OutOfDeviceMemory";
+constexpr const char* errorInitializationFailedString = "InitializationFailed";
+constexpr const char* errorDeviceLostString = "DeviceLost";
+constexpr const char* errorMemoryMapFailedString = "MemoryMapFailed";
+constexpr const char* errorLayerNotPresentString = "LayerNotPresent";
+constexpr const char* errorExtensionNotPresentString = "ExtensionNotPresent";
+constexpr const char* errorFeatureNotPresentString = "FeatureNotPresent";
+constexpr const char* errorIncompatibleDriverString = "IncompatibleDriver";
+constexpr const char* errorTooManyObjectsString = "TooManyObjects";
+constexpr const char* errorFormatNotSupportedString = "FormatNotSupported";
+constexpr const char* errorFragmentedPoolString = "FragmentedPool";
+constexpr const char* errorUnknownString = "Unknown";
+constexpr const char* errorOutOfPoolMemoryString = "OutOfPoolMemory";
+constexpr const char* errorInvalidExternalHandleString = "InvalidExternalHandle";
+constexpr const char* errorFragmentationString = "Fragmentation";
+constexpr const char* errorInvalidOpaqueCaptureAddressString = "InvalidOpaqueCaptureAddress";
+constexpr const char* errorUnknownVkResultValueString = "UnknownVkResultValue";
 
 
 Span<const char> vk::resultToString(Result result)
 {
 	switch(result) {
-	case ERROR_OUT_OF_HOST_MEMORY: return { outOfHostMemoryString, 15 };
-	case ERROR_OUT_OF_DEVICE_MEMORY: return { outOfDeviceMemoryString, 17 };
-	case ERROR_INITIALIZATION_FAILED: return { initializationFailedString, 20 };
-	default: return { unknownVkResultValueString, 20 };
-	/*case ERROR_DEVICE_LOST = -4,
-	case ERROR_MEMORY_MAP_FAILED = -5,
-	case ERROR_LAYER_NOT_PRESENT = -6,
-	case ERROR_EXTENSION_NOT_PRESENT = -7,
-	case ERROR_FEATURE_NOT_PRESENT = -8,
-	case ERROR_INCOMPATIBLE_DRIVER = -9,
-	case ERROR_TOO_MANY_OBJECTS = -10,
-	case ERROR_FORMAT_NOT_SUPPORTED = -11,
-	case ERROR_FRAGMENTED_POOL = -12,
-	case ERROR_UNKNOWN = -13,
-	// Provided by VK_VERSION_1_1
-	case ERROR_OUT_OF_POOL_MEMORY = -1000069000,
-	// Provided by VK_VERSION_1_1
-	case ERROR_INVALID_EXTERNAL_HANDLE = -1000072003,
-	// Provided by VK_VERSION_1_2
-	case ERROR_FRAGMENTATION = -1000161000,
-	// Provided by VK_VERSION_1_2
-	case ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS = -1000257000,
-	*/}
+	case ERROR_OUT_OF_HOST_MEMORY: return { errorOutOfHostMemoryString, 15 };
+	case ERROR_OUT_OF_DEVICE_MEMORY: return { errorOutOfDeviceMemoryString, 17 };
+	case ERROR_INITIALIZATION_FAILED: return { errorInitializationFailedString, 20 };
+	case ERROR_DEVICE_LOST: return { errorDeviceLostString, 10 };
+	case ERROR_MEMORY_MAP_FAILED: return { errorMemoryMapFailedString, 15 }; 
+	case ERROR_LAYER_NOT_PRESENT: return { errorLayerNotPresentString, 15 };
+	case ERROR_EXTENSION_NOT_PRESENT: return { errorExtensionNotPresentString, 19 };
+	case ERROR_FEATURE_NOT_PRESENT: return { errorFeatureNotPresentString, 17 };
+	case ERROR_INCOMPATIBLE_DRIVER: return { errorIncompatibleDriverString, 18 };
+	case ERROR_TOO_MANY_OBJECTS: return { errorTooManyObjectsString, 14 };
+	case ERROR_FORMAT_NOT_SUPPORTED: return { errorFormatNotSupportedString, 18 };
+	case ERROR_FRAGMENTED_POOL: return { errorFragmentedPoolString, 14 };
+	case ERROR_UNKNOWN: return { errorUnknownString, 7 };
+	case ERROR_OUT_OF_POOL_MEMORY: return { errorOutOfPoolMemoryString, 15 };
+	case ERROR_INVALID_EXTERNAL_HANDLE: return { errorInvalidExternalHandleString, 21 };
+	case ERROR_FRAGMENTATION: return { errorFragmentationString, 13 };
+	case ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS: return { errorInvalidOpaqueCaptureAddressString, 27 };
+	default: return { errorUnknownVkResultValueString, 20 };
+	}
 }
 
 
@@ -402,6 +415,7 @@ size_t vk::int32ToString(int32_t value, char* buffer)
 	if(value < 0) {
 		buffer[0] = '-';
 		len = 1;
+		value = abs(value);
 	}
 	else
 		len = 0;
@@ -427,6 +441,21 @@ void vk::throwResultException(const char* funcName, Result result)
 	case ERROR_OUT_OF_HOST_MEMORY: throw OutOfHostMemoryError(funcName, result);
 	case ERROR_OUT_OF_DEVICE_MEMORY: throw OutOfDeviceMemoryError(funcName, result);
 	case ERROR_INITIALIZATION_FAILED: throw InitializationFailedError(funcName, result);
+	case ERROR_DEVICE_LOST: throw DeviceLostError(funcName, result);
+	case ERROR_MEMORY_MAP_FAILED: throw MemoryMapFailedError(funcName, result);
+	case ERROR_LAYER_NOT_PRESENT: throw LayerNotPresentError(funcName, result);
+	case ERROR_EXTENSION_NOT_PRESENT: throw ExtensionNotPresentError(funcName, result);
+	case ERROR_FEATURE_NOT_PRESENT: throw FeatureNotPresentError(funcName, result);
+	case ERROR_INCOMPATIBLE_DRIVER: throw IncompatibleDriverError(funcName, result);
+	case ERROR_TOO_MANY_OBJECTS: throw TooManyObjectsError(funcName, result);
+	case ERROR_FORMAT_NOT_SUPPORTED: throw FormatNotSupportedError(funcName, result);
+	case ERROR_FRAGMENTED_POOL: throw FragmentedPoolError(funcName, result);
+	case ERROR_UNKNOWN: throw UnknownError(funcName, result);
+	case ERROR_OUT_OF_POOL_MEMORY: throw OutOfPoolMemoryError(funcName, result);
+	case ERROR_INVALID_EXTERNAL_HANDLE: throw InvalidExternalHandleError(funcName, result);
+	case ERROR_FRAGMENTATION: throw FragmentationError(funcName, result);
+	case ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS: throw InvalidOpaqueCaptureAddressError(funcName, result);
+	default: throw VkgError("vk::throwResultException", result);
 	}
 }
 
@@ -436,25 +465,22 @@ void vk::throwResultException(Result result, const char* message)
 	case ERROR_OUT_OF_HOST_MEMORY: throw OutOfHostMemoryError(message);
 	case ERROR_OUT_OF_DEVICE_MEMORY: throw OutOfDeviceMemoryError(message);
 	case ERROR_INITIALIZATION_FAILED: throw InitializationFailedError(message);
-	/*case ERROR_DEVICE_LOST = -4,
-	case ERROR_MEMORY_MAP_FAILED = -5,
-	case ERROR_LAYER_NOT_PRESENT = -6,
-	case ERROR_EXTENSION_NOT_PRESENT = -7,
-	case ERROR_FEATURE_NOT_PRESENT = -8,
-	case ERROR_INCOMPATIBLE_DRIVER = -9,
-	case ERROR_TOO_MANY_OBJECTS = -10,
-	case ERROR_FORMAT_NOT_SUPPORTED = -11,
-	case ERROR_FRAGMENTED_POOL = -12,
-	case ERROR_UNKNOWN = -13,
-	// Provided by VK_VERSION_1_1
-	case ERROR_OUT_OF_POOL_MEMORY = -1000069000,
-	// Provided by VK_VERSION_1_1
-	case ERROR_INVALID_EXTERNAL_HANDLE = -1000072003,
-	// Provided by VK_VERSION_1_2
-	case ERROR_FRAGMENTATION = -1000161000,
-	// Provided by VK_VERSION_1_2
-	case ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS = -1000257000,
-	*/}
+	case ERROR_DEVICE_LOST: throw DeviceLostError(message);
+	case ERROR_MEMORY_MAP_FAILED: throw MemoryMapFailedError(message);
+	case ERROR_LAYER_NOT_PRESENT: throw LayerNotPresentError(message);
+	case ERROR_EXTENSION_NOT_PRESENT: throw ExtensionNotPresentError(message);
+	case ERROR_FEATURE_NOT_PRESENT: throw FeatureNotPresentError(message);
+	case ERROR_INCOMPATIBLE_DRIVER: throw IncompatibleDriverError(message);
+	case ERROR_TOO_MANY_OBJECTS: throw TooManyObjectsError(message);
+	case ERROR_FORMAT_NOT_SUPPORTED: throw FormatNotSupportedError(message);
+	case ERROR_FRAGMENTED_POOL: throw FragmentedPoolError(message);
+	case ERROR_UNKNOWN: throw UnknownError(message);
+	case ERROR_OUT_OF_POOL_MEMORY: throw OutOfPoolMemoryError(message);
+	case ERROR_INVALID_EXTERNAL_HANDLE: throw InvalidExternalHandleError(message);
+	case ERROR_FRAGMENTATION: throw FragmentationError(message);
+	case ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS: throw InvalidOpaqueCaptureAddressError(message);
+	default: throw VkgError("vk::throwResultException", result);
+	}
 }
 
 Error::Error(const char* msgHeader, const char* msgBody) noexcept
@@ -474,7 +500,7 @@ Error::Error(const char* funcName, Result result) noexcept
 	size_t funcNameLength = funcName ? strlen(funcName) : 0;
 	char codeText[12];
 	size_t codeLength = int32ToString(result, codeText);
-	size_t n = 14 + funcNameLength + 21 + resultText.size() + 17 + codeLength + 2 + 1;
+	size_t n = 14 + funcNameLength + 21 + resultText.size() + 16 + codeLength + 2 + 1;
 
 	// construct message
 	// example string: "Vulkan error: vkCreateInstance() failed with error InitializationFailed (VkResult code -3)."
@@ -486,8 +512,8 @@ Error::Error(const char* funcName, Result result) noexcept
 	i += 21;
 	memcpy(&_msg[i], resultText.data(), resultText.size());
 	i += resultText.size();
-	memcpy(&_msg[i], " (VkResult code ", 17);
-	i += 17;
+	memcpy(&_msg[i], " (VkResult code ", 16);
+	i += 16;
 	memcpy(&_msg[i], codeText, codeLength);
 	i += codeLength;
 	memcpy(&_msg[i], ").", 3);

@@ -47,7 +47,7 @@ int main(int, char**)
 
 	// catch exceptions
 	} catch(vk::Error& e) {
-		cout << "Failed because of Vulkan exception: " << e.what() << endl;
+		cout << e.what() << endl;
 	} catch(exception& e) {
 		cout << "Failed because of exception: " << e.what() << endl;
 	} catch(...) {
