@@ -1,8 +1,8 @@
-downloaded from: https://pixabay.com/photos/volcano-lava-iceland-nature-7396466/
-
-author: Gylfi, https://pixabay.com/users/gylfi-28844009/
-
+Downloaded from: https://pixabay.com/photos/volcano-lava-iceland-nature-7396466/
+Author: Gylfi, https://pixabay.com/users/gylfi-28844009/
 Free for use under the Pixabay Content License.
+
+Modified by PCJohn (peciva at fit.vut.cz), mostly just application of color filters to make it more dark.
 
 
 
