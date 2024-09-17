@@ -1,20 +1,43 @@
 <!DOCTYPE html>
-<html lang=”en” manifest="/cache.appcache">
+<html lang="en" manifest="/cache.appcache">
+
 <head>
-<title>01-DeviceList</title>
+<title>01 - DeviceList</title>
 <meta charset="utf-8">
-<link rel="stylesheet" rel="noopener" target="_blank" href="bootstrap/css/bootstrap.min.css"> <!-- This link is only necessary if you’re using an external stylesheet -->
-<style>
-/* These style tags are only necessary if you’re adding internal CSS */
+<!-- link rel="stylesheet" rel="noopener" target="_blank" href="bootstrap/css/bootstrap.min.css" --> <!-- This link is only necessary if you’re using an external stylesheet -->
+<style media="screen" type="text/css">
+    html {
+        background-color: #000000;
+        background-image: url("volcano.jpg");
+        background-position: 50%, 50%;
+        background-size: cover;
+        background-attachment: fixed;
+        background-repeat: no-repeat;
+        color: #ffffff;
+    }
+    details {
+        background-color: rgba(96,96,96,0.75);
+    }
+    pre {
+        background-color: rgba(96,96,96,0.75);
+    }
+    a:link {
+        color: #33ccff;
+    }
+    a:visited {
+        color: #ccbbff;
+    }
 </style>
 </head>
+
 <body>
 
 <h1>Vulkan Tutorial</h1>
 
-<h2>01-DeviceList</h2>
+<h2>01 - DeviceList</h2>
   
-<p>Vulkan is a low-level, low-overhead API for 3D graphics and computing. Currently, it is one of the most important APIs in its area.</p>
+<p>Vulkan is a low-level, low-overhead API for 3D graphics and computing.
+Currently, it is probably the most important APIs in its area.</p>
 
 <details><summary>Vulkan history and design</summary>
 
@@ -41,34 +64,48 @@ When looking on Vulkan, it is supported on macOS (through MoltenVk) and majority
 
 </details>
 
-<p>Vulkan is amazing by its low-level approach, because we can work very effectively with underlying hardware and optimize our code in many details.
-However, it has also its downsides. Few lines of OpenGL code might need tens or even hundreds lines of code when using Vulkan.
-Low-level Vulkan code brings new flexibility. But many programmers might feel unprepared to deal with such amount of low-level code and to understand it.
-And that is where this tutorial makes an attempt to help and tries to introduce a programmer into basics of Vulkan programming.</p>
+<p>Vulkan is amazing by its low-level approach,
+because we can work very efficiently with underlying hardware and optimize our code in many details.
+However, it has also its downsides.
+Few lines of OpenGL code might need tens or even hundreds lines of code when using Vulkan.
+Low-level Vulkan code brings new flexibility.
+But many programmers might feel unprepared to deal with such amount of low-level code and to understand it.
+And exactly to this situation comes this tutorial -
+to make an attempt to help and to introduce a programmer into basics of Vulkan programming.</p>
 
-<p>In our tutorial, we will use modern C++20 or newer. Normally, we would use
-<a href="https://github.com/KhronosGroup/Vulkan-Hpp">Vulkan-Hpp</a> as C++ Vulkan binding.
-However, Vulkan-Hpp has some design limitations that advanced user might reach from time to time, but most importantly,
-the current version 1.3.283 takes about quarter of million lines of code that must be included and processed by the compiler.
+<p>In our tutorial, we will use modern C++20 or newer. Normally, we would use Vulkan C++ binding
+called <a href="https://github.com/KhronosGroup/Vulkan-Hpp">Vulkan-Hpp</a>.
+However, Vulkan-Hpp has some design limitations which advanced users might struggle with from time to time,
+but most importantly, the current version 1.3.283 takes about quarter of million lines of code
+that must be included and processed by the compiler.
 It takes roughly about 3-4 seconds to process such large headers by a modern processor of today.
-Another Vulkan-Hpp limitation is memory overhead of Unique_* and raii classes. Both issues are solved by vkg Vulkan binding.
-Vkg means Vulkan generated. Being generated, its another advantage is that not used parts of the API can be switched off
-and they will not be present in vkg.h and vkg.cpp.
-This, in turn, results in a smaller API, a little smaller output binary, and usually less function pointers which in turn
-results in a little better cache effectivity.</p>
+Another Vulkan-Hpp limitation is memory overhead of Unique_* and raii classes.
+Both mentioned issues are solved by vkg Vulkan binding. Vkg means Vulkan generated.
+Being generated, its another advantage is that not used parts of the API can be switched off
+and omitted from vkg.h and vkg.cpp.
+This results in a smaller API, a little smaller output binary, and usually less function pointers
+which, in turn, results in a little better cache effectivity.</p>
 
-<p>Now a little controversial thing: C++ exceptions. While not being expert, my experiments show that using exceptions
-results in higher application performance and make code more simple and readable. The reason seems to be simple:
-The use of exceptions removes much of the error handling routines from our code with the result
-of making code faster and more readable. Instead of the error handling code, many compilers create tables that control
-the process of exception handling. In other words, the error handling functionality is moved from code into tables,
+<p>Now a little controversial thing: C++ exceptions.
+While not being expert on C++ effectivity, my experiments show that using exceptions
+results in higher application performance and make code shorter and more readable. The reason seems to be simple:
+The use of exceptions removes much of the error handling logic from our code.
+The error status does not need to be returned from subrutine to current rutine
+and from the current rutine to parent rutine.
+And each routine level might require some condition logic to handle error conditions,
+incuring extra overhead even if no error was returned.
+Having exceptions, all this error condition logic and overhead might be removed,
+making the code faster and more readable.
+Instead of the error handling code, the task is handled by exceptions.
+Many compilers implement them by tables that control the process of exception handling.
+In other words, the error handling functionality is moved from our code into the tables,
 making our code faster and cleaner. The tables might make executables a little bigger, some say by 20%,
-but what usually matters is performance.</p>
+but what usually matters is performance and speed of development.</p>
 
-<p>Other people might argue that raising exception is very slow, thus they shall not be used.
+<p>Other people might argue that raising of an exception is very slow, thus exceptions shall not be used.
 My opinion is following: exception is related to the word exceptional. So, it is raised in exceptional situations
 like write failed because disk is full or Vulkan command failed because operating system restarted GPU driver.
-Such situations may an application handle by showing message dialog and by terminating the application.
+Such situations may be handled by showing message dialog and by terminating of the application.
 Who cares that the message dialog appeared few microseconds later?
 The system will probably wait couple of seconds anyway before the user clicks Ok.
 Or, who cares that an application termination took couple of microseconds more?
@@ -77,15 +114,18 @@ not the handling of exceptional circumstances that are often handled by applicat
 or other serious actions.</p>
 
 
+
 <h2>The first application: Instance and listing of physical devices</h2>
 
 <p>Our first Vulkan application will print names of all Vulkan physical devices installed in the given system.
 We will do it in five steps:</p>
-<ol><item>vk::loadLib() - loads Vulkan library</item>
+<ol>
+<item>vk::loadLib() - loads Vulkan library</item>
 <item>vk::createInstance() - creates global Vulkan instance object</item>
-<item>vk::enumeratePhysicalDevices() - get list of physical devices</item>
-<item>vk::getPhysicalDeviceProperties() - get properties of each physical device</item>
-<item>print device name</item></ol>
+<item>vk::enumeratePhysicalDevices() - gets list of physical devices</item>
+<item>vk::getPhysicalDeviceProperties() - gets properties of each physical device</item>
+<item>print device name</item>
+</ol>
 
 <p>And we have to wrap our code to catch exceptions if one is raised:</p>
 
@@ -106,7 +146,7 @@ int main(int, char**)
 				.pNext = nullptr,
 				.flags = 0,
 				.pApplicationInfo =
-					&(const vk::ApplicationInfo&)vk::ApplicationInfo{
+					&amp;(const vk::ApplicationInfo&amp;)vk::ApplicationInfo{
 						.sType = vk::STRUCTURE_TYPE_APPLICATION_INFO,
 						.pNext = nullptr,
 						.pApplicationName = "01-deviceList",
@@ -122,20 +162,20 @@ int main(int, char**)
 			});
 
 		// print device list
-		vk::Vector<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
-		cout << "Physical devices:" << endl;
-		for(size_t i=0; i<deviceList.size(); i++) {
+		vk::Vector&lt;vk::PhysicalDevice&gt; deviceList = vk::enumeratePhysicalDevices();
+		cout &lt;&lt; "Physical devices:" &lt;&lt; endl;
+		for(size_t i=0; i&lt;deviceList.size(); i++) {
 			vk::PhysicalDeviceProperties p = vk::getPhysicalDeviceProperties(deviceList[i]);
-			cout << "   " << p.deviceName << endl;
+			cout &lt;&lt; "   " &lt;&lt; p.deviceName &lt;&lt; endl;
 		}
 
 	// catch exceptions
-	} catch(vk::Error& e) {
-		cout << "Failed because of Vulkan exception: " << e.what() << endl;
-	} catch(exception& e) {
-		cout << "Failed because of exception: " << e.what() << endl;
+	} catch(vk::Error&amp; e) {
+		cout &lt;&lt; "Failed because of Vulkan exception: " &lt;&lt; e.what() &lt;&lt; endl;
+	} catch(exception&amp; e) {
+		cout &lt;&lt; "Failed because of exception: " &lt;&lt; e.what() &lt;&lt; endl;
 	} catch(...) {
-		cout << "Failed because of unspecified exception." << endl;
+		cout &lt;&lt; "Failed because of unspecified exception." &lt;&lt; endl;
 	}
 
 	return 0;
@@ -146,9 +186,9 @@ int main(int, char**)
 vk::InstanceCreateInfo and vk::ApplicationInfo.
 And that is the way Vulkan uses to communicate most of the data: through structures.
 We fill the data into the structures and pass them through Vulkan functions.
-Each structure has sType (structure type) member indicating type of the structure and pNext member.
+Most of the structures have sType (structure type) member indicating type of the structure and pNext member.
 The pNext member must be null or it must point to another valid Vulkan structure
-which might be a new extension or a kind of a new functionality.</p>
+which might be a structure from a new extension or a kind of a new functionality.</p>
 
 <p>The strange type cast <code>&(const vk::ApplicationInfo&)vk::ApplicationInfo{</code> just avoids
 the harmless warning about using pointer to temporary variable.</p>
@@ -196,6 +236,7 @@ For now, because we are not using any layers and any extensions, we just set the
 
 <p><b>vk::enumeratePhysicalDevices()</b> - returns the list of physical devices available in the system.
 Each physical device is represented by vk::PhysicalDevice handle.</p>
+
 </details>
 
 <p>We can download the <a href="">source code</a>, configure it by CMake, compile it and run it.
@@ -217,6 +258,9 @@ Here, we see Nvidia and AMD graphics as first two graphics cards.
 So, the user is probably developer who wants to test his applications on various graphics cards and various vendors.
 There is also integrated Intel graphics. The last one is llvmpipe that I often see on Linux.
 It is software implementation of Vulkan. It is useful on some special circumstances.</p>
+
+<p>If you see some error instead of graphics card list, there might be some problem on the computer.
+We shall fix it in the next article.</p>
 
 </body>
 </html>
