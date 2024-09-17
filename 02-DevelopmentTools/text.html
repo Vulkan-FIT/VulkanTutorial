@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en" manifest="/cache.appcache">
+
+<head>
+<title>02 - Development Tools</title>
+<meta charset="utf-8">
+<!-- link rel="stylesheet" rel="noopener" target="_blank" href="bootstrap/css/bootstrap.min.css" --> <!-- This link is only necessary if you’re using an external stylesheet -->
+<style media="screen" type="text/css">
+    html {
+        background-color: #000000;
+        background-image: url("volcano.jpg");
+        background-position: 50%, 50%;
+        background-size: cover;
+        background-attachment: fixed;
+        background-repeat: no-repeat;
+        color: #ffffff;
+    }
+    details {
+        background-color: rgba(96,96,96,0.75);
+    }
+    pre {
+        background-color: rgba(96,96,96,0.75);
+    }
+    a:link {
+        color: #33ccff;
+    }
+    a:visited {
+        color: #ccbbff;
+    }
+</style>
+</head>
+<body>
+
+<h1>Vulkan Tutorial</h1>
+
+<h2>02 - Development Tools</h2>
+
+<p>Number of valuable tools and utilities exist that might help us during application development
+and finally with its deployment on target computers.
+We will start with those that we can use immediately for testing of our application of the previous article
+that initializes Vulkan instance and prints out all Vulkan devices available.</p>
+
+
+
+<h3>Windows Sandbox</h3>
+
+<p>Windows Sandbox is a very useful tool to test our application on pristine Windows installation.
+Each time Windows Sandbox is started, it opens a virtual machine with the pristine Windows installation.
+After Windows Sandbox is closed, all the changes made inside it are lost.</p>
+
+<p>So, we can take our application of the previous article, put it inside Windows Sandbox and run it.
+If we provided all required DLLs with our application and if we set up our Windows Sandbox properly,
+we shall see the result similar to the following one:</p>
+
+<img width="960" height="540" src="Sandbox-vGPU+CPU-Vulkan-drivers-960.png"/>
+
+<details><summary>More details on Windows Sandbox installation and usage</summary>
+
+<p>When making a release of an application, we need to make sure that the application will run on other computers.
+Not just on the one that was used for development.
+Other computers might have different set of libraries and packages installed
+and often many libraries and packages are missing, compared to our development computer.
+To find all statically linked DLLs of our application, we can use, for instance,
+<a href="https://www.dependencywalker.com">DependencyWalker</a> or its modern alternative
+<a href="https://github.com/lucasg/Dependencies">Dependencies</a>.
+And to make a final test, we can use <a href="">Windows Sandbox</a>.
+Windows Sandbox provides pristine Windows installation each time we start it,
+so we can run our application there and see if it runs or some libraries are missing.</p>
+
+<p>Because applications are using different set of libraries on Windows we need to make sure
+that we included all of them with our executable. Otherwise, application might not run, for instance,
+on computers that does not have Visual C++ installed. Visual C++ brings some libraries with itself
+and these might be missing on other computers.
+Thus, Windows Sandbox might be perfect testing environment for this problem.</p>
+
+<p>To enable Windows Sandbox, you might need Pro or Enterprise version of Windows 10 or 11.
+It might not be available on Home editions. More detailed requirements can be found on internet.
+To enable it on Windows 11, go to: Settings -&gt; Apps -&gt; Optional features -&gt; More Windows features
+and check "Windows Sandbox". For Windows 10, use Settings -&gt; Apps -&gt; Apps & features -&gt;
+Programs and Features -&gt; Turn Windows features on or off and check "Windows Sandbox".</p>
+
+<p>After enabling Windows Sandbox, we can find it in our start menu.
+After running it, we get new pristine Windows running in isolation from our Windows.
+To test our Vulkan application, we need to copy its executable built in release configuration
+into the Sandbox. You can select it and press Ctrl+C on files you want to copy from your machine.
+Then, you can click, for instance, on Sandbox desktop and Ctrl+V will paste the files into Sandbox.</p>
+
+<p>We might also need MSVC runtime libraries.
+When using MSVC 2022, their names are probably msvcp140.dll, vcruntime140.dll and vcruntime140_1.dll.
+We can get them from MSVC installation folder or download them from
+<a href="https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170">Microsoft website</a>.
+Finally, we will need vulkan-1.dll. If we have graphics drivers installed, it can probably be found
+in Windows\system32 folder.</p>
+
+<p>After copying all the necessary files, we can open command prompt in the Sandbox,
+for instance, by opening Start menu and typing cmd.
+If we copied files to the desktop, we just cd into the folder, type executable name and run it,
+as is shown bellow:</p>
+
+<img width="960" height="540" src="Sandbox-no-Vulkan-driver-960.png"/>
+
+<p>However, we see Vulkan error that says "incompatible driver".
+It tells us there is not a single compatible Vulkan driver installed in the system,
+which might means that there is no Vulkan driver at all.
+To get working Vulkan driver, we can install CPU driver, or we can allow Windows Sandbox
+to use Vulkan device of the host operating system, for instance.</p>
+
+<p>To allow Windows Sandbox to use Vulkan device of the host operating system, we need to create a file
+on the host operating system with the following content:</p>
+
+<pre>
+&lt;Configuration&gt;
+	&lt;vGPU&gt;Enable&lt;/vGPU&gt;
+&lt;/Configuration&gt;
+</pre>
+
+<p>We can name it, for instance, "Windows Sandbox with vGPU.wsb". The suffix wsb is important.
+After the clicking on the file, it is opened by Windows Sandbox.
+Windows Sandbox reads the configuration file and starts with virtualized GPU.
+In other words, our Sandbox now looks like it uses graphics card of the host operating system.</p>
+
+<p>Another approach is to install Vulkan CPU driver named lavapipe that is part of
+<a href="https://www.mesa3d.org">Mesa 3D</a>. We can download Mesa 3D compiled binaries for Windows from
+<a href="https://github.com/pal1000/mesa-dist-win">https://github.com/pal1000/mesa-dist-win</a>.
+In the <a href="https://github.com/pal1000/mesa-dist-win/releases">releases section</a>, there are
+binaries built by MSVC and MinGW. Both of them should work well. Among the available downloads,
+I suggest to take the one with "release" in the name and to skip all "debug" and "devel" versions.
+After opening the downloaded zip, we need to find vulkan_lvp.dll and lvp_icd.x86_64.json.
+We can copy both files into the Windows Sandbox desktop and execute the following command in the command prompt:</p>
+
+<pre>
+reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Khronos\Vulkan\Drivers" /v "C:\Users\WDAGUtilityAccount\Desktop\lvp_icd.x86_64.json" /t REG_DWORD /d 0 /f
+</pre>
+
+<p>Or, we can create bat file for the command above for easy driver registering each time we need it.
+After executing the command, Windows registry contains the reference to lvp_icd.x86_64.json file.
+The json file carries the info about the driver stored in vulkan_lvp.dll.
+Now, we should have working Vulkan:</p>
+
+<img width="960" height="540" src="Sandbox-vGPU+CPU-Vulkan-drivers-960.png"/>
+
+<p>In the screenshot, we can see Intel UHD Graphics that is connected to the real Intel
+graphics card in the host operating system. For some reason probably known to Microsoft
+it appears three times. The second Vulkan physical device is llvmpipe. It is CPU Vulkan implementation
+installed as described above. Now we have working Vulkan testing environment in Windows Sandbox.</p>
+
+</details>
+
+
+
+<h3>Vulkan Validation Layers</h3>
+
+<p>Another way to test our application are Vulkan Validation Layers (VVL).
+Vulkan Validation Layers (VVL) stays between our application and Vulkan implementation
+and perform validation of Vulkan API calls. In other words, VVL checks for the correct Vulkan API usage.
+Vulkan is designed for performance, so it is not expected to waste computing resources on checking of
+the correct API usage. Instead, VVL are usually activated only by the developer using vkconfig tool
+that simplifies their setup using relatively simple GUI:</p>
+
+<img width="960" height="515" src="vkconfig-gui.png"/>
+
+<details><summary>More on Vulkan Validation Layers and vkconfig</summary>
+
+<p>Vulkan Validation Layers are part of Vulkan SDK.
+So, we can <a href="https://vulkan.lunarg.com/sdk/home">download Vulkan SDK</a> for our platform and install it.
+On Linux, it is possible that packages for Vulkan Validation Layers and vkconfig exist for our Linux distribution.
+I usually had problem that vkconfig was not present in the packages.</p>
+
+<p>Once we have the things on place, we can use vkconfig utility. On Windows, we can go to Start and type vkconfig
+or find Vulkan Configurator in the menu. On Linux, typing vkconfig in the console might be the way,
+or it may appear also in your Start menu of your Linux desktop.</p>
+
+<p>Long info about the usage can be found in
+<a href="https://github.com/LunarG/VulkanTools/blob/main/vkconfig/README.md">vkconfig README.md</a>.
+For us, the most essential settings are in top-left part called "Vulkan Layers Management".
+We need the option "Overriding Layers by the Vulkan Configurator" to be selected.
+In the left center part called "Vulkan Layers Configurations", we need "Validation" to be selected.
+Finally in the right part, "Validation Settings" should be shown allowing us to customize them.</p>
+
+<p>I usually enable as much as possible options in "Validation Areas" section.
+The exception might be some options that give me some troubles for some reason.
+One big exception also includes "Best Practices". They are useful to some extent, but I usually keep them off.
+The option "GPU base" I keep usually set to GPU-Assisted except when I need printf functionality from the shaders.</p>
+
+<p>For Visual C++ debugger, I suggest to set the following options:</p>
+
+<img width="856" height="400" src="vkconfig-MSVC-settings.png"/>
+
+<p>The option "Log Message" enables printing of validation messages into the console for console applications.
+"Debug Output" option makes messages appear in Output Window inside Visual C++ IDE.
+"Break" option makes the Visual C++ debugger to stop when Validation Layer message is emitted.</p>
+
+<p>When we run the application again with Validation Layers, we shall see the following output:</p>
+
+<img width="50%" height="50%" src="validation-info.png"/>
+
+<p>The application give us the first validation message.
+In this case, it is just an info that Vulkan Validation Layers are active.
+If it disturb us, we can mute the message inside vkconfig by adding its VUID taken from the message itself:</p>
+
+<img width=50% height=auto src="vkconfig-mute-message.png"/>
+
+<p>Now, Vulkan Validation Layers run as expected. We can test them by intentionally introduce an error in the code.
+We might "mistakenly" type vk::STRUCTURE_TYPE_<b>LOADER</b>_INSTANCE_CREATE_INFO instead of
+vk::STRUCTURE_TYPE_INSTANCE_CREATE_INFO:</p>
+
+<pre>
+			vk::InstanceCreateInfo{
+				.sType = vk::STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO,
+				.pNext = nullptr,
+</pre>
+
+<p>This is obviously error. Validation Layers will immediately discover it:</p>
+
+<img width=50% height=auto src="validation-error.png"/>
+
+<p>The code might still run well, but depending on driver implementation,
+it might crash on another computer. So, we should definitely fix it.
+Applications are expected to use Vulkan API correctly,
+otherwise the behaviour is undefined.</p>
+
+</details>
+
+
+
+<h3>Valgrind</h3>
+
+<p>Wrong memory access is often very difficult to debug.
+Even if the application behaviour is seemingly perfect,
+it is useful to make sure that there are no memory access issues that might bite us when some new conditions are met.
+<a href="https://valgrind.org">Valgrind</a> is perfect tool for that. Unfortunately, it is only for Linux.</p>
+
+<p>Valgrind translates the program into its own form and appends all kinds of memory access checks including
+reading and writing before or after allocated memory, reading and writing to already freed memory,
+reading of uninitialized memory, detecting of memory leaks, and so on.</p>
+
+<p>After running valgrind on our application we can see the output:</p>
+
+<pre>
+valgrind --tool=memcheck ...exeName...
+...output...
+</pre>
+
+<p>In other words, there is no wrong memory</p>
+
+<details><summary>More details on valgrind</summary>
+
+<p>Many distributions provide packages for Valgrind. After installing it, we can run it by:</p>
+
+<pre>
+valgrind --tool=memcheck &lt;name of our application&gt;
+</pre>
+
+<p>Valgrind might report many errors, some of them from system libraries or from drivers.
+Because we usually do not want to deal with system libraries or drivers,
+we can generate suppression file and use it to ignore these errors.
+We can also tweak depth of call stack printed for us, and so on.
+Some useful options might be: --num-callers=100, --error-limit=no,
+--gen-suppressions=yes or --suppressions=&lt;filename of suppression file&gt;.</p>
+
+<p>Sometimes, Valgrind is extremely valuable tool.</p>
+
+</details>
+
+
+
+<h3>Other tools</h3>
+
+<p>Much more tools exist. If one is interested, he might take a look on Nvidia Nsight, for instance,
+or on Vulkan Hardware Capability Viewer (vulkanCapsViewer) that is part of Vulkan SDK,
+or one of the tools on
+<a href="https://vulkan.org/tools#profilers-and-debuggers">vulkan.org -> Tools -> Profiling and debugging</a>.</p>
