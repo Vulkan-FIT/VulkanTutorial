@@ -1,0 +1,25 @@
+html {
+    background-color: #000000;
+    background-image: url("volcano.jpg");
+    background-position: 50%, 50%;
+    background-size: cover;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    color: #ffffff;
+}
+
+details {
+    background-color: rgba(96,96,96,0.75);
+}
+
+pre {
+    background-color: rgba(96,96,96,0.75);
+}
+
+a:link {
+    color: #33ccff;
+}
+
+a:visited {
+    color: #ccbbff;
+}
