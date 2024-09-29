@@ -581,7 +581,7 @@ Vector<ExtensionProperties> vk::enumerateInstanceExtensionProperties(const char*
 		// enumerate extensions
 		v.alloc(n);
 		r = funcs.vkEnumerateInstanceExtensionProperties(pLayerName, &n, v.data());
-		checkSuccessfulCompletion(r, "vkEnumerateInstanceExtensionProperties");
+		checkSuccess(r, "vkEnumerateInstanceExtensionProperties");
 
 	} while(r == vk::Result::eIncomplete);
 
@@ -606,7 +606,7 @@ Vector<LayerProperties> vk::enumerateInstanceLayerProperties()
 		// enumerate layers
 		v.alloc(n);
 		r = funcs.vkEnumerateInstanceLayerProperties(&n, v.data());
-		checkSuccessfulCompletion(r, "vkEnumerateInstanceLayerProperties");
+		checkSuccess(r, "vkEnumerateInstanceLayerProperties");
 
 	} while(r == vk::Result::eIncomplete);
 
@@ -631,7 +631,7 @@ Vector<PhysicalDevice> vk::enumeratePhysicalDevices()
 		// enumerate physical devices
 		v.alloc(n);
 		r = funcs.vkEnumeratePhysicalDevices(instance(), &n, v.data());
-		checkSuccessfulCompletion(r, "vkEnumeratePhysicalDevices");
+		checkSuccess(r, "vkEnumeratePhysicalDevices");
 
 	} while(r == vk::Result::eIncomplete);
 

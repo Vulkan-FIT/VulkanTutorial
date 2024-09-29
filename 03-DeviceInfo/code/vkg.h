@@ -2172,7 +2172,7 @@ size_t int32ToString(int32_t value, char* bufferAtLeast12BytesLong);
 void throwResultExceptionWithMessage(Result result, const char* message);
 void throwResultException(const char* funcName, Result result);
 inline void checkSuccessValue(Result result, const char* funcName)  { if(result != vk::Result::eSuccess) throwResultException(funcName, result); }
-inline void checkSuccessfulCompletion(Result result, const char* funcName)  { if(int32_t(result) < 0) throwResultException(funcName, result); }
+inline void checkSuccess(Result result, const char* funcName)  { if(int32_t(result) < 0) throwResultException(funcName, result); }
 
 class Error {
 protected:
