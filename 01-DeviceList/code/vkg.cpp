@@ -71,7 +71,7 @@ void vk::loadLib(const std::filesystem::path& libPath)
 }
 
 
-void vk::createInstance(const vk::InstanceCreateInfo& pCreateInfo)
+void vk::initInstance(const vk::InstanceCreateInfo& pCreateInfo)
 {
 	assert(detail::_library && "vk::loadLib() must be called before vk::createInstance().");
 

@@ -16,7 +16,7 @@ int main(int, char**)
 		vk::loadLib();
 
 		// Vulkan instance
-		vk::createInstance(
+		vk::initInstance(
 			vk::InstanceCreateInfo{
 				.sType = vk::STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO,
 				.pNext = nullptr,

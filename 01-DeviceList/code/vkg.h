@@ -48,7 +48,7 @@ inline Device device()  { return detail::_device; }
 // author: PCJohn (peciva at fit.vut.cz)
 void loadLib();
 void loadLib(const std::filesystem::path& libPath);
-void createInstance(const struct InstanceCreateInfo& createInfo);
+void initInstance(const struct InstanceCreateInfo& createInfo);
 void initInstance(Instance instance);
 void initDevice(Device device);
 template<typename T> inline T getInstanceProcAddr(const char* name) noexcept;
