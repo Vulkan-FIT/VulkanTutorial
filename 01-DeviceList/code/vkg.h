@@ -1,18 +1,8 @@
 #pragma once
 
-//import std;
-
-#define VK_NO_PROTOTYPES
-//#include <vulkan/vulkan.h>
-//#include <filesystem>
-//#include <stdexcept>
-//#include <exception>
-//#include <string>
 #include <cstdint>
 #include <stdlib.h>
 #include <string.h>
-//#include <vector>
-//#include <memory>
 
 namespace std {
 class logic_error;
@@ -37,11 +27,13 @@ namespace detail {
 	extern void* _library;
 	extern Instance _instance;
 	extern Device _device;
+	extern uint32_t _instanceVersion;
 }
 
 inline void* library()  { return detail::_library; }
 inline Instance instance()  { return detail::_instance; }
 inline Device device()  { return detail::_device; }
+inline uint32_t enumerateInstanceVersion()  { return detail::_instanceVersion; }
 
 
 // initialization and cleanUp functions
@@ -50,6 +42,7 @@ void loadLib();
 void loadLib(const std::filesystem::path& libPath);
 void initInstance(const struct InstanceCreateInfo& createInfo);
 void initInstance(Instance instance);
+void initDevice(PhysicalDevice pd, const struct DeviceCreateInfo& createInfo);
 void initDevice(Device device);
 template<typename T> inline T getInstanceProcAddr(const char* name) noexcept;
 template<typename T> inline T getDeviceProcAddr(const char* name) noexcept;
@@ -71,131 +64,397 @@ static VkgInitAndCleanUp vkgInitAndCleanUp;
 
 
 // enums
-// copied from vulkan_core.h
-typedef enum Result {
-    SUCCESS = 0,
-    NOT_READY = 1,
-    TIMEOUT = 2,
-    EVENT_SET = 3,
-    EVENT_RESET = 4,
-    INCOMPLETE = 5,
-    ERROR_OUT_OF_HOST_MEMORY = -1,
-    ERROR_OUT_OF_DEVICE_MEMORY = -2,
-    ERROR_INITIALIZATION_FAILED = -3,
-    ERROR_DEVICE_LOST = -4,
-    ERROR_MEMORY_MAP_FAILED = -5,
-    ERROR_LAYER_NOT_PRESENT = -6,
-    ERROR_EXTENSION_NOT_PRESENT = -7,
-    ERROR_FEATURE_NOT_PRESENT = -8,
-    ERROR_INCOMPATIBLE_DRIVER = -9,
-    ERROR_TOO_MANY_OBJECTS = -10,
-    ERROR_FORMAT_NOT_SUPPORTED = -11,
-    ERROR_FRAGMENTED_POOL = -12,
-    ERROR_UNKNOWN = -13,
-    ERROR_OUT_OF_POOL_MEMORY = -1000069000,
-    ERROR_INVALID_EXTERNAL_HANDLE = -1000072003,
-    ERROR_FRAGMENTATION = -1000161000,
-    ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS = -1000257000,
-    PIPELINE_COMPILE_REQUIRED = 1000297000,
-    ERROR_SURFACE_LOST_KHR = -1000000000,
-    ERROR_NATIVE_WINDOW_IN_USE_KHR = -1000000001,
-    SUBOPTIMAL_KHR = 1000001003,
-    ERROR_OUT_OF_DATE_KHR = -1000001004,
-    ERROR_INCOMPATIBLE_DISPLAY_KHR = -1000003001,
-    ERROR_VALIDATION_FAILED_EXT = -1000011001,
-    ERROR_INVALID_SHADER_NV = -1000012000,
-    ERROR_IMAGE_USAGE_NOT_SUPPORTED_KHR = -1000023000,
-    ERROR_VIDEO_PICTURE_LAYOUT_NOT_SUPPORTED_KHR = -1000023001,
-    ERROR_VIDEO_PROFILE_OPERATION_NOT_SUPPORTED_KHR = -1000023002,
-    ERROR_VIDEO_PROFILE_FORMAT_NOT_SUPPORTED_KHR = -1000023003,
-    ERROR_VIDEO_PROFILE_CODEC_NOT_SUPPORTED_KHR = -1000023004,
-    ERROR_VIDEO_STD_VERSION_NOT_SUPPORTED_KHR = -1000023005,
-    ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT = -1000158000,
-    ERROR_NOT_PERMITTED_KHR = -1000174001,
-    ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT = -1000255000,
-    THREAD_IDLE_KHR = 1000268000,
-    THREAD_DONE_KHR = 1000268001,
-    OPERATION_DEFERRED_KHR = 1000268002,
-    OPERATION_NOT_DEFERRED_KHR = 1000268003,
-    ERROR_INVALID_VIDEO_STD_PARAMETERS_KHR = -1000299000,
-    ERROR_COMPRESSION_EXHAUSTED_EXT = -1000338000,
-    INCOMPATIBLE_SHADER_BINARY_EXT = 1000482000,
-    ERROR_OUT_OF_POOL_MEMORY_KHR = ERROR_OUT_OF_POOL_MEMORY,
-    ERROR_INVALID_EXTERNAL_HANDLE_KHR = ERROR_INVALID_EXTERNAL_HANDLE,
-    ERROR_FRAGMENTATION_EXT = ERROR_FRAGMENTATION,
-    ERROR_NOT_PERMITTED_EXT = ERROR_NOT_PERMITTED_KHR,
-    ERROR_INVALID_DEVICE_ADDRESS_EXT = ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS,
-    ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS_KHR = ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS,
-    PIPELINE_COMPILE_REQUIRED_EXT = PIPELINE_COMPILE_REQUIRED,
-    ERROR_PIPELINE_COMPILE_REQUIRED_EXT = PIPELINE_COMPILE_REQUIRED,
-    ERROR_INCOMPATIBLE_SHADER_BINARY_EXT = INCOMPATIBLE_SHADER_BINARY_EXT,
-} Result;
-
-
-// version macro replacements
 // author: PCJohn (peciva at fit.vut.cz)
-constexpr uint32_t makeApiVersion(uint32_t variant, uint32_t major, uint32_t minor, uint32_t patch)  { return (variant << 29) | (major << 22) | (minor << 12) | patch; }
-constexpr uint32_t makeApiVersion(uint32_t major, uint32_t minor, uint32_t patch)  { return (major << 22) | (minor << 12) | patch; }
-constexpr const uint32_t apiVersion1_0 = makeApiVersion(0, 1, 0, 0);
-
-
-// taken from vk_platform.h
-/* Platform-specific calling convention macros.
- *
- * Platforms should define these so that Vulkan clients call Vulkan commands
- * with the same calling conventions that the Vulkan implementation expects.
- *
- * VKAPI_ATTR - Placed before the return type in function declarations.
- *              Useful for C++11 and GCC/Clang-style function attribute syntax.
- * VKAPI_CALL - Placed after the return type in function declarations.
- *              Useful for MSVC-style calling convention syntax.
- * VKAPI_PTR  - Placed between the '(' and '*' in function pointer types.
- *
- * Function declaration:  VKAPI_ATTR void VKAPI_CALL vkCommand(void);
- * Function pointer type: typedef void (VKAPI_PTR *PFN_vkCommand)(void);
- */
-#if defined(_WIN32)
-    // On Windows, Vulkan commands use the stdcall convention
-    #define VKAPI_ATTR
-    #define VKAPI_CALL __stdcall
-    #define VKAPI_PTR  VKAPI_CALL
-#elif defined(__ANDROID__) && defined(__ARM_ARCH) && __ARM_ARCH < 7
-    #error "Vulkan is not supported for the 'armeabi' NDK ABI"
-#elif defined(__ANDROID__) && defined(__ARM_ARCH) && __ARM_ARCH >= 7 && defined(__ARM_32BIT_STATE)
-    // On Android 32-bit ARM targets, Vulkan functions use the "hardfloat"
-    // calling convention, i.e. float parameters are passed in registers. This
-    // is true even if the rest of the application passes floats on the stack,
-    // as it does by default when compiling for the armeabi-v7a NDK ABI.
-    #define VKAPI_ATTR __attribute__((pcs("aapcs-vfp")))
-    #define VKAPI_CALL
-    #define VKAPI_PTR  VKAPI_ATTR
-#else
-    // On other platforms, use the default calling convention
-    #define VKAPI_ATTR
-    #define VKAPI_CALL
-    #define VKAPI_PTR
+enum class Result
+{
+	eSuccess                                     = 0,
+	eNotReady                                    = 1,
+	eTimeout                                     = 2,
+	eEventSet                                    = 3,
+	eEventReset                                  = 4,
+	eIncomplete                                  = 5,
+	eErrorOutOfHostMemory                        = -1,
+	eErrorOutOfDeviceMemory                      = -2,
+	eErrorInitializationFailed                   = -3,
+	eErrorDeviceLost                             = -4,
+	eErrorMemoryMapFailed                        = -5,
+	eErrorLayerNotPresent                        = -6,
+	eErrorExtensionNotPresent                    = -7,
+	eErrorFeatureNotPresent                      = -8,
+	eErrorIncompatibleDriver                     = -9,
+	eErrorTooManyObjects                         = -10,
+	eErrorFormatNotSupported                     = -11,
+	eErrorFragmentedPool                         = -12,
+	eErrorUnknown                                = -13,
+	eErrorOutOfPoolMemory                        = -1000069000,
+	eErrorOutOfPoolMemoryKHR                     = eErrorOutOfPoolMemory,
+	eErrorInvalidExternalHandle                  = -1000072003,
+	eErrorInvalidExternalHandleKHR               = eErrorInvalidExternalHandle,
+	eErrorFragmentation                          = -1000161000,
+	eErrorFragmentationEXT                       = eErrorFragmentation,
+	eErrorInvalidOpaqueCaptureAddress            = -1000257000,
+	eErrorInvalidDeviceAddressEXT                = eErrorInvalidOpaqueCaptureAddress,
+	eErrorInvalidOpaqueCaptureAddressKHR         = eErrorInvalidOpaqueCaptureAddress,
+	ePipelineCompileRequired                     = 1000297000,
+	eErrorPipelineCompileRequiredEXT             = ePipelineCompileRequired,
+	ePipelineCompileRequiredEXT                  = ePipelineCompileRequired,
+	eErrorSurfaceLostKHR                         = -1000000000,
+	eErrorNativeWindowInUseKHR                   = -1000000001,
+	eSuboptimalKHR                               = 1000001003,
+	eErrorOutOfDateKHR                           = -1000001004,
+	eErrorIncompatibleDisplayKHR                 = -1000003001,
+	eErrorValidationFailedEXT                    = -1000011001,
+	eErrorInvalidShaderNV                        = -1000012000,
+	eErrorImageUsageNotSupportedKHR              = -1000023000,
+	eErrorVideoPictureLayoutNotSupportedKHR      = -1000023001,
+	eErrorVideoProfileOperationNotSupportedKHR   = -1000023002,
+	eErrorVideoProfileFormatNotSupportedKHR      = -1000023003,
+	eErrorVideoProfileCodecNotSupportedKHR       = -1000023004,
+	eErrorVideoStdVersionNotSupportedKHR         = -1000023005,
+	eErrorInvalidDrmFormatModifierPlaneLayoutEXT = -1000158000,
+	eErrorNotPermittedKHR                        = -1000174001,
+	eErrorNotPermittedEXT                        = eErrorNotPermittedKHR,
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
+	eErrorFullScreenExclusiveModeLostEXT = -1000255000,
 #endif
+	eThreadIdleKHR                     = 1000268000,
+	eThreadDoneKHR                     = 1000268001,
+	eOperationDeferredKHR              = 1000268002,
+	eOperationNotDeferredKHR           = 1000268003,
+	eErrorInvalidVideoStdParametersKHR = -1000299000,
+	eErrorCompressionExhaustedEXT      = -1000338000,
+	eIncompatibleShaderBinaryEXT       = 1000482000,
+	eErrorIncompatibleShaderBinaryEXT  = eIncompatibleShaderBinaryEXT,
+};
 
+enum class Format {
+    eUndefined = 0,
+    R4G4UnormPack8 = 1,
+    VK_FORMAT_R4G4B4A4_UNORM_PACK16 = 2,
+    VK_FORMAT_B4G4R4A4_UNORM_PACK16 = 3,
+    VK_FORMAT_R5G6B5_UNORM_PACK16 = 4,
+    VK_FORMAT_B5G6R5_UNORM_PACK16 = 5,
+    VK_FORMAT_R5G5B5A1_UNORM_PACK16 = 6,
+    VK_FORMAT_B5G5R5A1_UNORM_PACK16 = 7,
+    VK_FORMAT_A1R5G5B5_UNORM_PACK16 = 8,
+    VK_FORMAT_R8_UNORM = 9,
+    VK_FORMAT_R8_SNORM = 10,
+    VK_FORMAT_R8_USCALED = 11,
+    VK_FORMAT_R8_SSCALED = 12,
+    VK_FORMAT_R8_UINT = 13,
+    VK_FORMAT_R8_SINT = 14,
+    VK_FORMAT_R8_SRGB = 15,
+    VK_FORMAT_R8G8_UNORM = 16,
+    VK_FORMAT_R8G8_SNORM = 17,
+    VK_FORMAT_R8G8_USCALED = 18,
+    VK_FORMAT_R8G8_SSCALED = 19,
+    VK_FORMAT_R8G8_UINT = 20,
+    VK_FORMAT_R8G8_SINT = 21,
+    VK_FORMAT_R8G8_SRGB = 22,
+    VK_FORMAT_R8G8B8_UNORM = 23,
+    VK_FORMAT_R8G8B8_SNORM = 24,
+    VK_FORMAT_R8G8B8_USCALED = 25,
+    VK_FORMAT_R8G8B8_SSCALED = 26,
+    VK_FORMAT_R8G8B8_UINT = 27,
+    VK_FORMAT_R8G8B8_SINT = 28,
+    VK_FORMAT_R8G8B8_SRGB = 29,
+    VK_FORMAT_B8G8R8_UNORM = 30,
+    VK_FORMAT_B8G8R8_SNORM = 31,
+    VK_FORMAT_B8G8R8_USCALED = 32,
+    VK_FORMAT_B8G8R8_SSCALED = 33,
+    VK_FORMAT_B8G8R8_UINT = 34,
+    VK_FORMAT_B8G8R8_SINT = 35,
+    VK_FORMAT_B8G8R8_SRGB = 36,
+    eR8G8B8A8Unorm = 37,
+    VK_FORMAT_R8G8B8A8_SNORM = 38,
+    VK_FORMAT_R8G8B8A8_USCALED = 39,
+    VK_FORMAT_R8G8B8A8_SSCALED = 40,
+    VK_FORMAT_R8G8B8A8_UINT = 41,
+    VK_FORMAT_R8G8B8A8_SINT = 42,
+    eR8G8B8A8Srgb = 43,
+    VK_FORMAT_B8G8R8A8_UNORM = 44,
+    VK_FORMAT_B8G8R8A8_SNORM = 45,
+    VK_FORMAT_B8G8R8A8_USCALED = 46,
+    VK_FORMAT_B8G8R8A8_SSCALED = 47,
+    VK_FORMAT_B8G8R8A8_UINT = 48,
+    VK_FORMAT_B8G8R8A8_SINT = 49,
+    VK_FORMAT_B8G8R8A8_SRGB = 50,
+    VK_FORMAT_A8B8G8R8_UNORM_PACK32 = 51,
+    VK_FORMAT_A8B8G8R8_SNORM_PACK32 = 52,
+    VK_FORMAT_A8B8G8R8_USCALED_PACK32 = 53,
+    VK_FORMAT_A8B8G8R8_SSCALED_PACK32 = 54,
+    VK_FORMAT_A8B8G8R8_UINT_PACK32 = 55,
+    VK_FORMAT_A8B8G8R8_SINT_PACK32 = 56,
+    VK_FORMAT_A8B8G8R8_SRGB_PACK32 = 57,
+    VK_FORMAT_A2R10G10B10_UNORM_PACK32 = 58,
+    VK_FORMAT_A2R10G10B10_SNORM_PACK32 = 59,
+    VK_FORMAT_A2R10G10B10_USCALED_PACK32 = 60,
+    VK_FORMAT_A2R10G10B10_SSCALED_PACK32 = 61,
+    VK_FORMAT_A2R10G10B10_UINT_PACK32 = 62,
+    VK_FORMAT_A2R10G10B10_SINT_PACK32 = 63,
+    VK_FORMAT_A2B10G10R10_UNORM_PACK32 = 64,
+    VK_FORMAT_A2B10G10R10_SNORM_PACK32 = 65,
+    VK_FORMAT_A2B10G10R10_USCALED_PACK32 = 66,
+    VK_FORMAT_A2B10G10R10_SSCALED_PACK32 = 67,
+    VK_FORMAT_A2B10G10R10_UINT_PACK32 = 68,
+    VK_FORMAT_A2B10G10R10_SINT_PACK32 = 69,
+    VK_FORMAT_R16_UNORM = 70,
+    VK_FORMAT_R16_SNORM = 71,
+    VK_FORMAT_R16_USCALED = 72,
+    VK_FORMAT_R16_SSCALED = 73,
+    VK_FORMAT_R16_UINT = 74,
+    VK_FORMAT_R16_SINT = 75,
+    VK_FORMAT_R16_SFLOAT = 76,
+    VK_FORMAT_R16G16_UNORM = 77,
+    VK_FORMAT_R16G16_SNORM = 78,
+    VK_FORMAT_R16G16_USCALED = 79,
+    VK_FORMAT_R16G16_SSCALED = 80,
+    VK_FORMAT_R16G16_UINT = 81,
+    VK_FORMAT_R16G16_SINT = 82,
+    VK_FORMAT_R16G16_SFLOAT = 83,
+    VK_FORMAT_R16G16B16_UNORM = 84,
+    VK_FORMAT_R16G16B16_SNORM = 85,
+    VK_FORMAT_R16G16B16_USCALED = 86,
+    VK_FORMAT_R16G16B16_SSCALED = 87,
+    VK_FORMAT_R16G16B16_UINT = 88,
+    VK_FORMAT_R16G16B16_SINT = 89,
+    VK_FORMAT_R16G16B16_SFLOAT = 90,
+    VK_FORMAT_R16G16B16A16_UNORM = 91,
+    VK_FORMAT_R16G16B16A16_SNORM = 92,
+    VK_FORMAT_R16G16B16A16_USCALED = 93,
+    VK_FORMAT_R16G16B16A16_SSCALED = 94,
+    VK_FORMAT_R16G16B16A16_UINT = 95,
+    VK_FORMAT_R16G16B16A16_SINT = 96,
+    VK_FORMAT_R16G16B16A16_SFLOAT = 97,
+    VK_FORMAT_R32_UINT = 98,
+    VK_FORMAT_R32_SINT = 99,
+    VK_FORMAT_R32_SFLOAT = 100,
+    VK_FORMAT_R32G32_UINT = 101,
+    VK_FORMAT_R32G32_SINT = 102,
+    VK_FORMAT_R32G32_SFLOAT = 103,
+    VK_FORMAT_R32G32B32_UINT = 104,
+    VK_FORMAT_R32G32B32_SINT = 105,
+    VK_FORMAT_R32G32B32_SFLOAT = 106,
+    VK_FORMAT_R32G32B32A32_UINT = 107,
+    VK_FORMAT_R32G32B32A32_SINT = 108,
+    VK_FORMAT_R32G32B32A32_SFLOAT = 109,
+    VK_FORMAT_R64_UINT = 110,
+    VK_FORMAT_R64_SINT = 111,
+    VK_FORMAT_R64_SFLOAT = 112,
+    VK_FORMAT_R64G64_UINT = 113,
+    VK_FORMAT_R64G64_SINT = 114,
+    VK_FORMAT_R64G64_SFLOAT = 115,
+    VK_FORMAT_R64G64B64_UINT = 116,
+    VK_FORMAT_R64G64B64_SINT = 117,
+    VK_FORMAT_R64G64B64_SFLOAT = 118,
+    VK_FORMAT_R64G64B64A64_UINT = 119,
+    VK_FORMAT_R64G64B64A64_SINT = 120,
+    VK_FORMAT_R64G64B64A64_SFLOAT = 121,
+    VK_FORMAT_B10G11R11_UFLOAT_PACK32 = 122,
+    VK_FORMAT_E5B9G9R9_UFLOAT_PACK32 = 123,
+    VK_FORMAT_D16_UNORM = 124,
+    VK_FORMAT_X8_D24_UNORM_PACK32 = 125,
+    VK_FORMAT_D32_SFLOAT = 126,
+    VK_FORMAT_S8_UINT = 127,
+    VK_FORMAT_D16_UNORM_S8_UINT = 128,
+    VK_FORMAT_D24_UNORM_S8_UINT = 129,
+    VK_FORMAT_D32_SFLOAT_S8_UINT = 130,
+    VK_FORMAT_BC1_RGB_UNORM_BLOCK = 131,
+    VK_FORMAT_BC1_RGB_SRGB_BLOCK = 132,
+    VK_FORMAT_BC1_RGBA_UNORM_BLOCK = 133,
+    VK_FORMAT_BC1_RGBA_SRGB_BLOCK = 134,
+    VK_FORMAT_BC2_UNORM_BLOCK = 135,
+    VK_FORMAT_BC2_SRGB_BLOCK = 136,
+    VK_FORMAT_BC3_UNORM_BLOCK = 137,
+    VK_FORMAT_BC3_SRGB_BLOCK = 138,
+    VK_FORMAT_BC4_UNORM_BLOCK = 139,
+    VK_FORMAT_BC4_SNORM_BLOCK = 140,
+    VK_FORMAT_BC5_UNORM_BLOCK = 141,
+    VK_FORMAT_BC5_SNORM_BLOCK = 142,
+    VK_FORMAT_BC6H_UFLOAT_BLOCK = 143,
+    VK_FORMAT_BC6H_SFLOAT_BLOCK = 144,
+    VK_FORMAT_BC7_UNORM_BLOCK = 145,
+    VK_FORMAT_BC7_SRGB_BLOCK = 146,
+    VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK = 147,
+    VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK = 148,
+    VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK = 149,
+    VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK = 150,
+    VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK = 151,
+    VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK = 152,
+    VK_FORMAT_EAC_R11_UNORM_BLOCK = 153,
+    VK_FORMAT_EAC_R11_SNORM_BLOCK = 154,
+    VK_FORMAT_EAC_R11G11_UNORM_BLOCK = 155,
+    VK_FORMAT_EAC_R11G11_SNORM_BLOCK = 156,
+    VK_FORMAT_ASTC_4x4_UNORM_BLOCK = 157,
+    VK_FORMAT_ASTC_4x4_SRGB_BLOCK = 158,
+    VK_FORMAT_ASTC_5x4_UNORM_BLOCK = 159,
+    VK_FORMAT_ASTC_5x4_SRGB_BLOCK = 160,
+    VK_FORMAT_ASTC_5x5_UNORM_BLOCK = 161,
+    VK_FORMAT_ASTC_5x5_SRGB_BLOCK = 162,
+    VK_FORMAT_ASTC_6x5_UNORM_BLOCK = 163,
+    VK_FORMAT_ASTC_6x5_SRGB_BLOCK = 164,
+    VK_FORMAT_ASTC_6x6_UNORM_BLOCK = 165,
+    VK_FORMAT_ASTC_6x6_SRGB_BLOCK = 166,
+    VK_FORMAT_ASTC_8x5_UNORM_BLOCK = 167,
+    VK_FORMAT_ASTC_8x5_SRGB_BLOCK = 168,
+    VK_FORMAT_ASTC_8x6_UNORM_BLOCK = 169,
+    VK_FORMAT_ASTC_8x6_SRGB_BLOCK = 170,
+    VK_FORMAT_ASTC_8x8_UNORM_BLOCK = 171,
+    VK_FORMAT_ASTC_8x8_SRGB_BLOCK = 172,
+    VK_FORMAT_ASTC_10x5_UNORM_BLOCK = 173,
+    VK_FORMAT_ASTC_10x5_SRGB_BLOCK = 174,
+    VK_FORMAT_ASTC_10x6_UNORM_BLOCK = 175,
+    VK_FORMAT_ASTC_10x6_SRGB_BLOCK = 176,
+    VK_FORMAT_ASTC_10x8_UNORM_BLOCK = 177,
+    VK_FORMAT_ASTC_10x8_SRGB_BLOCK = 178,
+    VK_FORMAT_ASTC_10x10_UNORM_BLOCK = 179,
+    VK_FORMAT_ASTC_10x10_SRGB_BLOCK = 180,
+    VK_FORMAT_ASTC_12x10_UNORM_BLOCK = 181,
+    VK_FORMAT_ASTC_12x10_SRGB_BLOCK = 182,
+    VK_FORMAT_ASTC_12x12_UNORM_BLOCK = 183,
+    VK_FORMAT_ASTC_12x12_SRGB_BLOCK = 184,
+    VK_FORMAT_G8B8G8R8_422_UNORM = 1000156000,
+    VK_FORMAT_B8G8R8G8_422_UNORM = 1000156001,
+    VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM = 1000156002,
+    VK_FORMAT_G8_B8R8_2PLANE_420_UNORM = 1000156003,
+    VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM = 1000156004,
+    VK_FORMAT_G8_B8R8_2PLANE_422_UNORM = 1000156005,
+    VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM = 1000156006,
+    VK_FORMAT_R10X6_UNORM_PACK16 = 1000156007,
+    VK_FORMAT_R10X6G10X6_UNORM_2PACK16 = 1000156008,
+    VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16 = 1000156009,
+    VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16 = 1000156010,
+    VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16 = 1000156011,
+    VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16 = 1000156012,
+    VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16 = 1000156013,
+    VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16 = 1000156014,
+    VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16 = 1000156015,
+    VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16 = 1000156016,
+    VK_FORMAT_R12X4_UNORM_PACK16 = 1000156017,
+    VK_FORMAT_R12X4G12X4_UNORM_2PACK16 = 1000156018,
+    VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16 = 1000156019,
+    VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16 = 1000156020,
+    VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16 = 1000156021,
+    VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16 = 1000156022,
+    VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16 = 1000156023,
+    VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16 = 1000156024,
+    VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16 = 1000156025,
+    VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16 = 1000156026,
+    VK_FORMAT_G16B16G16R16_422_UNORM = 1000156027,
+    VK_FORMAT_B16G16R16G16_422_UNORM = 1000156028,
+    VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM = 1000156029,
+    VK_FORMAT_G16_B16R16_2PLANE_420_UNORM = 1000156030,
+    VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM = 1000156031,
+    VK_FORMAT_G16_B16R16_2PLANE_422_UNORM = 1000156032,
+    VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM = 1000156033,
+    VK_FORMAT_G8_B8R8_2PLANE_444_UNORM = 1000330000,
+    VK_FORMAT_G10X6_B10X6R10X6_2PLANE_444_UNORM_3PACK16 = 1000330001,
+    VK_FORMAT_G12X4_B12X4R12X4_2PLANE_444_UNORM_3PACK16 = 1000330002,
+    VK_FORMAT_G16_B16R16_2PLANE_444_UNORM = 1000330003,
+    VK_FORMAT_A4R4G4B4_UNORM_PACK16 = 1000340000,
+    VK_FORMAT_A4B4G4R4_UNORM_PACK16 = 1000340001,
+    VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK = 1000066000,
+    VK_FORMAT_ASTC_5x4_SFLOAT_BLOCK = 1000066001,
+    VK_FORMAT_ASTC_5x5_SFLOAT_BLOCK = 1000066002,
+    VK_FORMAT_ASTC_6x5_SFLOAT_BLOCK = 1000066003,
+    VK_FORMAT_ASTC_6x6_SFLOAT_BLOCK = 1000066004,
+    VK_FORMAT_ASTC_8x5_SFLOAT_BLOCK = 1000066005,
+    VK_FORMAT_ASTC_8x6_SFLOAT_BLOCK = 1000066006,
+    VK_FORMAT_ASTC_8x8_SFLOAT_BLOCK = 1000066007,
+    VK_FORMAT_ASTC_10x5_SFLOAT_BLOCK = 1000066008,
+    VK_FORMAT_ASTC_10x6_SFLOAT_BLOCK = 1000066009,
+    VK_FORMAT_ASTC_10x8_SFLOAT_BLOCK = 1000066010,
+    VK_FORMAT_ASTC_10x10_SFLOAT_BLOCK = 1000066011,
+    VK_FORMAT_ASTC_12x10_SFLOAT_BLOCK = 1000066012,
+    VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK = 1000066013,
+    VK_FORMAT_PVRTC1_2BPP_UNORM_BLOCK_IMG = 1000054000,
+    VK_FORMAT_PVRTC1_4BPP_UNORM_BLOCK_IMG = 1000054001,
+    VK_FORMAT_PVRTC2_2BPP_UNORM_BLOCK_IMG = 1000054002,
+    VK_FORMAT_PVRTC2_4BPP_UNORM_BLOCK_IMG = 1000054003,
+    VK_FORMAT_PVRTC1_2BPP_SRGB_BLOCK_IMG = 1000054004,
+    VK_FORMAT_PVRTC1_4BPP_SRGB_BLOCK_IMG = 1000054005,
+    VK_FORMAT_PVRTC2_2BPP_SRGB_BLOCK_IMG = 1000054006,
+    VK_FORMAT_PVRTC2_4BPP_SRGB_BLOCK_IMG = 1000054007,
+    VK_FORMAT_R16G16_SFIXED5_NV = 1000464000,
+    VK_FORMAT_A1B5G5R5_UNORM_PACK16_KHR = 1000470000,
+    VK_FORMAT_A8_UNORM_KHR = 1000470001,
+    VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK,
+    VK_FORMAT_ASTC_5x4_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_5x4_SFLOAT_BLOCK,
+    VK_FORMAT_ASTC_5x5_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_5x5_SFLOAT_BLOCK,
+    VK_FORMAT_ASTC_6x5_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_6x5_SFLOAT_BLOCK,
+    VK_FORMAT_ASTC_6x6_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_6x6_SFLOAT_BLOCK,
+    VK_FORMAT_ASTC_8x5_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_8x5_SFLOAT_BLOCK,
+    VK_FORMAT_ASTC_8x6_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_8x6_SFLOAT_BLOCK,
+    VK_FORMAT_ASTC_8x8_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_8x8_SFLOAT_BLOCK,
+    VK_FORMAT_ASTC_10x5_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_10x5_SFLOAT_BLOCK,
+    VK_FORMAT_ASTC_10x6_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_10x6_SFLOAT_BLOCK,
+    VK_FORMAT_ASTC_10x8_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_10x8_SFLOAT_BLOCK,
+    VK_FORMAT_ASTC_10x10_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_10x10_SFLOAT_BLOCK,
+    VK_FORMAT_ASTC_12x10_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_12x10_SFLOAT_BLOCK,
+    VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK,
+    VK_FORMAT_G8B8G8R8_422_UNORM_KHR = VK_FORMAT_G8B8G8R8_422_UNORM,
+    VK_FORMAT_B8G8R8G8_422_UNORM_KHR = VK_FORMAT_B8G8R8G8_422_UNORM,
+    VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM_KHR = VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM,
+    VK_FORMAT_G8_B8R8_2PLANE_420_UNORM_KHR = VK_FORMAT_G8_B8R8_2PLANE_420_UNORM,
+    VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM_KHR = VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM,
+    VK_FORMAT_G8_B8R8_2PLANE_422_UNORM_KHR = VK_FORMAT_G8_B8R8_2PLANE_422_UNORM,
+    VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM_KHR = VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM,
+    VK_FORMAT_R10X6_UNORM_PACK16_KHR = VK_FORMAT_R10X6_UNORM_PACK16,
+    VK_FORMAT_R10X6G10X6_UNORM_2PACK16_KHR = VK_FORMAT_R10X6G10X6_UNORM_2PACK16,
+    VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16_KHR = VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16,
+    VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16_KHR = VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16,
+    VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16_KHR = VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16,
+    VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16_KHR = VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16,
+    VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16_KHR = VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16,
+    VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16_KHR = VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16,
+    VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16_KHR = VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16,
+    VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16_KHR = VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16,
+    VK_FORMAT_R12X4_UNORM_PACK16_KHR = VK_FORMAT_R12X4_UNORM_PACK16,
+    VK_FORMAT_R12X4G12X4_UNORM_2PACK16_KHR = VK_FORMAT_R12X4G12X4_UNORM_2PACK16,
+    VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16_KHR = VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16,
+    VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16_KHR = VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16,
+    VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16_KHR = VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16,
+    VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16_KHR = VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16,
+    VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16_KHR = VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16,
+    VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16_KHR = VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16,
+    VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16_KHR = VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16,
+    VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16_KHR = VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16,
+    VK_FORMAT_G16B16G16R16_422_UNORM_KHR = VK_FORMAT_G16B16G16R16_422_UNORM,
+    VK_FORMAT_B16G16R16G16_422_UNORM_KHR = VK_FORMAT_B16G16R16G16_422_UNORM,
+    VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM_KHR = VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM,
+    VK_FORMAT_G16_B16R16_2PLANE_420_UNORM_KHR = VK_FORMAT_G16_B16R16_2PLANE_420_UNORM,
+    VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM_KHR = VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM,
+    VK_FORMAT_G16_B16R16_2PLANE_422_UNORM_KHR = VK_FORMAT_G16_B16R16_2PLANE_422_UNORM,
+    VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM_KHR = VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM,
+    VK_FORMAT_G8_B8R8_2PLANE_444_UNORM_EXT = VK_FORMAT_G8_B8R8_2PLANE_444_UNORM,
+    VK_FORMAT_G10X6_B10X6R10X6_2PLANE_444_UNORM_3PACK16_EXT = VK_FORMAT_G10X6_B10X6R10X6_2PLANE_444_UNORM_3PACK16,
+    VK_FORMAT_G12X4_B12X4R12X4_2PLANE_444_UNORM_3PACK16_EXT = VK_FORMAT_G12X4_B12X4R12X4_2PLANE_444_UNORM_3PACK16,
+    VK_FORMAT_G16_B16R16_2PLANE_444_UNORM_EXT = VK_FORMAT_G16_B16R16_2PLANE_444_UNORM,
+    VK_FORMAT_A4R4G4B4_UNORM_PACK16_EXT = VK_FORMAT_A4R4G4B4_UNORM_PACK16,
+    VK_FORMAT_A4B4G4R4_UNORM_PACK16_EXT = VK_FORMAT_A4B4G4R4_UNORM_PACK16,
+    VK_FORMAT_R16G16_S10_5_NV = VK_FORMAT_R16G16_SFIXED5_NV,
+    VK_FORMAT_MAX_ENUM = 0x7FFFFFFF
+};
 
-// various stuff required by Vulkan structs
-// copied from vulkan_core.h
-#define VK_MAX_EXTENSION_NAME_SIZE        256U
-#define VK_MAX_DESCRIPTION_SIZE           256U
-#define VK_MAX_PHYSICAL_DEVICE_NAME_SIZE  256U
-#define VK_UUID_SIZE                      16U
-using Bool32 = uint32_t;
-using DeviceSize = uint64_t;
-using Flags = uint32_t;
-using DeviceCreateFlags = Flags;
-using DeviceQueueCreateFlags = Flags;
-using InstanceCreateFlags = Flags;
-using SampleCountFlags = Flags;
+enum class ImageTiling {
+    VK_IMAGE_TILING_OPTIMAL = 0,
+    VK_IMAGE_TILING_LINEAR = 1,
+    VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT = 1000158000,
+    VK_IMAGE_TILING_MAX_ENUM = 0x7FFFFFFF
+};
 
-typedef enum StructureType {
-    STRUCTURE_TYPE_APPLICATION_INFO = 0,
-    STRUCTURE_TYPE_INSTANCE_CREATE_INFO = 1,
-    STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO = 2,
-    STRUCTURE_TYPE_DEVICE_CREATE_INFO = 3,
+enum class ImageType {
+    VK_IMAGE_TYPE_1D = 0,
+    VK_IMAGE_TYPE_2D = 1,
+    VK_IMAGE_TYPE_3D = 2,
+    VK_IMAGE_TYPE_MAX_ENUM = 0x7FFFFFFF
+};
+
+enum class StructureType {
+    eApplicationInfo = 0,
+    eInstanceCreateInfo = 1,
+    eDeviceQueueCreateInfo = 2,
+    eDeviceCreateInfo = 3,
     STRUCTURE_TYPE_SUBMIT_INFO = 4,
     STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO = 5,
     STRUCTURE_TYPE_MAPPED_MEMORY_RANGE = 6,
@@ -1290,7 +1549,7 @@ typedef enum StructureType {
     STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS_KHR = STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS,
     STRUCTURE_TYPE_SHADER_REQUIRED_SUBGROUP_SIZE_CREATE_INFO_EXT = STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO,
     STRUCTURE_TYPE_MAX_ENUM = 0x7FFFFFFF
-} StructureType;
+};
 
 typedef enum SystemAllocationScope {
     SYSTEM_ALLOCATION_SCOPE_COMMAND = 0,
@@ -1314,6 +1573,146 @@ typedef enum PhysicalDeviceType {
     PHYSICAL_DEVICE_TYPE_CPU = 4,
     PHYSICAL_DEVICE_TYPE_MAX_ENUM = 0x7FFFFFFF
 } PhysicalDeviceType;
+
+
+// various stuff required by Vulkan structs
+// copied from vulkan_core.h
+constexpr const unsigned MaxExtensionNameSize = 256;
+constexpr const unsigned MaxDescriptionSize = 256;
+constexpr const unsigned MaxPhysicalDeviceNameSize = 256;
+constexpr const unsigned UuidSize = 16;
+constexpr const unsigned MaxMemoryTypes = 32;
+constexpr const unsigned MaxMemoryHeaps = 16;
+using Bool32 = uint32_t;
+using DeviceSize = uint64_t;
+using Flags = uint32_t;
+using DeviceCreateFlags = Flags;
+using DeviceQueueCreateFlags = Flags;
+using FormatFeatureFlags = Flags;
+using ImageCreateFlags = Flags;
+using ImageUsageFlags = Flags;
+using InstanceCreateFlags = Flags;
+using MemoryHeapFlags = Flags;
+using MemoryPropertyFlags = Flags;
+using QueueFlags = Flags;
+using SampleCountFlags = Flags;
+
+
+namespace FormatFeatureFlagBits {
+    constexpr const Flags eSampledImage = 0x00000001;
+    constexpr const Flags eStorageImage = 0x00000002;
+    constexpr const Flags eStorageImageAtomic = 0x00000004;
+    constexpr const Flags eUniformTexelBuffer = 0x00000008;
+    constexpr const Flags eStorageTexelBuffer = 0x00000010;
+    constexpr const Flags eStorageTexelBufferAtomic = 0x00000020;
+    constexpr const Flags eVertexBuffer = 0x00000040;
+    constexpr const Flags eColorAttachment = 0x00000080;
+    constexpr const Flags eColorAttachmentBlend = 0x00000100;
+    constexpr const Flags eDepthStencilAttachment = 0x00000200;
+    constexpr const Flags eAllFlags = 0x000003ff;
+    /* TODO: fill remaining constants here
+    VK_FORMAT_FEATURE_BLIT_SRC_BIT = 0x00000400,
+    VK_FORMAT_FEATURE_BLIT_DST_BIT = 0x00000800,
+    VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT = 0x00001000,
+    VK_FORMAT_FEATURE_TRANSFER_SRC_BIT = 0x00004000,
+    VK_FORMAT_FEATURE_TRANSFER_DST_BIT = 0x00008000,
+    VK_FORMAT_FEATURE_MIDPOINT_CHROMA_SAMPLES_BIT = 0x00020000,
+    VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_LINEAR_FILTER_BIT = 0x00040000,
+    VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_SEPARATE_RECONSTRUCTION_FILTER_BIT = 0x00080000,
+    VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_CHROMA_RECONSTRUCTION_EXPLICIT_BIT = 0x00100000,
+    VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_CHROMA_RECONSTRUCTION_EXPLICIT_FORCEABLE_BIT = 0x00200000,
+    VK_FORMAT_FEATURE_DISJOINT_BIT = 0x00400000,
+    VK_FORMAT_FEATURE_COSITED_CHROMA_SAMPLES_BIT = 0x00800000,
+    VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_MINMAX_BIT = 0x00010000,
+    VK_FORMAT_FEATURE_VIDEO_DECODE_OUTPUT_BIT_KHR = 0x02000000,
+    VK_FORMAT_FEATURE_VIDEO_DECODE_DPB_BIT_KHR = 0x04000000,
+    VK_FORMAT_FEATURE_ACCELERATION_STRUCTURE_VERTEX_BUFFER_BIT_KHR = 0x20000000,
+    VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_CUBIC_BIT_EXT = 0x00002000,
+    VK_FORMAT_FEATURE_FRAGMENT_DENSITY_MAP_BIT_EXT = 0x01000000,
+    VK_FORMAT_FEATURE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR = 0x40000000,
+    VK_FORMAT_FEATURE_VIDEO_ENCODE_INPUT_BIT_KHR = 0x08000000,
+    VK_FORMAT_FEATURE_VIDEO_ENCODE_DPB_BIT_KHR = 0x10000000,
+    VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_CUBIC_BIT_IMG = VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_CUBIC_BIT_EXT,
+    VK_FORMAT_FEATURE_TRANSFER_SRC_BIT_KHR = VK_FORMAT_FEATURE_TRANSFER_SRC_BIT,
+    VK_FORMAT_FEATURE_TRANSFER_DST_BIT_KHR = VK_FORMAT_FEATURE_TRANSFER_DST_BIT,
+    VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_MINMAX_BIT_EXT = VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_MINMAX_BIT,
+    VK_FORMAT_FEATURE_MIDPOINT_CHROMA_SAMPLES_BIT_KHR = VK_FORMAT_FEATURE_MIDPOINT_CHROMA_SAMPLES_BIT,
+    VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_LINEAR_FILTER_BIT_KHR = VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_LINEAR_FILTER_BIT,
+    VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_SEPARATE_RECONSTRUCTION_FILTER_BIT_KHR = VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_SEPARATE_RECONSTRUCTION_FILTER_BIT,
+    VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_CHROMA_RECONSTRUCTION_EXPLICIT_BIT_KHR = VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_CHROMA_RECONSTRUCTION_EXPLICIT_BIT,
+    VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_CHROMA_RECONSTRUCTION_EXPLICIT_FORCEABLE_BIT_KHR = VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_CHROMA_RECONSTRUCTION_EXPLICIT_FORCEABLE_BIT,
+    VK_FORMAT_FEATURE_DISJOINT_BIT_KHR = VK_FORMAT_FEATURE_DISJOINT_BIT,
+    VK_FORMAT_FEATURE_COSITED_CHROMA_SAMPLES_BIT_KHR = VK_FORMAT_FEATURE_COSITED_CHROMA_SAMPLES_BIT,
+    VK_FORMAT_FEATURE_FLAG_BITS_MAX_ENUM = 0x7FFFFFFF*/
+}
+
+
+namespace QueueFlagBits {
+    constexpr const Flags eGraphics       = 0x00000001;
+    constexpr const Flags eCompute        = 0x00000002;
+    constexpr const Flags eTransfer       = 0x00000004;
+    constexpr const Flags eSparseBinding  = 0x00000008;
+    constexpr const Flags eProtected      = 0x00000010;
+    constexpr const Flags eVideoDecodeKHR = 0x00000020;
+    constexpr const Flags eVideoEncodeKHR = 0x00000040;
+    constexpr const Flags eOpticalFlowNV  = 0x00000100;
+}
+
+
+// version macro replacements
+// author: PCJohn (peciva at fit.vut.cz)
+constexpr uint32_t makeApiVersion(uint32_t variant, uint32_t major, uint32_t minor, uint32_t patch)  { return (variant << 29) | (major << 22) | (minor << 12) | patch; }
+constexpr uint32_t makeApiVersion(uint32_t major, uint32_t minor, uint32_t patch)  { return (major << 22) | (minor << 12) | patch; }
+constexpr const uint32_t ApiVersion1_0 = makeApiVersion(0, 1, 0, 0);
+constexpr uint32_t apiVersionVariant(uint32_t version)  { return version >> 29; }
+constexpr uint32_t apiVersionMajor(uint32_t version)  { return (version >> 22) & 0x7f; }
+constexpr uint32_t apiVersionMinor(uint32_t version)  { return (version >> 12) & 0x3ff; }
+constexpr uint32_t apiVersionPatch(uint32_t version)  { return version & 0xfff; }
+
+
+// taken from vk_platform.h
+/* Platform-specific calling convention macros.
+ *
+ * Platforms should define these so that Vulkan clients call Vulkan commands
+ * with the same calling conventions that the Vulkan implementation expects.
+ *
+ * VKAPI_ATTR - Placed before the return type in function declarations.
+ *              Useful for C++11 and GCC/Clang-style function attribute syntax.
+ * VKAPI_CALL - Placed after the return type in function declarations.
+ *              Useful for MSVC-style calling convention syntax.
+ * VKAPI_PTR  - Placed between the '(' and '*' in function pointer types.
+ *
+ * Function declaration:  VKAPI_ATTR void VKAPI_CALL vkCommand(void);
+ * Function pointer type: typedef void (VKAPI_PTR *PFN_vkCommand)(void);
+ */
+#if defined(_WIN32)
+    // On Windows, Vulkan commands use the stdcall convention
+    #define VKAPI_ATTR
+    #define VKAPI_CALL __stdcall
+    #define VKAPI_PTR  VKAPI_CALL
+#elif defined(__ANDROID__) && defined(__ARM_ARCH) && __ARM_ARCH < 7
+    #error "Vulkan is not supported for the 'armeabi' NDK ABI"
+#elif defined(__ANDROID__) && defined(__ARM_ARCH) && __ARM_ARCH >= 7 && defined(__ARM_32BIT_STATE)
+    // On Android 32-bit ARM targets, Vulkan functions use the "hardfloat"
+    // calling convention, i.e. float parameters are passed in registers. This
+    // is true even if the rest of the application passes floats on the stack,
+    // as it does by default when compiling for the armeabi-v7a NDK ABI.
+    #define VKAPI_ATTR __attribute__((pcs("aapcs-vfp")))
+    #define VKAPI_CALL
+    #define VKAPI_PTR  VKAPI_ATTR
+#else
+    // On other platforms, use the default calling convention
+    #define VKAPI_ATTR
+    #define VKAPI_CALL
+    #define VKAPI_PTR
+#endif
+
+
+typedef struct Extent3D {
+    uint32_t    width;
+    uint32_t    height;
+    uint32_t    depth;
+} Extent3D;
 
 using PFN_vkAllocationFunction = void* (VKAPI_PTR *)(
     void*                                       pUserData,
@@ -1356,15 +1755,15 @@ typedef struct AllocationCallbacks {
 } AllocationCallbacks;
 
 typedef struct ExtensionProperties {
-    char        extensionName[VK_MAX_EXTENSION_NAME_SIZE];
+    char        extensionName[MaxExtensionNameSize];
     uint32_t    specVersion;
 } ExtensionProperties;
 
 typedef struct LayerProperties {
-    char        layerName[VK_MAX_EXTENSION_NAME_SIZE];
+    char        layerName[MaxExtensionNameSize];
     uint32_t    specVersion;
     uint32_t    implementationVersion;
-    char        description[VK_MAX_DESCRIPTION_SIZE];
+    char        description[MaxDescriptionSize];
 } LayerProperties;
 
 typedef struct ApplicationInfo {
@@ -1511,8 +1910,8 @@ typedef struct PhysicalDeviceProperties {
     uint32_t                            vendorID;
     uint32_t                            deviceID;
     PhysicalDeviceType                  deviceType;
-    char                                deviceName[VK_MAX_PHYSICAL_DEVICE_NAME_SIZE];
-    uint8_t                             pipelineCacheUUID[VK_UUID_SIZE];
+    char                                deviceName[MaxPhysicalDeviceNameSize];
+    uint8_t                             pipelineCacheUUID[UuidSize];
     PhysicalDeviceLimits                limits;
     PhysicalDeviceSparseProperties      sparseProperties;
 } PhysicalDeviceProperties;
@@ -1575,6 +1974,44 @@ typedef struct PhysicalDeviceFeatures {
     Bool32    inheritedQueries;
 } PhysicalDeviceFeatures;
 
+typedef struct QueueFamilyProperties {
+    QueueFlags    queueFlags;
+    uint32_t      queueCount;
+    uint32_t      timestampValidBits;
+    Extent3D      minImageTransferGranularity;
+} QueueFamilyProperties;
+
+typedef struct FormatProperties {
+    FormatFeatureFlags    linearTilingFeatures;
+    FormatFeatureFlags    optimalTilingFeatures;
+    FormatFeatureFlags    bufferFeatures;
+} FormatProperties;
+
+typedef struct ImageFormatProperties {
+    Extent3D            maxExtent;
+    uint32_t            maxMipLevels;
+    uint32_t            maxArrayLayers;
+    SampleCountFlags    sampleCounts;
+    DeviceSize          maxResourceSize;
+} ImageFormatProperties;
+
+typedef struct MemoryHeap {
+    DeviceSize         size;
+    MemoryHeapFlags    flags;
+} MemoryHeap;
+
+typedef struct MemoryType {
+    MemoryPropertyFlags    propertyFlags;
+    uint32_t               heapIndex;
+} MemoryType;
+
+typedef struct PhysicalDeviceMemoryProperties {
+    uint32_t      memoryTypeCount;
+    MemoryType    memoryTypes[MaxMemoryTypes];
+    uint32_t      memoryHeapCount;
+    MemoryHeap    memoryHeaps[MaxMemoryHeaps];
+} PhysicalDeviceMemoryProperties;
+
 typedef struct DeviceQueueCreateInfo {
     StructureType               sType;
     const void*                 pNext;
@@ -1600,30 +2037,39 @@ typedef struct DeviceCreateInfo {
 
 // function pointer types
 using PFN_vkVoidFunction = void (VKAPI_PTR *)(void);
+using PFN_vkGetInstanceProcAddr = PFN_vkVoidFunction (VKAPI_PTR *)(Instance instance, const char* pName);
 using PFN_vkEnumerateInstanceVersion = Result (VKAPI_PTR *)(uint32_t* pApiVersion);
 using PFN_vkEnumerateInstanceExtensionProperties = Result (VKAPI_PTR *)(const char* pLayerName, uint32_t* pPropertyCount, ExtensionProperties* pProperties);
 using PFN_vkEnumerateInstanceLayerProperties = Result (VKAPI_PTR *)(uint32_t* pPropertyCount, LayerProperties* pProperties);
-using PFN_vkGetInstanceProcAddr = PFN_vkVoidFunction (VKAPI_PTR *)(Instance instance, const char* pName);
-using PFN_vkGetDeviceProcAddr = PFN_vkVoidFunction (VKAPI_PTR *)(Device device, const char* pName);
 using PFN_vkCreateInstance = Result (VKAPI_PTR *)(const InstanceCreateInfo* pCreateInfo, const AllocationCallbacks* pAllocator, Instance* pInstance);
 using PFN_vkDestroyInstance = void (VKAPI_PTR *)(Instance instance, const AllocationCallbacks* pAllocator);
 using PFN_vkEnumeratePhysicalDevices = Result (VKAPI_PTR *)(Instance instance, uint32_t* pPhysicalDeviceCount, PhysicalDevice* pPhysicalDevices);
 using PFN_vkGetPhysicalDeviceProperties = void (VKAPI_PTR *)(PhysicalDevice physicalDevice, PhysicalDeviceProperties* pProperties);
+using PFN_vkGetPhysicalDeviceFeatures = void (VKAPI_PTR *)(PhysicalDevice physicalDevice, PhysicalDeviceFeatures* pFeatures);
+using PFN_vkGetPhysicalDeviceFormatProperties = void (VKAPI_PTR *)(PhysicalDevice physicalDevice, Format format, FormatProperties* pFormatProperties);
+using PFN_vkGetPhysicalDeviceImageFormatProperties = Result (VKAPI_PTR *)(PhysicalDevice physicalDevice, Format format, ImageType type, ImageTiling tiling, ImageUsageFlags usage, ImageCreateFlags flags, ImageFormatProperties* pImageFormatProperties);
+using PFN_vkGetPhysicalDeviceMemoryProperties = void (VKAPI_PTR *)(PhysicalDevice physicalDevice, PhysicalDeviceMemoryProperties* pMemoryProperties);
+using PFN_vkGetPhysicalDeviceQueueFamilyProperties = void (VKAPI_PTR *)(PhysicalDevice physicalDevice, uint32_t* pQueueFamilyPropertyCount, QueueFamilyProperties* pQueueFamilyProperties);
 using PFN_vkCreateDevice = Result (VKAPI_PTR *)(PhysicalDevice physicalDevice, const DeviceCreateInfo* pCreateInfo, const AllocationCallbacks* pAllocator, Device* pDevice);
 using PFN_vkDestroyDevice = void (VKAPI_PTR *)(Device device, const AllocationCallbacks* pAllocator);
+using PFN_vkGetDeviceProcAddr = PFN_vkVoidFunction (VKAPI_PTR *)(Device device, const char* pName);
 
 struct Funcs {
-	PFN_vkEnumerateInstanceVersion  vkEnumerateInstanceVersion = nullptr;
-    PFN_vkEnumerateInstanceExtensionProperties vkEnumerateInstanceExtensionProperties = nullptr;
-    PFN_vkEnumerateInstanceLayerProperties vkEnumerateInstanceLayerProperties = nullptr;
-    PFN_vkGetInstanceProcAddr       vkGetInstanceProcAddr = nullptr;
-    PFN_vkGetDeviceProcAddr         vkGetDeviceProcAddr = nullptr;
-    PFN_vkCreateInstance            vkCreateInstance = nullptr;
-    PFN_vkDestroyInstance           vkDestroyInstance = nullptr;
-    PFN_vkEnumeratePhysicalDevices  vkEnumeratePhysicalDevices = nullptr;
-    PFN_vkGetPhysicalDeviceProperties  vkGetPhysicalDeviceProperties = nullptr;
-    PFN_vkCreateDevice              vkCreateDevice = nullptr;
-    PFN_vkDestroyDevice             vkDestroyDevice = nullptr;
+	PFN_vkGetInstanceProcAddr       vkGetInstanceProcAddr = nullptr;
+	PFN_vkEnumerateInstanceExtensionProperties    vkEnumerateInstanceExtensionProperties = nullptr;
+	PFN_vkEnumerateInstanceLayerProperties        vkEnumerateInstanceLayerProperties = nullptr;
+	PFN_vkCreateInstance            vkCreateInstance = nullptr;
+	PFN_vkDestroyInstance           vkDestroyInstance = nullptr;
+	PFN_vkEnumeratePhysicalDevices  vkEnumeratePhysicalDevices = nullptr;
+	PFN_vkGetPhysicalDeviceProperties             vkGetPhysicalDeviceProperties = nullptr;
+	PFN_vkGetPhysicalDeviceFeatures               vkGetPhysicalDeviceFeatures = nullptr;
+	PFN_vkGetPhysicalDeviceFormatProperties       vkGetPhysicalDeviceFormatProperties = nullptr;
+	PFN_vkGetPhysicalDeviceImageFormatProperties  vkGetPhysicalDeviceImageFormatProperties = nullptr;
+	PFN_vkGetPhysicalDeviceMemoryProperties       vkGetPhysicalDeviceMemoryProperties = nullptr;
+	PFN_vkGetPhysicalDeviceQueueFamilyProperties  vkGetPhysicalDeviceQueueFamilyProperties = nullptr;
+	PFN_vkCreateDevice              vkCreateDevice = nullptr;
+	PFN_vkDestroyDevice             vkDestroyDevice = nullptr;
+	PFN_vkGetDeviceProcAddr         vkGetDeviceProcAddr = nullptr;
 };
 extern Funcs funcs;
 
@@ -1693,7 +2139,7 @@ public:
 	Vector(size_t size) : _data(new Type[size]), _size(size)  {}
 	Vector(Type* data, size_t size) : _data(data), _size(size)  {}
 	~Vector()  { delete[] _data; }
-	
+
 	Vector(const Vector& other);
 	Vector(Vector&& other) : _data(other._data), _size(other._size)  { other._data = nullptr; other._size = 0; }
 	Vector& operator=(const Vector& rhs);
@@ -1724,8 +2170,10 @@ size_t int32ToString(int32_t value, char* bufferAtLeast12BytesLong);
 
 // exceptions
 // author: PCJohn (peciva at fit.vut.cz)
-void throwResultException(Result result, const char* message);
+void throwResultExceptionWithMessage(Result result, const char* message);
 void throwResultException(const char* funcName, Result result);
+inline void checkSuccessValue(Result result, const char* funcName)  { if(result != vk::Result::eSuccess) throwResultException(funcName, result); }
+inline void checkSuccess(Result result, const char* funcName)  { if(int32_t(result) < 0) throwResultException(funcName, result); }
 
 class Error {
 protected:
@@ -1741,108 +2189,53 @@ public:
 	virtual const char* what() const noexcept  { return _msg ? _msg : "Unknown exception"; }
 };
 
-class OutOfHostMemoryError : public Error {
-public:
-	using Error::Error;
-};
-
-class OutOfDeviceMemoryError : public Error {
-public:
-	using Error::Error;
-};
-
-class InitializationFailedError : public Error {
-public:
-	using Error::Error;
-};
-
-class DeviceLostError : public Error {
-public:
-	using Error::Error;
-};
-
-class MemoryMapFailedError : public Error {
-public:
-	using Error::Error;
-};
-
-class LayerNotPresentError : public Error {
-public:
-	using Error::Error;
-};
-
-class ExtensionNotPresentError : public Error {
-public:
-	using Error::Error;
-};
-
-class FeatureNotPresentError : public Error {
-public:
-	using Error::Error;
-};
-
-class IncompatibleDriverError : public Error {
-public:
-	using Error::Error;
-};
-
-class TooManyObjectsError : public Error {
-public:
-	using Error::Error;
-};
-
-class FormatNotSupportedError : public Error {
-public:
-	using Error::Error;
-};
-
-class FragmentedPoolError : public Error {
-public:
-	using Error::Error;
-};
-
-class UnknownError : public Error {
-public:
-	using Error::Error;
-};
+class SuccessResult : public Error { public: using Error::Error; };
+class NotReadyResult : public Error { public: using Error::Error; };
+class TimeoutResult : public Error { public: using Error::Error; };
+class EventSetResult : public Error { public: using Error::Error; };
+class EventResetResult : public Error { public: using Error::Error; };
+class IncompleteResult : public Error { public: using Error::Error; };
+class OutOfHostMemoryError : public Error { public: using Error::Error; };
+class OutOfDeviceMemoryError : public Error { public: using Error::Error; };
+class InitializationFailedError : public Error { public: using Error::Error; };
+class DeviceLostError : public Error { public: using Error::Error; };
+class MemoryMapFailedError : public Error { public: using Error::Error; };
+class LayerNotPresentError : public Error { public: using Error::Error; };
+class ExtensionNotPresentError : public Error { public: using Error::Error; };
+class FeatureNotPresentError : public Error { public: using Error::Error; };
+class IncompatibleDriverError : public Error { public: using Error::Error; };
+class TooManyObjectsError : public Error { public: using Error::Error; };
+class FormatNotSupportedError : public Error { public: using Error::Error; };
+class FragmentedPoolError : public Error { public: using Error::Error; };
+class UnknownError : public Error { public: using Error::Error; };
 
 // version 1.1
-class OutOfPoolMemoryError : public Error {
-public:
-	using Error::Error;
-};
+class OutOfPoolMemoryError : public Error { public: using Error::Error; };
 
 // version 1.1
-class InvalidExternalHandleError : public Error {
-public:
-	using Error::Error;
-};
+class InvalidExternalHandleError : public Error { public: using Error::Error; };
 
 // version 1.2
-class FragmentationError : public Error {
-public:
-	using Error::Error;
-};
+class FragmentationError : public Error { public: using Error::Error; };
 
 // version 1.2
-class InvalidOpaqueCaptureAddressError : public Error {
-public:
-	using Error::Error;
-};
+class InvalidOpaqueCaptureAddressError : public Error { public: using Error::Error; };
 
 
 // vkg errors
-class VkgError : public Error {
-public:
-	using Error::Error;
-};
+class VkgError : public Error { public: using Error::Error; };
 
 
-uint32_t enumerateInstanceVersion();
 template<typename T> inline T getInstanceProcAddr(const char* name) noexcept  { return reinterpret_cast<T>(funcs.vkGetInstanceProcAddr(instance(), name)); }
 template<typename T> inline T getDeviceProcAddr(const char* name) noexcept  { return reinterpret_cast<T>(funcs.vkGetDeviceProcAddr(device(), name)); }
+Vector<ExtensionProperties> enumerateInstanceExtensionProperties(const char* pLayerName);
+Vector<LayerProperties> enumerateInstanceLayerProperties();
 Vector<PhysicalDevice> enumeratePhysicalDevices();
 inline PhysicalDeviceProperties getPhysicalDeviceProperties(PhysicalDevice pd)  { PhysicalDeviceProperties p; funcs.vkGetPhysicalDeviceProperties(pd, &p); return p; }
-
+inline PhysicalDeviceFeatures getPhysicalDeviceFeatures(PhysicalDevice pd)  { PhysicalDeviceFeatures f; funcs.vkGetPhysicalDeviceFeatures(pd, &f); return f; }
+inline FormatProperties getPhysicalDeviceFormatProperties(PhysicalDevice pd, Format f)  { FormatProperties p; funcs.vkGetPhysicalDeviceFormatProperties(pd, f, &p); return p; }
+inline ImageFormatProperties getPhysicalDeviceImageFormatProperties(PhysicalDevice pd, Format f, ImageType type, ImageTiling tiling, ImageUsageFlags usage, ImageCreateFlags flags)  { ImageFormatProperties p; checkSuccessValue(funcs.vkGetPhysicalDeviceImageFormatProperties(pd, f, type, tiling, usage, flags, &p), "vkGetPhysicalDeviceImageFormatProperties"); return p; }
+inline PhysicalDeviceMemoryProperties getPhysicalDeviceMemoryProperties(PhysicalDevice pd)  { PhysicalDeviceMemoryProperties p; funcs.vkGetPhysicalDeviceMemoryProperties(pd, &p); return p; }
+Vector<QueueFamilyProperties> getPhysicalDeviceQueueFamilyProperties(PhysicalDevice pd);
 
 }

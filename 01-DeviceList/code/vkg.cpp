@@ -19,6 +19,7 @@ using namespace std;
 void* vk::detail::_library = nullptr;
 Instance vk::detail::_instance = nullptr;
 Device vk::detail::_device = nullptr;
+uint32_t vk::detail::_instanceVersion = 0;
 Funcs vk::funcs;
 
 
@@ -58,16 +59,20 @@ void vk::loadLib(const std::filesystem::path& libPath)
 		throw VkgError((string("Vulkan error: Can not retrieve vkGetInstanceProcAddr function pointer out of \"") + libPath.string() + ".").c_str());
 
 	// function pointers available without vk::Instance
-	funcs.vkCreateInstance = getInstanceProcAddr<PFN_vkCreateInstance>("vkCreateInstance");
-	if(funcs.vkCreateInstance == nullptr)
-		throw VkgError((string("Vulkan error: Can not retrieve vkCreateInstance function pointer out of \"") + libPath.string() + "\".").c_str());
-	funcs.vkEnumerateInstanceVersion = getInstanceProcAddr<PFN_vkEnumerateInstanceVersion>("vkEnumerateInstanceVersion");
 	funcs.vkEnumerateInstanceExtensionProperties = getInstanceProcAddr<PFN_vkEnumerateInstanceExtensionProperties>("vkEnumerateInstanceExtensionProperties");
 	funcs.vkEnumerateInstanceLayerProperties = getInstanceProcAddr<PFN_vkEnumerateInstanceLayerProperties>("vkEnumerateInstanceLayerProperties");
+	funcs.vkCreateInstance = getInstanceProcAddr<PFN_vkCreateInstance>("vkCreateInstance");
+	PFN_vkEnumerateInstanceVersion vkEnumerateInstanceVersion = getInstanceProcAddr<PFN_vkEnumerateInstanceVersion>("vkEnumerateInstanceVersion");
 
-	// supply fallback function for vkEnumerateInstanceVersion on Vulkan 1.0
-	if(funcs.vkEnumerateInstanceVersion == nullptr)
-		funcs.vkEnumerateInstanceVersion = [](uint32_t* pApiVersion) -> Result { *pApiVersion = apiVersion1_0; return SUCCESS; };
+	// instance version
+	if(vkEnumerateInstanceVersion) {
+		uint32_t v;
+		Result r = vkEnumerateInstanceVersion(&v);
+		checkSuccessValue(r, "vkEnumerateInstanceVersion");  // this might throw
+		detail::_instanceVersion = v;
+	}
+	else
+		detail::_instanceVersion = ApiVersion1_0;
 }
 
 
@@ -75,22 +80,23 @@ void vk::initInstance(const vk::InstanceCreateInfo& pCreateInfo)
 {
 	assert(detail::_library && "vk::loadLib() must be called before vk::createInstance().");
 
+	// destroy previous instance if any exists
 	destroyInstance();
 
 	// create instance
 	Result r;
 	Instance instance;
-	if(enumerateInstanceVersion() != apiVersion1_0)
+	if(enumerateInstanceVersion() != ApiVersion1_0)
 		r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instance);
 	else
 	{
 		// (To avoid probably unintended exception, handle the special case of non-1.0 Vulkan version request
 		// on Vulkan 1.0 system. See vkCreateInstance() documentation.)
-		if(pCreateInfo.pApplicationInfo && pCreateInfo.pApplicationInfo->apiVersion != apiVersion1_0)
+		if(pCreateInfo.pApplicationInfo && pCreateInfo.pApplicationInfo->apiVersion != ApiVersion1_0)
 		{
 			// replace requested Vulkan version by 1.0 to avoid throwing the exception
 			ApplicationInfo appInfo2(*pCreateInfo.pApplicationInfo);
-			appInfo2.apiVersion = apiVersion1_0;
+			appInfo2.apiVersion = ApiVersion1_0;
 			InstanceCreateInfo createInfo2(pCreateInfo);
 			createInfo2.pApplicationInfo = &appInfo2;
 			r = funcs.vkCreateInstance(&createInfo2, nullptr, &instance);
@@ -98,9 +104,9 @@ void vk::initInstance(const vk::InstanceCreateInfo& pCreateInfo)
 		else
 			r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instance);
 	}
-	if(r != SUCCESS)
-		throwResultException("vkCreateInstance", r);
+	checkSuccessValue(r, "vkCreateInstance");  // might throw
 
+	// init instance functionality
 	initInstance(instance);
 }
 
@@ -109,26 +115,44 @@ void vk::initInstance(Instance instance)
 {
 	assert(detail::_library && "vk::loadLib() must be called before vk::initInstance().");
 
+	// destroy previous instance if any exists
 	destroyInstance();
 
+	// assign new instance
 	detail::_instance = instance;
 
-	funcs.vkDestroyInstance                          = getInstanceProcAddr<PFN_vkDestroyInstance                          >("vkDestroyInstance");
+	// set vkDestroyInstance
+	// (this is critical otherwise we cannot destroy the instance in the case of exception or application finalization)
+	funcs.vkDestroyInstance = getInstanceProcAddr<PFN_vkDestroyInstance>("vkDestroyInstance");
+
+	// load instance function pointers
 	funcs.vkEnumeratePhysicalDevices                 = getInstanceProcAddr<PFN_vkEnumeratePhysicalDevices                 >("vkEnumeratePhysicalDevices");
 	funcs.vkGetPhysicalDeviceProperties              = getInstanceProcAddr<PFN_vkGetPhysicalDeviceProperties              >("vkGetPhysicalDeviceProperties");
+	funcs.vkGetPhysicalDeviceFeatures                = getInstanceProcAddr<PFN_vkGetPhysicalDeviceFeatures                >("vkGetPhysicalDeviceFeatures");
+	funcs.vkGetPhysicalDeviceFormatProperties        = getInstanceProcAddr<PFN_vkGetPhysicalDeviceFormatProperties        >("vkGetPhysicalDeviceFormatProperties");
+	funcs.vkGetPhysicalDeviceImageFormatProperties   = getInstanceProcAddr<PFN_vkGetPhysicalDeviceImageFormatProperties   >("vkGetPhysicalDeviceImageFormatProperties");
+	funcs.vkGetPhysicalDeviceMemoryProperties        = getInstanceProcAddr<PFN_vkGetPhysicalDeviceMemoryProperties        >("vkGetPhysicalDeviceMemoryProperties");
+	funcs.vkGetPhysicalDeviceQueueFamilyProperties   = getInstanceProcAddr<PFN_vkGetPhysicalDeviceQueueFamilyProperties   >("vkGetPhysicalDeviceQueueFamilyProperties");
 	///funcs.vkGetPhysicalDeviceProperties2             = getInstanceProcAddr<PFN_vkGetPhysicalDeviceProperties2             >("vkGetPhysicalDeviceProperties2");
 	funcs.vkCreateDevice                             = getInstanceProcAddr<PFN_vkCreateDevice                             >("vkCreateDevice");
+	funcs.vkDestroyDevice                            = getInstanceProcAddr<PFN_vkDestroyDevice                            >("vkDestroyDevice");
 	funcs.vkGetDeviceProcAddr                        = getInstanceProcAddr<PFN_vkGetDeviceProcAddr                        >("vkGetDeviceProcAddr");
-	/*funcs.vkEnumerateDeviceExtensionProperties       = getInstanceProcAddr<PFN_vkEnumerateDeviceExtensionProperties       >("vkEnumerateDeviceExtensionProperties");
+	//funcs.vkEnumerateDeviceExtensionProperties       = getInstanceProcAddr<PFN_vkEnumerateDeviceExtensionProperties       >("vkEnumerateDeviceExtensionProperties");
 	//funcs.vkGetPhysicalDeviceSurfaceFormatsKHR       = getInstanceProcAddr<PFN_vkGetPhysicalDeviceSurfaceFormatsKHR       >("vkGetPhysicalDeviceSurfaceFormatsKHR");
-	funcs.vkGetPhysicalDeviceFormatProperties        = getInstanceProcAddr<PFN_vkGetPhysicalDeviceFormatProperties        >("vkGetPhysicalDeviceFormatProperties");
-	funcs.vkGetPhysicalDeviceMemoryProperties        = getInstanceProcAddr<PFN_vkGetPhysicalDeviceMemoryProperties        >("vkGetPhysicalDeviceMemoryProperties");
 	//funcs.vkGetPhysicalDeviceSurfacePresentModesKHR  = getInstanceProcAddr<PFN_vkGetPhysicalDeviceSurfacePresentModesKHR  >("vkGetPhysicalDeviceSurfacePresentModesKHR");
-	funcs.vkGetPhysicalDeviceQueueFamilyProperties   = getInstanceProcAddr<PFN_vkGetPhysicalDeviceQueueFamilyProperties   >("vkGetPhysicalDeviceQueueFamilyProperties");
 	//funcs.vkGetPhysicalDeviceSurfaceSupportKHR       = getInstanceProcAddr<PFN_vkGetPhysicalDeviceSurfaceSupportKHR       >("vkGetPhysicalDeviceSurfaceSupportKHR");
-	funcs.vkGetPhysicalDeviceFeatures                = getInstanceProcAddr<PFN_vkGetPhysicalDeviceFeatures                >("vkGetPhysicalDeviceFeatures");
-	funcs.vkGetPhysicalDeviceFeatures2               = getInstanceProcAddr<PFN_vkGetPhysicalDeviceFeatures2               >("vkGetPhysicalDeviceFeatures2");
+	//funcs.vkGetPhysicalDeviceFeatures2               = getInstanceProcAddr<PFN_vkGetPhysicalDeviceFeatures2               >("vkGetPhysicalDeviceFeatures2");
 	//funcs.vkGetPhysicalDeviceCalibrateableTimeDomainsEXT = getInstanceProcAddr<PFN_vkGetPhysicalDeviceCalibrateableTimeDomainsEXT>("vkGetPhysicalDeviceCalibrateableTimeDomainsEXT");*/
+}
+
+
+void vk::initDevice(PhysicalDevice pd, const struct DeviceCreateInfo& createInfo)
+{
+	destroyDevice();
+	Device device;
+	vk::Result r = funcs.vkCreateDevice(pd, &createInfo, nullptr, &device);
+	checkSuccessValue(r, "vkCreateDevice");  // might throw
+	initDevice(device);
 }
 
 
@@ -363,6 +387,12 @@ void Vector<Type>::resize(size_t newSize)
 
 // convert VkResult to string
 // author: PCJohn (peciva at fit.vut.cz)
+constexpr const char* resultSuccessString = "Success";
+constexpr const char* resultNotReadyString = "NotReady";
+constexpr const char* resultTimeoutString = "Timeout";
+constexpr const char* resultEventSetString = "EventSet";
+constexpr const char* resultEventResetString = "EventReset";
+constexpr const char* resultIncompleteString = "Incomplete";
 constexpr const char* errorOutOfHostMemoryString = "OutOfHostMemory";
 constexpr const char* errorOutOfDeviceMemoryString = "OutOfDeviceMemory";
 constexpr const char* errorInitializationFailedString = "InitializationFailed";
@@ -386,23 +416,29 @@ constexpr const char* errorUnknownVkResultValueString = "UnknownVkResultValue";
 Span<const char> vk::resultToString(Result result)
 {
 	switch(result) {
-	case ERROR_OUT_OF_HOST_MEMORY: return { errorOutOfHostMemoryString, 15 };
-	case ERROR_OUT_OF_DEVICE_MEMORY: return { errorOutOfDeviceMemoryString, 17 };
-	case ERROR_INITIALIZATION_FAILED: return { errorInitializationFailedString, 20 };
-	case ERROR_DEVICE_LOST: return { errorDeviceLostString, 10 };
-	case ERROR_MEMORY_MAP_FAILED: return { errorMemoryMapFailedString, 15 }; 
-	case ERROR_LAYER_NOT_PRESENT: return { errorLayerNotPresentString, 15 };
-	case ERROR_EXTENSION_NOT_PRESENT: return { errorExtensionNotPresentString, 19 };
-	case ERROR_FEATURE_NOT_PRESENT: return { errorFeatureNotPresentString, 17 };
-	case ERROR_INCOMPATIBLE_DRIVER: return { errorIncompatibleDriverString, 18 };
-	case ERROR_TOO_MANY_OBJECTS: return { errorTooManyObjectsString, 14 };
-	case ERROR_FORMAT_NOT_SUPPORTED: return { errorFormatNotSupportedString, 18 };
-	case ERROR_FRAGMENTED_POOL: return { errorFragmentedPoolString, 14 };
-	case ERROR_UNKNOWN: return { errorUnknownString, 7 };
-	case ERROR_OUT_OF_POOL_MEMORY: return { errorOutOfPoolMemoryString, 15 };
-	case ERROR_INVALID_EXTERNAL_HANDLE: return { errorInvalidExternalHandleString, 21 };
-	case ERROR_FRAGMENTATION: return { errorFragmentationString, 13 };
-	case ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS: return { errorInvalidOpaqueCaptureAddressString, 27 };
+	case Result::eSuccess: return { resultSuccessString, 7 };
+	case Result::eNotReady: return { resultNotReadyString, 8 };
+	case Result::eTimeout: return { resultTimeoutString, 7 };
+	case Result::eEventSet: return { resultEventSetString, 8 };
+	case Result::eEventReset: return { resultEventResetString, 10 };
+	case Result::eIncomplete: return { resultIncompleteString, 10 };
+	case Result::eErrorOutOfHostMemory: return { errorOutOfHostMemoryString, 15 };
+	case Result::eErrorOutOfDeviceMemory: return { errorOutOfDeviceMemoryString, 17 };
+	case Result::eErrorInitializationFailed: return { errorInitializationFailedString, 20 };
+	case Result::eErrorDeviceLost: return { errorDeviceLostString, 10 };
+	case Result::eErrorMemoryMapFailed: return { errorMemoryMapFailedString, 15 }; 
+	case Result::eErrorLayerNotPresent: return { errorLayerNotPresentString, 15 };
+	case Result::eErrorExtensionNotPresent: return { errorExtensionNotPresentString, 19 };
+	case Result::eErrorFeatureNotPresent: return { errorFeatureNotPresentString, 17 };
+	case Result::eErrorIncompatibleDriver: return { errorIncompatibleDriverString, 18 };
+	case Result::eErrorTooManyObjects: return { errorTooManyObjectsString, 14 };
+	case Result::eErrorFormatNotSupported: return { errorFormatNotSupportedString, 18 };
+	case Result::eErrorFragmentedPool: return { errorFragmentedPoolString, 14 };
+	case Result::eErrorUnknown: return { errorUnknownString, 7 };
+	case Result::eErrorOutOfPoolMemory: return { errorOutOfPoolMemoryString, 15 };
+	case Result::eErrorInvalidExternalHandle: return { errorInvalidExternalHandleString, 21 };
+	case Result::eErrorFragmentation: return { errorFragmentationString, 13 };
+	case Result::eErrorInvalidOpaqueCaptureAddress: return { errorInvalidOpaqueCaptureAddressString, 27 };
 	default: return { errorUnknownVkResultValueString, 20 };
 	}
 }
@@ -438,47 +474,59 @@ size_t vk::int32ToString(int32_t value, char* buffer)
 void vk::throwResultException(const char* funcName, Result result)
 {
 	switch(result) {
-	case ERROR_OUT_OF_HOST_MEMORY: throw OutOfHostMemoryError(funcName, result);
-	case ERROR_OUT_OF_DEVICE_MEMORY: throw OutOfDeviceMemoryError(funcName, result);
-	case ERROR_INITIALIZATION_FAILED: throw InitializationFailedError(funcName, result);
-	case ERROR_DEVICE_LOST: throw DeviceLostError(funcName, result);
-	case ERROR_MEMORY_MAP_FAILED: throw MemoryMapFailedError(funcName, result);
-	case ERROR_LAYER_NOT_PRESENT: throw LayerNotPresentError(funcName, result);
-	case ERROR_EXTENSION_NOT_PRESENT: throw ExtensionNotPresentError(funcName, result);
-	case ERROR_FEATURE_NOT_PRESENT: throw FeatureNotPresentError(funcName, result);
-	case ERROR_INCOMPATIBLE_DRIVER: throw IncompatibleDriverError(funcName, result);
-	case ERROR_TOO_MANY_OBJECTS: throw TooManyObjectsError(funcName, result);
-	case ERROR_FORMAT_NOT_SUPPORTED: throw FormatNotSupportedError(funcName, result);
-	case ERROR_FRAGMENTED_POOL: throw FragmentedPoolError(funcName, result);
-	case ERROR_UNKNOWN: throw UnknownError(funcName, result);
-	case ERROR_OUT_OF_POOL_MEMORY: throw OutOfPoolMemoryError(funcName, result);
-	case ERROR_INVALID_EXTERNAL_HANDLE: throw InvalidExternalHandleError(funcName, result);
-	case ERROR_FRAGMENTATION: throw FragmentationError(funcName, result);
-	case ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS: throw InvalidOpaqueCaptureAddressError(funcName, result);
+	case vk::Result::eSuccess: throw SuccessResult(funcName, result);
+	case vk::Result::eNotReady: throw NotReadyResult(funcName, result);
+	case vk::Result::eTimeout: throw TimeoutResult(funcName, result);
+	case vk::Result::eEventSet: throw EventSetResult(funcName, result);
+	case vk::Result::eEventReset: throw EventResetResult(funcName, result);
+	case vk::Result::eIncomplete: throw IncompleteResult(funcName, result);
+	case vk::Result::eErrorOutOfHostMemory: throw OutOfHostMemoryError(funcName, result);
+	case vk::Result::eErrorOutOfDeviceMemory: throw OutOfDeviceMemoryError(funcName, result);
+	case vk::Result::eErrorInitializationFailed: throw InitializationFailedError(funcName, result);
+	case vk::Result::eErrorDeviceLost: throw DeviceLostError(funcName, result);
+	case vk::Result::eErrorMemoryMapFailed: throw MemoryMapFailedError(funcName, result);
+	case vk::Result::eErrorLayerNotPresent: throw LayerNotPresentError(funcName, result);
+	case vk::Result::eErrorExtensionNotPresent: throw ExtensionNotPresentError(funcName, result);
+	case vk::Result::eErrorFeatureNotPresent: throw FeatureNotPresentError(funcName, result);
+	case vk::Result::eErrorIncompatibleDriver: throw IncompatibleDriverError(funcName, result);
+	case vk::Result::eErrorTooManyObjects: throw TooManyObjectsError(funcName, result);
+	case vk::Result::eErrorFormatNotSupported: throw FormatNotSupportedError(funcName, result);
+	case vk::Result::eErrorFragmentedPool: throw FragmentedPoolError(funcName, result);
+	case vk::Result::eErrorUnknown: throw UnknownError(funcName, result);
+	case vk::Result::eErrorOutOfPoolMemory: throw OutOfPoolMemoryError(funcName, result);
+	case vk::Result::eErrorInvalidExternalHandle: throw InvalidExternalHandleError(funcName, result);
+	case vk::Result::eErrorFragmentation: throw FragmentationError(funcName, result);
+	case vk::Result::eErrorInvalidOpaqueCaptureAddress: throw InvalidOpaqueCaptureAddressError(funcName, result);
 	default: throw VkgError("vk::throwResultException", result);
 	}
 }
 
-void vk::throwResultException(Result result, const char* message)
+void vk::throwResultExceptionWithMessage(Result result, const char* message)
 {
 	switch(result) {
-	case ERROR_OUT_OF_HOST_MEMORY: throw OutOfHostMemoryError(message);
-	case ERROR_OUT_OF_DEVICE_MEMORY: throw OutOfDeviceMemoryError(message);
-	case ERROR_INITIALIZATION_FAILED: throw InitializationFailedError(message);
-	case ERROR_DEVICE_LOST: throw DeviceLostError(message);
-	case ERROR_MEMORY_MAP_FAILED: throw MemoryMapFailedError(message);
-	case ERROR_LAYER_NOT_PRESENT: throw LayerNotPresentError(message);
-	case ERROR_EXTENSION_NOT_PRESENT: throw ExtensionNotPresentError(message);
-	case ERROR_FEATURE_NOT_PRESENT: throw FeatureNotPresentError(message);
-	case ERROR_INCOMPATIBLE_DRIVER: throw IncompatibleDriverError(message);
-	case ERROR_TOO_MANY_OBJECTS: throw TooManyObjectsError(message);
-	case ERROR_FORMAT_NOT_SUPPORTED: throw FormatNotSupportedError(message);
-	case ERROR_FRAGMENTED_POOL: throw FragmentedPoolError(message);
-	case ERROR_UNKNOWN: throw UnknownError(message);
-	case ERROR_OUT_OF_POOL_MEMORY: throw OutOfPoolMemoryError(message);
-	case ERROR_INVALID_EXTERNAL_HANDLE: throw InvalidExternalHandleError(message);
-	case ERROR_FRAGMENTATION: throw FragmentationError(message);
-	case ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS: throw InvalidOpaqueCaptureAddressError(message);
+	case vk::Result::eSuccess: throw SuccessResult(message);
+	case vk::Result::eNotReady: throw NotReadyResult(message);
+	case vk::Result::eTimeout: throw TimeoutResult(message);
+	case vk::Result::eEventSet: throw EventSetResult(message);
+	case vk::Result::eEventReset: throw EventResetResult(message);
+	case vk::Result::eIncomplete: throw IncompleteResult(message);
+	case vk::Result::eErrorOutOfHostMemory: throw OutOfHostMemoryError(message);
+	case vk::Result::eErrorOutOfDeviceMemory: throw OutOfDeviceMemoryError(message);
+	case vk::Result::eErrorInitializationFailed: throw InitializationFailedError(message);
+	case vk::Result::eErrorDeviceLost: throw DeviceLostError(message);
+	case vk::Result::eErrorMemoryMapFailed: throw MemoryMapFailedError(message);
+	case vk::Result::eErrorLayerNotPresent: throw LayerNotPresentError(message);
+	case vk::Result::eErrorExtensionNotPresent: throw ExtensionNotPresentError(message);
+	case vk::Result::eErrorFeatureNotPresent: throw FeatureNotPresentError(message);
+	case vk::Result::eErrorIncompatibleDriver: throw IncompatibleDriverError(message);
+	case vk::Result::eErrorTooManyObjects: throw TooManyObjectsError(message);
+	case vk::Result::eErrorFormatNotSupported: throw FormatNotSupportedError(message);
+	case vk::Result::eErrorFragmentedPool: throw FragmentedPoolError(message);
+	case vk::Result::eErrorUnknown: throw UnknownError(message);
+	case vk::Result::eErrorOutOfPoolMemory: throw OutOfPoolMemoryError(message);
+	case vk::Result::eErrorInvalidExternalHandle: throw InvalidExternalHandleError(message);
+	case vk::Result::eErrorFragmentation: throw FragmentationError(message);
+	case vk::Result::eErrorInvalidOpaqueCaptureAddress: throw InvalidOpaqueCaptureAddressError(message);
 	default: throw VkgError("vk::throwResultException", result);
 	}
 }
@@ -499,7 +547,7 @@ Error::Error(const char* funcName, Result result) noexcept
 	Span<const char> resultText = resultToString(result);
 	size_t funcNameLength = funcName ? strlen(funcName) : 0;
 	char codeText[12];
-	size_t codeLength = int32ToString(result, codeText);
+	size_t codeLength = int32ToString(int32_t(result), codeText);
 	size_t n = 14 + funcNameLength + 21 + resultText.size() + 16 + codeLength + 2 + 1;
 
 	// construct message
@@ -520,38 +568,92 @@ Error::Error(const char* funcName, Result result) noexcept
 }
 
 
-uint32_t vk::enumerateInstanceVersion()
+Vector<ExtensionProperties> vk::enumerateInstanceExtensionProperties(const char* pLayerName)
 {
-	uint32_t version;
-	Result r = funcs.vkEnumerateInstanceVersion(&version);
-	if(r != SUCCESS)
-		throwResultException("vkEnumerateInstanceVersion", r);
-	return version;
+	Vector<ExtensionProperties> v;
+	uint32_t n;
+	Result r;
+	do {
+		// get num extensions
+		r = funcs.vkEnumerateInstanceExtensionProperties(pLayerName, &n, nullptr);
+		checkSuccessValue(r, "vkEnumerateInstanceExtensionProperties");
+
+		// enumerate extensions
+		v.alloc(n);
+		r = funcs.vkEnumerateInstanceExtensionProperties(pLayerName, &n, v.data());
+		checkSuccess(r, "vkEnumerateInstanceExtensionProperties");
+
+	} while(r == vk::Result::eIncomplete);
+
+	// number of returned items might got lower before the last get/enumerate call
+	if(n != v.size())
+		v.resize(n);
+
+	return v;
+}
+
+
+Vector<LayerProperties> vk::enumerateInstanceLayerProperties()
+{
+	Vector<LayerProperties> v;
+	uint32_t n;
+	Result r;
+	do {
+		// get num layers
+		r = funcs.vkEnumerateInstanceLayerProperties(&n, nullptr);
+		checkSuccessValue(r, "vkEnumerateInstanceLayerProperties");
+
+		// enumerate layers
+		v.alloc(n);
+		r = funcs.vkEnumerateInstanceLayerProperties(&n, v.data());
+		checkSuccess(r, "vkEnumerateInstanceLayerProperties");
+
+	} while(r == vk::Result::eIncomplete);
+
+	// number of returned items might got lower before the last get/enumerate call
+	if(n != v.size())
+		v.resize(n);
+
+	return v;
 }
 
 
 Vector<PhysicalDevice> vk::enumeratePhysicalDevices()
 {
-	Vector<PhysicalDevice> a;
+	Vector<PhysicalDevice> v;
 	uint32_t n;
 	Result r;
 	do {
-		// get num devices
+		// get number of physical devices
 		r = funcs.vkEnumeratePhysicalDevices(instance(), &n, nullptr);
-		if(r != SUCCESS)
-			throwResultException("vkEnumeratePhysicalDevices", r);
-		
+		checkSuccessValue(r, "vkEnumeratePhysicalDevices");
+
 		// enumerate physical devices
-		a.alloc(n);
-		r = funcs.vkEnumeratePhysicalDevices(instance(), &n, a.data());
-		if(r < 0)
-			throwResultException("vkEnumeratePhysicalDevices", r);
+		v.alloc(n);
+		r = funcs.vkEnumeratePhysicalDevices(instance(), &n, v.data());
+		checkSuccess(r, "vkEnumeratePhysicalDevices");
 
-	} while(r == INCOMPLETE);
+	} while(r == vk::Result::eIncomplete);
 
-	// number of devices might change between two successive vkEnumeratePhysicalDevices() calls
-	if(n != a.size())
-		a.resize(n);
+	// number of returned items might got lower before the last get/enumerate call
+	if(n != v.size())
+		v.resize(n);
 
-	return a;
+	return v;
+}
+
+
+Vector<QueueFamilyProperties> vk::getPhysicalDeviceQueueFamilyProperties(PhysicalDevice pd)
+{
+	Vector<QueueFamilyProperties> v;
+
+	// get num queue families
+	uint32_t n;
+	funcs.vkGetPhysicalDeviceQueueFamilyProperties(pd, &n, nullptr);
+
+	// enumerate physical devices
+	v.alloc(n);  // this might throw
+	funcs.vkGetPhysicalDeviceQueueFamilyProperties(pd, &n, v.data());
+
+	return move(v);
 }

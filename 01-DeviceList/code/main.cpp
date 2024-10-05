@@ -1,7 +1,5 @@
 #include <iostream>
 #include "vkg.h"
-//#include <vulkan/vulkan.h>
-//#include <filesystem>
 
 using namespace std;
 
@@ -18,18 +16,18 @@ int main(int, char**)
 		// Vulkan instance
 		vk::initInstance(
 			vk::InstanceCreateInfo{
-				.sType = vk::STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO,
+				.sType = vk::StructureType::eInstanceCreateInfo,
 				.pNext = nullptr,
 				.flags = 0,
 				.pApplicationInfo =
 					&(const vk::ApplicationInfo&)vk::ApplicationInfo{
-						.sType = vk::STRUCTURE_TYPE_APPLICATION_INFO,
+						.sType = vk::StructureType::eApplicationInfo,
 						.pNext = nullptr,
 						.pApplicationName = "01-deviceList",
 						.applicationVersion = 0,
 						.pEngineName = nullptr,
 						.engineVersion = 0,
-						.apiVersion = vk::apiVersion1_0,
+						.apiVersion = vk::ApiVersion1_0,
 					},
 				.enabledLayerCount = 0,
 				.ppEnabledLayerNames = nullptr,
