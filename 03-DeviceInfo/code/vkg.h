@@ -1609,6 +1609,7 @@ namespace FormatFeatureFlagBits {
     constexpr const Flags eColorAttachment = 0x00000080;
     constexpr const Flags eColorAttachmentBlend = 0x00000100;
     constexpr const Flags eDepthStencilAttachment = 0x00000200;
+    constexpr const Flags eAllFlags = 0x7fffffff;
     /* TODO: fill remaining constants here
     VK_FORMAT_FEATURE_BLIT_SRC_BIT = 0x00000400,
     VK_FORMAT_FEATURE_BLIT_DST_BIT = 0x00000800,
@@ -2138,7 +2139,7 @@ public:
 	Vector(size_t size) : _data(new Type[size]), _size(size)  {}
 	Vector(Type* data, size_t size) : _data(data), _size(size)  {}
 	~Vector()  { delete[] _data; }
-	
+
 	Vector(const Vector& other);
 	Vector(Vector&& other) : _data(other._data), _size(other._size)  { other._data = nullptr; other._size = 0; }
 	Vector& operator=(const Vector& rhs);

@@ -15,7 +15,8 @@ int main(int, char**)
 
 		// instance version
 		uint32_t version = vk::enumerateInstanceVersion();
-		cout << "Vulkan instance version: " << vk::apiVersionMajor(version) << "."
+		cout << "Vulkan instance:\n"
+		     << "   Version: " << vk::apiVersionMajor(version) << "."
 		     << vk::apiVersionMinor(version) << "." << vk::apiVersionPatch(version) << endl;
 
 		// Vulkan instance
@@ -41,6 +42,7 @@ int main(int, char**)
 			});
 
 		// print device list
+		cout << "Vulkan devices:\n";
 		vk::Vector<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
 		for(size_t i=0; i<deviceList.size(); i++) {
 
@@ -51,11 +53,11 @@ int main(int, char**)
 			cout << "   " << p.deviceName << endl;
 
 			// device Vulkan version
-			cout << "      Vulkan version: " << vk::apiVersionMajor(p.apiVersion) << "."
+			cout << "      Vulkan version:  " << vk::apiVersionMajor(p.apiVersion) << "."
 			     << vk::apiVersionMinor(p.apiVersion) << "." << vk::apiVersionPatch(p.apiVersion) << endl;
 
 			// device limits
-			cout << "      MaxTextureSize: " << p.limits.maxImageDimension2D << endl;
+			cout << "      MaxTextureSize:  " << p.limits.maxImageDimension2D << endl;
 
 			// device features
 			vk::PhysicalDeviceFeatures f = vk::getPhysicalDeviceFeatures(pd);
@@ -64,7 +66,7 @@ int main(int, char**)
 				cout << "supported" << endl;
 			else
 				cout << "not supported" << endl;
-			cout << "      Double precision: ";
+			cout << "      Double precision:  ";
 			if(f.shaderFloat64)
 				cout << "supported" << endl;
 			else
