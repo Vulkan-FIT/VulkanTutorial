@@ -5,6 +5,7 @@ project(VulkanTutorial)
 set(PACKAGES
     01-DeviceList
     03-DeviceInfo
+    04-AdvancedInfo
    )
 
 foreach(pkg ${PACKAGES})

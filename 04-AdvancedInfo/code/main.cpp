@@ -19,6 +19,17 @@ int main(int, char**)
 		     << "   Version: " << vk::apiVersionMajor(version) << "."
 		     << vk::apiVersionMinor(version) << "." << vk::apiVersionPatch(version) << endl;
 
+		// instance extensions
+		vk::Vector<vk::ExtensionProperties> instanceExtensionList = vk::enumerateInstanceExtensionProperties(nullptr);
+		cout << "   Extensions:\n";
+		for(size_t i=0; i<instanceExtensionList.size(); i++)
+			cout << "      " << instanceExtensionList[i].extensionName << endl;
+
+		// warning on low instance version
+		if(version < vk::ApiVersion1_1)
+			cout << "Vulkan instance version 1.1 or higher is required.\n"
+			        "Some functionality will not be available." << endl;
+
 		// Vulkan instance
 		vk::initInstance(
 			vk::InstanceCreateInfo{
@@ -29,11 +40,11 @@ int main(int, char**)
 					&(const vk::ApplicationInfo&)vk::ApplicationInfo{
 						.sType = vk::StructureType::eApplicationInfo,
 						.pNext = nullptr,
-						.pApplicationName = "03-DeviceInfo",
+						.pApplicationName = "04-AdvancedInfo",
 						.applicationVersion = 0,
 						.pEngineName = nullptr,
 						.engineVersion = 0,
-						.apiVersion = vk::ApiVersion1_0,
+						.apiVersion = vk::ApiVersion1_1,
 					},
 				.enabledLayerCount = 0,
 				.ppEnabledLayerNames = nullptr,
@@ -49,15 +60,30 @@ int main(int, char**)
 			vk::PhysicalDevice pd = deviceList[i];
 
 			// device properties
-			vk::PhysicalDeviceProperties p = vk::getPhysicalDeviceProperties(pd);
-			cout << "   " << p.deviceName << endl;
+			vk::StructureChain<vk::PhysicalDeviceProperties2> propertiesStructureChain =
+				vk::getPhysicalDeviceProperties2<vk::PhysicalDeviceProperties2>(pd);
+			vk::PhysicalDeviceProperties& properties = propertiesStructureChain.get<vk::PhysicalDeviceProperties2>().properties;
+
+			// device name
+			cout << "   " << properties.deviceName << endl;
 
 			// device Vulkan version
-			cout << "      Vulkan version:  " << vk::apiVersionMajor(p.apiVersion) << "."
-			     << vk::apiVersionMinor(p.apiVersion) << "." << vk::apiVersionPatch(p.apiVersion) << endl;
+			cout << "      Vulkan version:  " << vk::apiVersionMajor(properties.apiVersion) << "."
+			     << vk::apiVersionMinor(properties.apiVersion) << "." << vk::apiVersionPatch(properties.apiVersion) << endl;
+
+			// device type
+			const char* s;
+			switch(properties.deviceType) {
+			case vk::PhysicalDeviceType::eIntegratedGpu: s = "IntegratedGpu"; break;
+			case vk::PhysicalDeviceType::eDiscreteGpu:   s = "DiscreteGpu"; break;
+			case vk::PhysicalDeviceType::eVirtualGpu:    s = "VirtualGpu"; break;
+			case vk::PhysicalDeviceType::eCpu:           s = "Cpu"; break;
+			default: s = "Other";
+			}
+			cout << "      Device type:     " << s << endl;
 
 			// device limits
-			cout << "      MaxTextureSize:  " << p.limits.maxImageDimension2D << endl;
+			cout << "      MaxTextureSize:  " << properties.limits.maxImageDimension2D << endl;
 
 			// device features
 			vk::PhysicalDeviceFeatures f = vk::getPhysicalDeviceFeatures(pd);
