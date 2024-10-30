@@ -72,7 +72,7 @@ void vk::loadLib(const std::filesystem::path& libPath)
 		detail::_instanceVersion = v;
 	}
 	else
-		detail::_instanceVersion = ApiVersion1_0;
+		detail::_instanceVersion = ApiVersion10;
 }
 
 
@@ -86,17 +86,17 @@ void vk::initInstance(const vk::InstanceCreateInfo& pCreateInfo)
 	// create instance
 	Result r;
 	Instance instance;
-	if(enumerateInstanceVersion() != ApiVersion1_0)
+	if(enumerateInstanceVersion() != ApiVersion10)
 		r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instance);
 	else
 	{
 		// (To avoid probably unintended exception, handle the special case of non-1.0 Vulkan version request
 		// on Vulkan 1.0 system. See vkCreateInstance() documentation.)
-		if(pCreateInfo.pApplicationInfo && pCreateInfo.pApplicationInfo->apiVersion != ApiVersion1_0)
+		if(pCreateInfo.pApplicationInfo && pCreateInfo.pApplicationInfo->apiVersion != ApiVersion10)
 		{
 			// replace requested Vulkan version by 1.0 to avoid throwing the exception
 			ApplicationInfo appInfo2(*pCreateInfo.pApplicationInfo);
-			appInfo2.apiVersion = ApiVersion1_0;
+			appInfo2.apiVersion = ApiVersion10;
 			InstanceCreateInfo createInfo2(pCreateInfo);
 			createInfo2.pApplicationInfo = &appInfo2;
 			r = funcs.vkCreateInstance(&createInfo2, nullptr, &instance);
@@ -127,6 +127,7 @@ void vk::initInstance(Instance instance)
 
 	// load instance function pointers
 	funcs.vkEnumeratePhysicalDevices                 = getInstanceProcAddr<PFN_vkEnumeratePhysicalDevices                 >("vkEnumeratePhysicalDevices");
+	funcs.vkEnumerateDeviceExtensionProperties       = getInstanceProcAddr<PFN_vkEnumerateDeviceExtensionProperties       >("vkEnumerateDeviceExtensionProperties");
 	funcs.vkGetPhysicalDeviceProperties              = getInstanceProcAddr<PFN_vkGetPhysicalDeviceProperties              >("vkGetPhysicalDeviceProperties");
 	funcs.vkGetPhysicalDeviceFeatures                = getInstanceProcAddr<PFN_vkGetPhysicalDeviceFeatures                >("vkGetPhysicalDeviceFeatures");
 	funcs.vkGetPhysicalDeviceFormatProperties        = getInstanceProcAddr<PFN_vkGetPhysicalDeviceFormatProperties        >("vkGetPhysicalDeviceFormatProperties");
@@ -134,14 +135,15 @@ void vk::initInstance(Instance instance)
 	funcs.vkGetPhysicalDeviceMemoryProperties        = getInstanceProcAddr<PFN_vkGetPhysicalDeviceMemoryProperties        >("vkGetPhysicalDeviceMemoryProperties");
 	funcs.vkGetPhysicalDeviceQueueFamilyProperties   = getInstanceProcAddr<PFN_vkGetPhysicalDeviceQueueFamilyProperties   >("vkGetPhysicalDeviceQueueFamilyProperties");
 	funcs.vkGetPhysicalDeviceProperties2             = getInstanceProcAddr<PFN_vkGetPhysicalDeviceProperties2             >("vkGetPhysicalDeviceProperties2");
+	funcs.vkGetPhysicalDeviceFeatures2               = getInstanceProcAddr<PFN_vkGetPhysicalDeviceFeatures2               >("vkGetPhysicalDeviceFeatures2");
+	funcs.vkGetPhysicalDeviceMemoryProperties2       = getInstanceProcAddr<PFN_vkGetPhysicalDeviceMemoryProperties2       >("vkGetPhysicalDeviceMemoryProperties2");
+	funcs.vkGetPhysicalDeviceQueueFamilyProperties2  = getInstanceProcAddr<PFN_vkGetPhysicalDeviceQueueFamilyProperties2  >("vkGetPhysicalDeviceQueueFamilyProperties2");
 	funcs.vkCreateDevice                             = getInstanceProcAddr<PFN_vkCreateDevice                             >("vkCreateDevice");
 	funcs.vkDestroyDevice                            = getInstanceProcAddr<PFN_vkDestroyDevice                            >("vkDestroyDevice");
 	funcs.vkGetDeviceProcAddr                        = getInstanceProcAddr<PFN_vkGetDeviceProcAddr                        >("vkGetDeviceProcAddr");
-	//funcs.vkEnumerateDeviceExtensionProperties       = getInstanceProcAddr<PFN_vkEnumerateDeviceExtensionProperties       >("vkEnumerateDeviceExtensionProperties");
 	//funcs.vkGetPhysicalDeviceSurfaceFormatsKHR       = getInstanceProcAddr<PFN_vkGetPhysicalDeviceSurfaceFormatsKHR       >("vkGetPhysicalDeviceSurfaceFormatsKHR");
 	//funcs.vkGetPhysicalDeviceSurfacePresentModesKHR  = getInstanceProcAddr<PFN_vkGetPhysicalDeviceSurfacePresentModesKHR  >("vkGetPhysicalDeviceSurfacePresentModesKHR");
 	//funcs.vkGetPhysicalDeviceSurfaceSupportKHR       = getInstanceProcAddr<PFN_vkGetPhysicalDeviceSurfaceSupportKHR       >("vkGetPhysicalDeviceSurfaceSupportKHR");
-	//funcs.vkGetPhysicalDeviceFeatures2               = getInstanceProcAddr<PFN_vkGetPhysicalDeviceFeatures2               >("vkGetPhysicalDeviceFeatures2");
 	//funcs.vkGetPhysicalDeviceCalibrateableTimeDomainsEXT = getInstanceProcAddr<PFN_vkGetPhysicalDeviceCalibrateableTimeDomainsEXT>("vkGetPhysicalDeviceCalibrateableTimeDomainsEXT");*/
 }
 
@@ -314,21 +316,6 @@ vk::VkgInitAndCleanUp::~VkgInitAndCleanUp()
 
 
 template<typename Type>
-Vector<Type>::Vector(const Vector& other)
-	: _data(new Type[other._size])
-	, _size(other._size)
-{
-	try {
-		std::uninitialized_copy_n(other._data, other._size, _data);
-	} catch(...) {
-		::operator delete[](_data);
-		_data = nullptr;
-		throw;
-	}
-}
-
-
-template<typename Type>
 Vector<Type>& Vector<Type>::operator=(const Vector& rhs)
 {
 	if(_size == rhs._size)
@@ -345,43 +332,7 @@ Vector<Type>& Vector<Type>::operator=(const Vector& rhs)
 			throw;
 		}
 	}
-}
-
-
-template<typename Type>
-void Vector<Type>::resize(size_t newSize)
-{
-	if(newSize > size()) {
-		Type* m = reinterpret_cast<Type*>(::operator new(sizeof(Type) * newSize));
-		try {
-			std::uninitialized_move(_data, _data+_size, m);
-		} catch(...) {
-			::operator delete[](m);
-			throw;
-		}
-		try {
-			std::uninitialized_default_construct(m+_size, m+newSize);
-		} catch(...) {
-			std::destroy(m, m+_size);
-			::operator delete[](m);
-			throw;
-		}
-		Type* tmp = _data;
-		_data = m;
-		delete[] tmp;
-	}
-	if(newSize < size()) {
-		Type* m = reinterpret_cast<Type*>(::operator new(sizeof(Type) * newSize));
-		try {
-			std::uninitialized_move(_data, _data+newSize, m);
-		} catch(...) {
-			::operator delete[](m);
-			throw;
-		}
-		Type* tmp = _data;
-		_data = m;
-		delete[] _data;
-	}
+	return *this;
 }
 
 
@@ -593,6 +544,31 @@ Vector<ExtensionProperties> vk::enumerateInstanceExtensionProperties(const char*
 }
 
 
+Vector<ExtensionProperties> vk::enumerateDeviceExtensionProperties(PhysicalDevice pd, const char* pLayerName)
+{
+	Vector<ExtensionProperties> v;
+	uint32_t n;
+	Result r;
+	do {
+		// get num extensions
+		r = funcs.vkEnumerateDeviceExtensionProperties(pd, pLayerName, &n, nullptr);
+		checkSuccessValue(r, "vkEnumerateInstanceExtensionProperties");
+
+		// enumerate extensions
+		v.alloc(n);
+		r = funcs.vkEnumerateDeviceExtensionProperties(pd, pLayerName, &n, v.data());
+		checkSuccess(r, "vkEnumerateInstanceExtensionProperties");
+
+	} while(r == vk::Result::eIncomplete);
+
+	// number of returned items might got lower before the last get/enumerate call
+	if(n != v.size())
+		v.resize(n);
+
+	return v;
+}
+
+
 Vector<LayerProperties> vk::enumerateInstanceLayerProperties()
 {
 	Vector<LayerProperties> v;
@@ -655,5 +631,19 @@ Vector<QueueFamilyProperties> vk::getPhysicalDeviceQueueFamilyProperties(Physica
 	v.alloc(n);  // this might throw
 	funcs.vkGetPhysicalDeviceQueueFamilyProperties(pd, &n, v.data());
 
-	return move(v);
+	return v;
+}
+
+
+Vector<QueueFamilyProperties2> vk::getPhysicalDeviceQueueFamilyProperties2(PhysicalDevice pd)
+{
+	// get num queue families
+	uint32_t n;
+	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd, &n, nullptr);
+
+	// enumerate physical devices
+	Vector<QueueFamilyProperties2> queueFamilyProperties;
+	queueFamilyProperties.alloc(n);  // this might throw
+	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd, &n, queueFamilyProperties.data());
+	return queueFamilyProperties;
 }

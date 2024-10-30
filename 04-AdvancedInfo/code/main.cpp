@@ -14,21 +14,16 @@ int main(int, char**)
 		vk::loadLib();
 
 		// instance version
-		uint32_t version = vk::enumerateInstanceVersion();
+		uint32_t instanceVersion = vk::enumerateInstanceVersion();
 		cout << "Vulkan instance:\n"
-		     << "   Version: " << vk::apiVersionMajor(version) << "."
-		     << vk::apiVersionMinor(version) << "." << vk::apiVersionPatch(version) << endl;
+		     << "   Version: " << vk::apiVersionMajor(instanceVersion) << "."
+		     << vk::apiVersionMinor(instanceVersion) << "." << vk::apiVersionPatch(instanceVersion) << endl;
 
 		// instance extensions
 		vk::Vector<vk::ExtensionProperties> instanceExtensionList = vk::enumerateInstanceExtensionProperties(nullptr);
 		cout << "   Extensions:\n";
 		for(size_t i=0; i<instanceExtensionList.size(); i++)
 			cout << "      " << instanceExtensionList[i].extensionName << endl;
-
-		// warning on low instance version
-		if(version < vk::ApiVersion1_1)
-			cout << "Vulkan instance version 1.1 or higher is required.\n"
-			        "Some functionality will not be available." << endl;
 
 		// Vulkan instance
 		vk::initInstance(
@@ -44,7 +39,7 @@ int main(int, char**)
 						.applicationVersion = 0,
 						.pEngineName = nullptr,
 						.engineVersion = 0,
-						.apiVersion = vk::ApiVersion1_1,
+						.apiVersion = vk::ApiVersion12,
 					},
 				.enabledLayerCount = 0,
 				.ppEnabledLayerNames = nullptr,
@@ -60,9 +55,23 @@ int main(int, char**)
 			vk::PhysicalDevice pd = deviceList[i];
 
 			// device properties
-			vk::StructureChain<vk::PhysicalDeviceProperties2> propertiesStructureChain =
-				vk::getPhysicalDeviceProperties2<vk::PhysicalDeviceProperties2>(pd);
-			vk::PhysicalDeviceProperties& properties = propertiesStructureChain.get<vk::PhysicalDeviceProperties2>().properties;
+			vk::PhysicalDeviceVulkan12Properties properties12{
+				.pNext = nullptr,
+			};
+			vk::PhysicalDeviceVulkan11Properties properties11{  // requires ApiVersion12 (really Vulkan 1.2, not 1.1)
+				.pNext = (instanceVersion>=vk::ApiVersion12) ? &properties12 : nullptr,
+			};
+			vk::PhysicalDeviceProperties2 p{
+				.pNext = (instanceVersion>=vk::ApiVersion12) ? &properties11 : nullptr,
+			};
+			vk::PhysicalDeviceProperties& properties = p.properties;
+
+			// get device properties
+			properties = vk::getPhysicalDeviceProperties(pd);
+
+			// get extended device properties
+			if(properties.apiVersion >= vk::ApiVersion11)
+				vk::getPhysicalDeviceProperties2(pd, p);
 
 			// device name
 			cout << "   " << properties.deviceName << endl;
@@ -82,40 +91,139 @@ int main(int, char**)
 			}
 			cout << "      Device type:     " << s << endl;
 
+			// device UUID
+			cout << "      Device UUID:     ";
+			if(properties.apiVersion >= vk::ApiVersion12) {
+				auto printBytes =
+					[](uint8_t* a, uint8_t count) {
+						for(uint8_t* e=a+count; a<e; a++)
+							cout << (*a >> 4) << (*a & 0x0f);
+					};
+				cout << hex;
+				printBytes(&properties11.deviceUUID[0], 4);
+				cout << '-';
+				printBytes(&properties11.deviceUUID[4], 2);
+				cout << '-';
+				printBytes(&properties11.deviceUUID[6], 2);
+				cout << '-';
+				printBytes(&properties11.deviceUUID[8], 2);
+				cout << '-';
+				printBytes(&properties11.deviceUUID[10], 6);
+				cout << dec << endl;
+			} else
+				cout << "< unknown >" << endl;
+
+			// driver info
+			if(properties.apiVersion >= vk::ApiVersion12) {
+				cout << "      Driver name:     " << properties12.driverName << endl;
+				cout << "      Driver info:     " << properties12.driverInfo << endl;
+			}
+			else {
+				cout << "      Driver name:     < unknown >" << endl;
+				cout << "      Driver info:     < unknown >" << endl;
+			}
+
 			// device limits
 			cout << "      MaxTextureSize:  " << properties.limits.maxImageDimension2D << endl;
 
 			// device features
-			vk::PhysicalDeviceFeatures f = vk::getPhysicalDeviceFeatures(pd);
-			cout << "      Geometry shader:  ";
-			if(f.geometryShader)
+			vk::PhysicalDeviceVulkan12Features features12{
+				.pNext = nullptr,
+			};
+			vk::PhysicalDeviceFeatures2 f{
+				.pNext = (instanceVersion>=vk::ApiVersion12) ? &features12 : nullptr,
+			};
+			vk::PhysicalDeviceFeatures& features = f.features;
+			if(properties.apiVersion >= vk::ApiVersion11)
+				vk::getPhysicalDeviceFeatures2(pd, f);
+			else
+				features = vk::getPhysicalDeviceFeatures(pd);
+
+			// geometry shader support
+			cout << "      Geometry shader:   ";
+			if(features.geometryShader)
 				cout << "supported" << endl;
 			else
 				cout << "not supported" << endl;
+
+			// support for doubles and halfs
 			cout << "      Double precision:  ";
-			if(f.shaderFloat64)
+			if(features.shaderFloat64)
+				cout << "supported" << endl;
+			else
+				cout << "not supported" << endl;
+			cout << "      Half precision:    ";
+			if(properties.apiVersion >= vk::ApiVersion12 && features12.shaderFloat16)
 				cout << "supported" << endl;
 			else
 				cout << "not supported" << endl;
 
 			// memory properties
-			vk::PhysicalDeviceMemoryProperties m = vk::getPhysicalDeviceMemoryProperties(pd);
 			cout << "      Memory heaps:" << endl;
-			for(uint32_t i=0, c=m.memoryHeapCount; i<c; i++)
-				cout << "         " << i << ": " << m.memoryHeaps[i].size/1024/1024 << "MiB" << endl;
+			vk::PhysicalDeviceMemoryProperties memoryProperties = vk::getPhysicalDeviceMemoryProperties(pd);
+			for(uint32_t i=0, c=memoryProperties.memoryHeapCount; i<c; i++) {
+				vk::MemoryHeap& h = memoryProperties.memoryHeaps[i];
+				cout << "         " << i << ": " << h.size/1024/1024 << "MiB";
+				if(h.flags & vk::MemoryHeapFlagBits::eDeviceLocal)  cout << "  (device local)";
+				cout << endl;
+			}
 
 			// queue family properties
-			vk::Vector<vk::QueueFamilyProperties> queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties(pd);
 			cout << "      Queue families:" << endl;
+#if 0
+			typedef struct VkQueueFamilyCheckpointProperties2NV {
+				vk::StructureType          sType = vk::StructureType(1000314008);
+				void*                    pNext = nullptr;
+				uint64_t    checkpointExecutionStageMask;
+			} VkQueueFamilyCheckpointProperties2NV;
+			vk::Vector<vk::QueueFamilyProperties2> queueFamilyList;
+			vk::Vector<vk::QueueFamilyVideoPropertiesKHR> queueVideoPropertiesList;
+			vk::Vector<VkQueueFamilyCheckpointProperties2NV> queueVideoPropertiesList2;
+			vk::Vector<vk::QueueFamilyProperties2> queueFamilyListElision1 = vk::getPhysicalDeviceQueueFamilyProperties2(pd);
+			vk::Vector<vk::QueueFamilyProperties2> queueFamilyListElision2 = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList);
+			vk::Vector<vk::QueueFamilyProperties2> queueFamilyListElision3 = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList, false);
+			vk::Vector<vk::QueueFamilyProperties2> queueFamilyListElision4 = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList, true);
+			vk::Vector<vk::QueueFamilyProperties2> queueFamilyListElision6 = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList, false, queueVideoPropertiesList2, true);
+			vk::Vector<vk::QueueFamilyProperties2> queueFamilyListElision7 = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList, true, queueVideoPropertiesList2, false);
+			vk::Vector<vk::QueueFamilyProperties2> queueFamilyListElision8 = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList, false, queueVideoPropertiesList2, false);
+			vk::Vector<vk::QueueFamilyProperties2> queueFamilyListElision5 = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList, true, queueVideoPropertiesList2, true);
+			queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties2(pd);
+			queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList);
+			queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList, false);
+			queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList, true);
+			queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList, true, queueVideoPropertiesList2, true);
+#endif
+			vk::Vector<vk::QueueFamilyProperties2> queueFamilyList;
+			vk::Vector<vk::QueueFamilyVideoPropertiesKHR> queueVideoPropertiesList;
+			if(properties.apiVersion >= vk::ApiVersion11)
+				queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList);
+			else {
+				vk::Vector<vk::QueueFamilyProperties> v = vk::getPhysicalDeviceQueueFamilyProperties(pd);
+				queueFamilyList.resize(v.size());
+				for(size_t i=0; i<v.size(); i++)
+					queueFamilyList[i].queueFamilyProperties = v[i];
+			}
 			for(uint32_t i=0, c=uint32_t(queueFamilyList.size()); i<c; i++) {
+				vk::QueueFamilyProperties& queueFamilyProperties = queueFamilyList[i].queueFamilyProperties;
 				cout << "         " << i << ": ";
-				if(queueFamilyList[i].queueFlags & vk::QueueFlagBits::eGraphics)
+				if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eGraphics)
 					cout << "g";
-				if(queueFamilyList[i].queueFlags & vk::QueueFlagBits::eCompute)
+				if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eCompute)
 					cout << "c";
-				if(queueFamilyList[i].queueFlags & vk::QueueFlagBits::eTransfer)
+				if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eTransfer)
 					cout << "t";
-				cout << "  (count: " << queueFamilyList[i].queueCount << ")" << endl;
+				if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eSparseBinding)
+					cout << "s";
+				if(queueFamilyProperties.queueFlags & (vk::QueueFlagBits::eVideoDecodeKHR | vk::QueueFlagBits::eVideoEncodeKHR))
+					cout << "v";
+				cout << "  (count: " << queueFamilyProperties.queueCount;
+				if(queueVideoPropertiesList[i].videoCodecOperations & vk::VideoCodecOperationFlagBitsKHR::eDecodeH264)
+					cout << ", decode H264";
+				if(queueVideoPropertiesList[i].videoCodecOperations & vk::VideoCodecOperationFlagBitsKHR::eDecodeH265)
+					cout << ", decode H265";
+				if(queueVideoPropertiesList[i].videoCodecOperations & vk::VideoCodecOperationFlagBitsKHR::eDecodeAV1)
+					cout << ", decode AV1";
+				cout << ")" << endl;
 			}
 
 			// color attachment R8G8B8A8Unorm format support
@@ -128,6 +236,16 @@ int main(int, char**)
 			cout << "         Buffers: " <<
 				string(fp.bufferFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
 
+			// list extensions
+			vk::Vector<vk::ExtensionProperties> extensionList =
+				vk::enumerateDeviceExtensionProperties(pd, nullptr);
+			if(!extensionList.empty())
+				cout << "      Extensions:  " << extensionList[0].extensionName;
+			else
+				cout << "      Extensions:  < none >";
+			for(size_t i=1,c=extensionList.size(); i<c; i++)
+				cout << ", " << extensionList[i].extensionName;
+			cout << endl;
 		}
 
 	// catch exceptions
