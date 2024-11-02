@@ -1,7 +1,6 @@
 #include "vkg.h"
 #include <cassert>
 #include <cstdlib>
-#include <memory>
 #include <string>
 #include <filesystem>
 #ifdef _WIN32
@@ -35,7 +34,7 @@ void vk::loadLib()
 }
 
 
-void vk::loadLib(const std::filesystem::path& libPath)
+void vk::loadLib(const char* libPath)
 {
 	// avoid multiple initialization attempts
 	if(detail::_library)
@@ -43,20 +42,21 @@ void vk::loadLib(const std::filesystem::path& libPath)
 
 	// load library
 	// and get vkGetInstanceProcAddr pointer
+	filesystem::path p = filesystem::path(libPath);
 #ifdef _WIN32
-	detail::_library = reinterpret_cast<void*>(LoadLibraryW(libPath.native().c_str()));
+	detail::_library = reinterpret_cast<void*>(LoadLibraryW(p.native().c_str()));
 	if(detail::_library == nullptr)
-		throw VkgError((string("Vulkan error: Can not open \"") + libPath.string() + "\".").c_str());
+		throw VkgError((string("Vulkan error: Can not open \"") + p.string() + "\".").c_str());
 	funcs.vkGetInstanceProcAddr = PFN_vkGetInstanceProcAddr(
 		GetProcAddress(reinterpret_cast<HMODULE>(detail::_library), "vkGetInstanceProcAddr"));
 #else
-	detail::_library = dlopen(libPath.native().c_str(),RTLD_NOW);
+	detail::_library = dlopen(p.native().c_str(),RTLD_NOW);
 	if(detail::_library == nullptr)
-		throw VkgError((string("Vulkan error: Can not open \"") + libPath.native() + "\".").c_str());
+		throw VkgError((string("Vulkan error: Can not open \"") + p.native() + "\".").c_str());
 	funcs.vkGetInstanceProcAddr = PFN_vkGetInstanceProcAddr(dlsym(detail::_library, "vkGetInstanceProcAddr"));
 #endif
 	if(funcs.vkGetInstanceProcAddr == nullptr)
-		throw VkgError((string("Vulkan error: Can not retrieve vkGetInstanceProcAddr function pointer out of \"") + libPath.string() + ".").c_str());
+		throw VkgError((string("Vulkan error: Can not retrieve vkGetInstanceProcAddr function pointer out of \"") + p.string() + ".").c_str());
 
 	// function pointers available without vk::Instance
 	funcs.vkEnumerateInstanceExtensionProperties = getInstanceProcAddr<PFN_vkEnumerateInstanceExtensionProperties>("vkEnumerateInstanceExtensionProperties");
@@ -312,27 +312,6 @@ vk::VkgInitAndCleanUp::~VkgInitAndCleanUp()
 {
 	if(--niftyCounter == 0)
 		vk::cleanUp();
-}
-
-
-template<typename Type>
-Vector<Type>& Vector<Type>::operator=(const Vector& rhs)
-{
-	if(_size == rhs._size)
-		std::copy_n(rhs._data, _size, _data);
-	else {
-		delete[] _data;
-		_size = rhs._size;
-		_data = ::operator new(sizeof(Type) * _size);
-		try {
-			std::uninitialized_copy_n(rhs._data, rhs._size, _data);
-		} catch(...) {
-			::operator delete[](_data);
-			_data = nullptr;
-			throw;
-		}
-	}
-	return *this;
 }
 
 

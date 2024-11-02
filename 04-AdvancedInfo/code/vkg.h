@@ -5,13 +5,6 @@
 #include <string.h>
 #include <utility>
 
-namespace std {
-class logic_error;
-}
-namespace std::filesystem {
-class path;
-}
-
 
 namespace vk {
 
@@ -40,7 +33,7 @@ inline uint32_t enumerateInstanceVersion()  { return detail::_instanceVersion; }
 // initialization and cleanUp functions
 // author: PCJohn (peciva at fit.vut.cz)
 void loadLib();
-void loadLib(const std::filesystem::path& libPath);
+void loadLib(const char* libPath);  // or const std::filesystem::path& libPath if import std
 void initInstance(const struct InstanceCreateInfo& createInfo);
 void initInstance(Instance instance);
 void initDevice(PhysicalDevice pd, const struct DeviceCreateInfo& createInfo);
@@ -2446,6 +2439,35 @@ Vector<Type>::Vector(const Vector& other)
 		_data = nullptr;
 		throw;
 	}
+}
+
+
+template<typename Type>
+Vector<Type>& Vector<Type>::operator=(const Vector& rhs)
+{
+	if(_size == rhs._size)
+		for(size_t i=0,c=_size; i<c; i++)
+			_data[i] = rhs._data[i];
+	else {
+		delete[] _data;
+		_data = nullptr;
+		_size = rhs._size;
+		_data = ::operator new(sizeof(Type) * _size);
+		size_t i=0;
+		try {
+			for(; i<rhs._size; i++)
+				new(&_data[i]) Type(rhs._data[i]);
+		} catch(...) {
+			while(i > 0) {
+				i--;
+				_data[i].~Type();
+			}
+			::operator delete[](_data);
+			_data = nullptr;
+			throw;
+		}
+	}
+	return *this;
 }
 
 
