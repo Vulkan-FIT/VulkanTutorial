@@ -25,6 +25,12 @@ int main(int, char**)
 		for(size_t i=0; i<instanceExtensionList.size(); i++)
 			cout << "      " << instanceExtensionList[i].extensionName << endl;
 
+		// required instance version
+		/*if(instanceVersion < vk::ApiVersion11) {
+			cout << "Error: Vulkan instance version 1.1 or higher is required. Exiting..." << endl;
+			return -1;
+		}*/
+
 		// Vulkan instance
 		vk::initInstance(
 			vk::InstanceCreateInfo{
@@ -53,6 +59,11 @@ int main(int, char**)
 		for(size_t i=0; i<deviceList.size(); i++) {
 
 			vk::PhysicalDevice pd = deviceList[i];
+
+			// supported extensions
+			vk::Vector<vk::ExtensionProperties> extensionList =
+				vk::enumerateDeviceExtensionProperties(pd, nullptr);
+			bool videoQueueSupported = vk::isExtensionSupported(extensionList, "VK_KHR_video_queue");
 
 			// device properties
 			vk::PhysicalDeviceVulkan12Properties properties12{
@@ -170,33 +181,11 @@ int main(int, char**)
 
 			// queue family properties
 			cout << "      Queue families:" << endl;
-#if 0
-			typedef struct VkQueueFamilyCheckpointProperties2NV {
-				vk::StructureType          sType = vk::StructureType(1000314008);
-				void*                    pNext = nullptr;
-				uint64_t    checkpointExecutionStageMask;
-			} VkQueueFamilyCheckpointProperties2NV;
-			vk::Vector<vk::QueueFamilyProperties2> queueFamilyList;
-			vk::Vector<vk::QueueFamilyVideoPropertiesKHR> queueVideoPropertiesList;
-			vk::Vector<VkQueueFamilyCheckpointProperties2NV> queueVideoPropertiesList2;
-			vk::Vector<vk::QueueFamilyProperties2> queueFamilyListElision1 = vk::getPhysicalDeviceQueueFamilyProperties2(pd);
-			vk::Vector<vk::QueueFamilyProperties2> queueFamilyListElision2 = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList);
-			vk::Vector<vk::QueueFamilyProperties2> queueFamilyListElision3 = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList, false);
-			vk::Vector<vk::QueueFamilyProperties2> queueFamilyListElision4 = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList, true);
-			vk::Vector<vk::QueueFamilyProperties2> queueFamilyListElision6 = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList, false, queueVideoPropertiesList2, true);
-			vk::Vector<vk::QueueFamilyProperties2> queueFamilyListElision7 = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList, true, queueVideoPropertiesList2, false);
-			vk::Vector<vk::QueueFamilyProperties2> queueFamilyListElision8 = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList, false, queueVideoPropertiesList2, false);
-			vk::Vector<vk::QueueFamilyProperties2> queueFamilyListElision5 = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList, true, queueVideoPropertiesList2, true);
-			queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties2(pd);
-			queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList);
-			queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList, false);
-			queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList, true);
-			queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList, true, queueVideoPropertiesList2, true);
-#endif
 			vk::Vector<vk::QueueFamilyProperties2> queueFamilyList;
 			vk::Vector<vk::QueueFamilyVideoPropertiesKHR> queueVideoPropertiesList;
 			if(properties.apiVersion >= vk::ApiVersion11)
-				queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties2(pd, queueVideoPropertiesList);
+				queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties2(
+					pd, queueVideoPropertiesList, videoQueueSupported);
 			else {
 				vk::Vector<vk::QueueFamilyProperties> v = vk::getPhysicalDeviceQueueFamilyProperties(pd);
 				queueFamilyList.resize(v.size());
@@ -217,18 +206,20 @@ int main(int, char**)
 				if(queueFamilyProperties.queueFlags & (vk::QueueFlagBits::eVideoDecodeKHR | vk::QueueFlagBits::eVideoEncodeKHR))
 					cout << "v";
 				cout << "  (count: " << queueFamilyProperties.queueCount;
-				if(queueVideoPropertiesList[i].videoCodecOperations & vk::VideoCodecOperationFlagBitsKHR::eDecodeH264)
-					cout << ", decode H264";
-				if(queueVideoPropertiesList[i].videoCodecOperations & vk::VideoCodecOperationFlagBitsKHR::eDecodeH265)
-					cout << ", decode H265";
-				if(queueVideoPropertiesList[i].videoCodecOperations & vk::VideoCodecOperationFlagBitsKHR::eDecodeAV1)
-					cout << ", decode AV1";
+				if(videoQueueSupported) {
+					if(queueVideoPropertiesList[i].videoCodecOperations & vk::VideoCodecOperationFlagBitsKHR::eDecodeH264)
+						cout << ", decode H264";
+					if(queueVideoPropertiesList[i].videoCodecOperations & vk::VideoCodecOperationFlagBitsKHR::eDecodeH265)
+						cout << ", decode H265";
+					if(queueVideoPropertiesList[i].videoCodecOperations & vk::VideoCodecOperationFlagBitsKHR::eDecodeAV1)
+						cout << ", decode AV1";
+				}
 				cout << ")" << endl;
 			}
 
-			// color attachment R8G8B8A8Unorm format support
-			vk::FormatProperties fp = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR8G8B8A8Unorm);
-			cout << "      R8G8B8A8Unorm format support for color attachment:" << endl;
+			// color attachment R8G8B8A8Srgb format support
+			vk::FormatProperties fp = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR8G8B8A8Srgb);
+			cout << "      R8G8B8A8Srgb format support for color attachment:" << endl;
 			cout << "         Images with linear tiling: " <<
 				string(fp.linearTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
 			cout << "         Images with optimal tiling: " <<
@@ -236,9 +227,7 @@ int main(int, char**)
 			cout << "         Buffers: " <<
 				string(fp.bufferFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
 
-			// list extensions
-			vk::Vector<vk::ExtensionProperties> extensionList =
-				vk::enumerateDeviceExtensionProperties(pd, nullptr);
+			// print extensions
 			if(!extensionList.empty())
 				cout << "      Extensions:  " << extensionList[0].extensionName;
 			else
