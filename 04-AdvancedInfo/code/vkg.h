@@ -2527,6 +2527,73 @@ void Vector<Type>::resize(size_t newSize)
 }
 
 
+enum class ExtensionNumber {
+	VK_KHR_surface = 1,
+	VK_KHR_swapchain = 2,
+	VK_KHR_display = 3,
+	VK_KHR_display_swapchain = 4,
+	VK_KHR_xlib_surface = 5,
+	VK_KHR_xcb_surface = 6,
+	VK_KHR_wayland_surface = 7,
+	VK_KHR_mir_surface = 8,
+	VK_KHR_android_surface = 9,
+	VK_KHR_win32_surface = 10,
+	VK_ANDROID_native_buffer = 11,
+	VK_EXT_debug_report = 12,
+	VK_NV_glsl_shader = 13,
+	VK_EXT_depth_range_unrestricted = 14,
+	VK_KHR_sampler_mirror_clamp_to_edge = 15,
+	VK_IMG_filter_cubic = 16,
+	VK_AMD_rasterization_order = 19,
+	VK_AMD_shader_trinary_minmax = 21,
+	VK_AMD_shader_explicit_vertex_parameter = 22,
+	VK_EXT_debug_marker = 23,
+	VK_KHR_video_queue = 24,
+	VK_KHR_video_decode_queue = 25,
+	VK_AMD_gcn_shader = 26,
+	VK_NV_dedicated_allocation = 27,
+	VK_EXT_transform_feedback = 29, 
+	VK_NVX_binary_import = 30,
+	VK_NVX_image_view_handle = 31,
+	VK_AMD_draw_indirect_count = 34,
+	VK_AMD_negative_viewport_height = 36,
+	VK_AMD_gpu_shader_half_float = 37,
+	VK_AMD_shader_ballot = 38,
+	VK_KHR_video_encode_h264 = 39,
+	VK_KHR_video_encode_h265 = 40,
+	VK_KHR_video_decode_h264 = 41, 
+	VK_AMD_texture_gather_bias_lod = 42,
+	VK_AMD_shader_info = 43,
+	VK_KHR_dynamic_rendering = 45,
+	VK_AMD_shader_image_load_store_lod = 47,
+	VK_MESA_image_alignment_control = 576,
+	highest = 576,
+};
+
+
+class ExtensionSet {
+public:
+	static constexpr const ExtensionNumber highestExtensionNumber = ExtensionNumber::highest;
+protected:
+	uint64_t a[uint32_t(highestExtensionNumber)/64+1];
+public:
+	ExtensionSet();
+	ExtensionSet(const Vector<ExtensionProperties>& extensionList);
+	bool test(ExtensionNumber extensionNumber) const;
+	void set(ExtensionNumber extensionNumber, bool value);
+	void set(ExtensionNumber extensionNumber);
+	void reset(ExtensionNumber extensionNumber);
+	void clear();
+	void append(const Vector<ExtensionProperties>& extensionList);
+};
+
+inline bool ExtensionSet::test(ExtensionNumber extensionNumber) const  { uint32_t n = uint32_t(extensionNumber); return (a[n >> 6] >> (n & 0x3f)) & 0x1; }
+inline void ExtensionSet::set(ExtensionNumber extensionNumber, bool value)  { uint32_t n = uint32_t(extensionNumber); uint64_t mask = uint64_t(value) << (n & 0x3f); a[n >> 6] = (a[n >> 6] & ~mask) | mask; }
+inline void ExtensionSet::set(ExtensionNumber extensionNumber)  { uint32_t n = uint32_t(extensionNumber); a[n >> 6] |= uint64_t(0x1) << (n & 0x3f); }
+inline void ExtensionSet::reset(ExtensionNumber extensionNumber)  { uint32_t n = uint32_t(extensionNumber); a[n >> 6] &= ~(uint64_t(0x1) << (n & 0x3f)); }
+inline void ExtensionSet::clear()  { for(uint32_t i=0; i<uint32_t(highestExtensionNumber)/64+1; i++) a[i] = 0; }
+inline ExtensionSet::ExtensionSet()  { clear(); }
+
 
 // conversions
 // resultToString() returns Span that contains pointer to const char array
