@@ -169,6 +169,13 @@ int main(int, char**)
 			else
 				cout << "not supported" << endl;
 
+			// video queue support
+			cout << "      Vulkan video:      ";
+			if(videoQueueSupported)
+				cout << "supported" << endl;
+			else
+				cout << "not supported" << endl;
+
 			// memory properties
 			cout << "      Memory heaps:" << endl;
 			vk::PhysicalDeviceMemoryProperties memoryProperties = vk::getPhysicalDeviceMemoryProperties(pd);

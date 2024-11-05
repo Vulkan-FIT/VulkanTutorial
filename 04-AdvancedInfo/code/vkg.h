@@ -2422,7 +2422,7 @@ public:
 	bool empty() const  { return _size == 0; }
 
 	void clear()  { if(_data == nullptr) return; delete[] _data; _data = nullptr; _size = 0; }
-	void alloc(size_t size)  { delete[] _data; _data = (size) ? new Type[size] : nullptr; _size = size; }
+	void alloc(size_t size)  { delete[] _data; _data = nullptr; _size = 0; if(size) { _data = new Type[size]; _size = size; } }
 	void resize(size_t newSize);
 };
 
@@ -2443,6 +2443,7 @@ Vector<Type>::Vector(const Vector& other)
 		}
 		::operator delete[](_data);
 		_data = nullptr;
+		_size = 0;
 		throw;
 	}
 }
@@ -2457,7 +2458,7 @@ Vector<Type>& Vector<Type>::operator=(const Vector& rhs)
 	else {
 		delete[] _data;
 		_data = nullptr;
-		_size = rhs._size;
+		_size = 0;
 		_data = ::operator new(sizeof(Type) * _size);
 		size_t i=0;
 		try {
@@ -2472,6 +2473,7 @@ Vector<Type>& Vector<Type>::operator=(const Vector& rhs)
 			_data = nullptr;
 			throw;
 		}
+		_size = rhs._size;
 	}
 	return *this;
 }
@@ -2504,6 +2506,7 @@ void Vector<Type>::resize(size_t newSize)
 		}
 		Type* tmp = _data;
 		_data = m;
+		_size = newSize;
 		delete[] tmp;
 	}
 	else if(newSize < size())
@@ -2527,6 +2530,7 @@ void Vector<Type>::resize(size_t newSize)
 			}
 			Type* tmp = _data;
 			_data = m;
+			_size = newSize;
 			delete[] tmp;
 		}
 	}
