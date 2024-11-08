@@ -25,12 +25,6 @@ int main(int, char**)
 		for(size_t i=0; i<instanceExtensionList.size(); i++)
 			cout << "      " << instanceExtensionList[i].extensionName << endl;
 
-		// required instance version
-		/*if(instanceVersion < vk::ApiVersion11) {
-			cout << "Error: Vulkan instance version 1.1 or higher is required. Exiting..." << endl;
-			return -1;
-		}*/
-
 		// Vulkan instance
 		vk::initInstance(
 			vk::InstanceCreateInfo{
@@ -63,26 +57,29 @@ int main(int, char**)
 			// supported extensions
 			vk::Vector<vk::ExtensionProperties> extensionList =
 				vk::enumerateDeviceExtensionProperties(pd, nullptr);
-			bool videoQueueSupported = vk::isExtensionSupported(extensionList, "VK_KHR_video_queue");
+			bool videoQueueSupported = vk::isExtensionSupported(extensionList, "VK_KHR_video_queue") &&
+			                           instanceVersion >= vk::ApiVersion11;
+			bool raytracingSupported = vk::isExtensionSupported(extensionList, "VK_KHR_acceleration_structure") &&
+			                           vk::isExtensionSupported(extensionList, "VK_KHR_ray_tracing_pipeline") &&
+			                           vk::isExtensionSupported(extensionList, "VK_KHR_ray_query") &&
+			                           instanceVersion >= vk::ApiVersion11;
 
-			// device properties
+			// get device properties
+			vk::PhysicalDeviceProperties2 properties2;
+			vk::PhysicalDeviceProperties& properties = properties2.properties;
+			properties = vk::getPhysicalDeviceProperties(pd);
+
+			// extended device properties
 			vk::PhysicalDeviceVulkan12Properties properties12{
 				.pNext = nullptr,
 			};
 			vk::PhysicalDeviceVulkan11Properties properties11{  // requires ApiVersion12 (really Vulkan 1.2, not 1.1)
-				.pNext = (instanceVersion>=vk::ApiVersion12) ? &properties12 : nullptr,
+				.pNext = (properties.apiVersion>=vk::ApiVersion12) ? &properties12 : nullptr,
 			};
-			vk::PhysicalDeviceProperties2 p{
-				.pNext = (instanceVersion>=vk::ApiVersion12) ? &properties11 : nullptr,
-			};
-			vk::PhysicalDeviceProperties& properties = p.properties;
-
-			// get device properties
-			properties = vk::getPhysicalDeviceProperties(pd);
-
-			// get extended device properties
-			if(properties.apiVersion >= vk::ApiVersion11)
-				vk::getPhysicalDeviceProperties2(pd, p);
+			if(properties.apiVersion >= vk::ApiVersion12)
+				properties2.pNext = &properties11;
+			if(properties.apiVersion >= vk::ApiVersion11 && instanceVersion >= vk::ApiVersion11)
+				vk::getPhysicalDeviceProperties2(pd, properties2);
 
 			// device name
 			cout << "   " << properties.deviceName << endl;
@@ -102,9 +99,13 @@ int main(int, char**)
 			}
 			cout << "      Device type:     " << s << endl;
 
+			// VendorID and DeviceID
+			cout << "      VendorID:        0x" << hex << properties.vendorID << endl;
+			cout << "      DeviceID:        0x" << properties.deviceID << dec << endl;
+
 			// device UUID
 			cout << "      Device UUID:     ";
-			if(properties.apiVersion >= vk::ApiVersion12) {
+			if(properties.apiVersion >= vk::ApiVersion12 && instanceVersion >= vk::ApiVersion11) {
 				auto printBytes =
 					[](uint8_t* a, uint8_t count) {
 						for(uint8_t* e=a+count; a<e; a++)
@@ -125,7 +126,7 @@ int main(int, char**)
 				cout << "< unknown >" << endl;
 
 			// driver info
-			if(properties.apiVersion >= vk::ApiVersion12) {
+			if(properties.apiVersion >= vk::ApiVersion12 && instanceVersion >= vk::ApiVersion11) {
 				cout << "      Driver name:     " << properties12.driverName << endl;
 				cout << "      Driver info:     " << properties12.driverInfo << endl;
 			}
@@ -142,36 +143,43 @@ int main(int, char**)
 				.pNext = nullptr,
 			};
 			vk::PhysicalDeviceFeatures2 f{
-				.pNext = (instanceVersion>=vk::ApiVersion12) ? &features12 : nullptr,
+				.pNext = (properties.apiVersion>=vk::ApiVersion12) ? &features12 : nullptr,
 			};
 			vk::PhysicalDeviceFeatures& features = f.features;
-			if(properties.apiVersion >= vk::ApiVersion11)
+			if(properties.apiVersion >= vk::ApiVersion11 && instanceVersion >= vk::ApiVersion11)
 				vk::getPhysicalDeviceFeatures2(pd, f);
 			else
 				features = vk::getPhysicalDeviceFeatures(pd);
 
 			// geometry shader support
-			cout << "      Geometry shader:   ";
+			cout << "      Geometry shader:     ";
 			if(features.geometryShader)
 				cout << "supported" << endl;
 			else
 				cout << "not supported" << endl;
 
 			// support for doubles and halfs
-			cout << "      Double precision:  ";
+			cout << "      Double precision:    ";
 			if(features.shaderFloat64)
 				cout << "supported" << endl;
 			else
 				cout << "not supported" << endl;
-			cout << "      Half precision:    ";
-			if(properties.apiVersion >= vk::ApiVersion12 && features12.shaderFloat16)
+			cout << "      Half precision:      ";
+			if(properties.apiVersion >= vk::ApiVersion12 && features12.shaderFloat16 && instanceVersion >= vk::ApiVersion11)
 				cout << "supported" << endl;
 			else
 				cout << "not supported" << endl;
 
 			// video queue support
-			cout << "      Vulkan video:      ";
+			cout << "      Vulkan Video:        ";
 			if(videoQueueSupported)
+				cout << "supported" << endl;
+			else
+				cout << "not supported" << endl;
+
+			// video queue support
+			cout << "      Vulkan Ray Tracing:  ";
+			if(raytracingSupported)
 				cout << "supported" << endl;
 			else
 				cout << "not supported" << endl;
@@ -190,7 +198,7 @@ int main(int, char**)
 			cout << "      Queue families:" << endl;
 			vk::Vector<vk::QueueFamilyProperties2> queueFamilyList;
 			vk::Vector<vk::QueueFamilyVideoPropertiesKHR> queueVideoPropertiesList;
-			if(properties.apiVersion >= vk::ApiVersion11)
+			if(properties.apiVersion >= vk::ApiVersion11 && instanceVersion >= vk::ApiVersion11)
 				queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties2(
 					pd, queueVideoPropertiesList, videoQueueSupported);
 			else {

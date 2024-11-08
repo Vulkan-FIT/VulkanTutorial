@@ -2434,7 +2434,7 @@ Vector<Type>::Vector(const Vector& other)
 {
 	size_t i=0;
 	try {
-		for(; i<other._size; i++)
+		for(size_t c=other._size; i<c; i++)
 			new(&_data[i]) Type(other._data[i]);
 	} catch(...) {
 		while(i > 0) {
@@ -2516,9 +2516,8 @@ void Vector<Type>::resize(size_t newSize)
 		else {
 			Type* m = reinterpret_cast<Type*>(::operator new(sizeof(Type) * newSize));
 			size_t i = 0;
-			size_t s = size();
 			try {
-				for(; i<s; i++)
+				for(size_t c=newSize; i<c; i++)
 					new(&m[i]) Type(std::move(_data[i]));
 			} catch(...) {
 				while(i != 0) {
