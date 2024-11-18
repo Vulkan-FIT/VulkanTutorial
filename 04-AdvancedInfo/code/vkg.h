@@ -11,6 +11,8 @@ namespace vk {
 // foward declarations
 struct ExtensionProperties;
 template<typename Type> class Vector;
+struct InstanceCreateInfo;
+struct DeviceCreateInfo;
 
 
 // handle types
@@ -39,9 +41,9 @@ inline uint32_t enumerateInstanceVersion()  { return detail::_instanceVersion; }
 // author: PCJohn (peciva at fit.vut.cz)
 void loadLib();
 void loadLib(const char* libPath);  // or const std::filesystem::path& libPath if import std
-void initInstance(const struct InstanceCreateInfo& createInfo);
+void initInstance(const InstanceCreateInfo& createInfo);
 void initInstance(Instance instance);
-void initDevice(PhysicalDevice pd, const struct DeviceCreateInfo& createInfo);
+void initDevice(PhysicalDevice pd, const DeviceCreateInfo& createInfo);
 void initDevice(Device device);
 template<typename T> inline T getInstanceProcAddr(const char* name) noexcept;
 template<typename T> inline T getDeviceProcAddr(const char* name) noexcept;
@@ -50,17 +52,6 @@ void destroyDevice() noexcept;
 void destroyInstance() noexcept;
 void unloadLib() noexcept;
 void cleanUp() noexcept;
-
-// nifty counter / Schwarz counter
-// (VkgInitAndCleanUp::cleanUp() must not be called before all Vulkan objects are destroyed.
-// We are handling it using Nifty counter programming idiom.)
-// author: PCJohn (peciva at fit.vut.cz)
-struct VkgInitAndCleanUp
-{
-	VkgInitAndCleanUp();
-	~VkgInitAndCleanUp();
-};
-static VkgInitAndCleanUp vkgInitAndCleanUp;
 
 
 // enums
@@ -1617,11 +1608,11 @@ enum class DriverId {
 };
 
 typedef enum PointClippingBehavior {
-    VK_POINT_CLIPPING_BEHAVIOR_ALL_CLIP_PLANES = 0,
-    VK_POINT_CLIPPING_BEHAVIOR_USER_CLIP_PLANES_ONLY = 1,
-    VK_POINT_CLIPPING_BEHAVIOR_ALL_CLIP_PLANES_KHR = VK_POINT_CLIPPING_BEHAVIOR_ALL_CLIP_PLANES,
-    VK_POINT_CLIPPING_BEHAVIOR_USER_CLIP_PLANES_ONLY_KHR = VK_POINT_CLIPPING_BEHAVIOR_USER_CLIP_PLANES_ONLY,
-    VK_POINT_CLIPPING_BEHAVIOR_MAX_ENUM = 0x7FFFFFFF
+	VK_POINT_CLIPPING_BEHAVIOR_ALL_CLIP_PLANES = 0,
+	VK_POINT_CLIPPING_BEHAVIOR_USER_CLIP_PLANES_ONLY = 1,
+	VK_POINT_CLIPPING_BEHAVIOR_ALL_CLIP_PLANES_KHR = VK_POINT_CLIPPING_BEHAVIOR_ALL_CLIP_PLANES,
+	VK_POINT_CLIPPING_BEHAVIOR_USER_CLIP_PLANES_ONLY_KHR = VK_POINT_CLIPPING_BEHAVIOR_USER_CLIP_PLANES_ONLY,
+	VK_POINT_CLIPPING_BEHAVIOR_MAX_ENUM = 0x7FFFFFFF
 } PointClippingBehavior;
 
 typedef enum ShaderFloatControlsIndependence {
@@ -1714,28 +1705,28 @@ namespace FormatFeatureFlagBits {
 }
 
 namespace QueueFlagBits {
-    constexpr const Flags eGraphics       = 0x00000001;
-    constexpr const Flags eCompute        = 0x00000002;
-    constexpr const Flags eTransfer       = 0x00000004;
-    constexpr const Flags eSparseBinding  = 0x00000008;
-    constexpr const Flags eProtected      = 0x00000010;
-    constexpr const Flags eVideoDecodeKHR = 0x00000020;
-    constexpr const Flags eVideoEncodeKHR = 0x00000040;
-    constexpr const Flags eOpticalFlowNV  = 0x00000100;
+	constexpr const Flags eGraphics       = 0x00000001;
+	constexpr const Flags eCompute        = 0x00000002;
+	constexpr const Flags eTransfer       = 0x00000004;
+	constexpr const Flags eSparseBinding  = 0x00000008;
+	constexpr const Flags eProtected      = 0x00000010;
+	constexpr const Flags eVideoDecodeKHR = 0x00000020;
+	constexpr const Flags eVideoEncodeKHR = 0x00000040;
+	constexpr const Flags eOpticalFlowNV  = 0x00000100;
 }
 
 namespace MemoryHeapFlagBits {
-    constexpr const Flags eDeviceLocal   = 0x00000001;
-    constexpr const Flags eMultiInstance = 0x00000002;
+	constexpr const Flags eDeviceLocal   = 0x00000001;
+	constexpr const Flags eMultiInstance = 0x00000002;
 }
 
 namespace VideoCodecOperationFlagBitsKHR {
-    constexpr const Flags eNone = 0;
-    constexpr const Flags eEncodeH264 = 0x00010000;
-    constexpr const Flags eEncodeH265 = 0x00020000;
-    constexpr const Flags eDecodeH264 = 0x00000001;
-    constexpr const Flags eDecodeH265 = 0x00000002;
-    constexpr const Flags eDecodeAV1 = 0x00000004;
+	constexpr const Flags eNone = 0;
+	constexpr const Flags eEncodeH264 = 0x00010000;
+	constexpr const Flags eEncodeH265 = 0x00020000;
+	constexpr const Flags eDecodeH264 = 0x00000001;
+	constexpr const Flags eDecodeH265 = 0x00000002;
+	constexpr const Flags eDecodeAV1 = 0x00000004;
 }
 
 
@@ -1769,528 +1760,528 @@ constexpr uint32_t apiVersionPatch(uint32_t version)  { return version & 0xfff; 
  * Function pointer type: typedef void (VKAPI_PTR *PFN_vkCommand)(void);
  */
 #if defined(_WIN32)
-    // On Windows, Vulkan commands use the stdcall convention
-    #define VKAPI_ATTR
-    #define VKAPI_CALL __stdcall
-    #define VKAPI_PTR  VKAPI_CALL
+	// On Windows, Vulkan commands use the stdcall convention
+	#define VKAPI_ATTR
+	#define VKAPI_CALL __stdcall
+	#define VKAPI_PTR  VKAPI_CALL
 #elif defined(__ANDROID__) && defined(__ARM_ARCH) && __ARM_ARCH < 7
-    #error "Vulkan is not supported for the 'armeabi' NDK ABI"
+	#error "Vulkan is not supported for the 'armeabi' NDK ABI"
 #elif defined(__ANDROID__) && defined(__ARM_ARCH) && __ARM_ARCH >= 7 && defined(__ARM_32BIT_STATE)
-    // On Android 32-bit ARM targets, Vulkan functions use the "hardfloat"
-    // calling convention, i.e. float parameters are passed in registers. This
-    // is true even if the rest of the application passes floats on the stack,
-    // as it does by default when compiling for the armeabi-v7a NDK ABI.
-    #define VKAPI_ATTR __attribute__((pcs("aapcs-vfp")))
-    #define VKAPI_CALL
-    #define VKAPI_PTR  VKAPI_ATTR
+	// On Android 32-bit ARM targets, Vulkan functions use the "hardfloat"
+	// calling convention, i.e. float parameters are passed in registers. This
+	// is true even if the rest of the application passes floats on the stack,
+	// as it does by default when compiling for the armeabi-v7a NDK ABI.
+	#define VKAPI_ATTR __attribute__((pcs("aapcs-vfp")))
+	#define VKAPI_CALL
+	#define VKAPI_PTR  VKAPI_ATTR
 #else
-    // On other platforms, use the default calling convention
-    #define VKAPI_ATTR
-    #define VKAPI_CALL
-    #define VKAPI_PTR
+	// On other platforms, use the default calling convention
+	#define VKAPI_ATTR
+	#define VKAPI_CALL
+	#define VKAPI_PTR
 #endif
 
 
 typedef struct Extent3D {
-    uint32_t    width;
-    uint32_t    height;
-    uint32_t    depth;
+	uint32_t    width;
+	uint32_t    height;
+	uint32_t    depth;
 } Extent3D;
 
 using PFN_vkAllocationFunction = void* (VKAPI_PTR *)(
-    void*                                       pUserData,
-    size_t                                      size,
-    size_t                                      alignment,
-    SystemAllocationScope                       allocationScope);
+	void*                                       pUserData,
+	size_t                                      size,
+	size_t                                      alignment,
+	SystemAllocationScope                       allocationScope);
 
 using PFN_vkFreeFunction = void (VKAPI_PTR *)(
-    void*                                       pUserData,
-    void*                                       pMemory);
+	void*                                       pUserData,
+	void*                                       pMemory);
 
 using PFN_vkInternalAllocationNotification = void (VKAPI_PTR *)(
-    void*                                       pUserData,
-    size_t                                      size,
-    InternalAllocationType                      allocationType,
-    SystemAllocationScope                       allocationScope);
+	void*                                       pUserData,
+	size_t                                      size,
+	InternalAllocationType                      allocationType,
+	SystemAllocationScope                       allocationScope);
 
 using PFN_vkInternalFreeNotification = void (VKAPI_PTR *)(
-    void*                                       pUserData,
-    size_t                                      size,
-    InternalAllocationType                      allocationType,
-    SystemAllocationScope                       allocationScope);
+	void*                                       pUserData,
+	size_t                                      size,
+	InternalAllocationType                      allocationType,
+	SystemAllocationScope                       allocationScope);
 
 using PFN_vkReallocationFunction = void* (VKAPI_PTR *)(
-    void*                                       pUserData,
-    void*                                       pOriginal,
-    size_t                                      size,
-    size_t                                      alignment,
-    SystemAllocationScope                       allocationScope);
+	void*                                       pUserData,
+	void*                                       pOriginal,
+	size_t                                      size,
+	size_t                                      alignment,
+	SystemAllocationScope                       allocationScope);
 
 
 // structs copied from vulkan_core.h
 typedef struct BaseInStructure {
-    StructureType                    sType;
-    const struct BaseInStructure*    pNext;
+	StructureType                    sType;
+	const struct BaseInStructure*    pNext;
 } BaseInStructure;
 
 typedef struct BaseOutStructure {
-    StructureType               sType;
-    struct BaseOutStructure*    pNext;
+	StructureType               sType;
+	struct BaseOutStructure*    pNext;
 } BaseOutStructure;
 
 typedef struct AllocationCallbacks {
-    void*                                   pUserData;
-    PFN_vkAllocationFunction                pfnAllocation;
-    PFN_vkReallocationFunction              pfnReallocation;
-    PFN_vkFreeFunction                      pfnFree;
-    PFN_vkInternalAllocationNotification    pfnInternalAllocation;
-    PFN_vkInternalFreeNotification          pfnInternalFree;
+	void*                                   pUserData;
+	PFN_vkAllocationFunction                pfnAllocation;
+	PFN_vkReallocationFunction              pfnReallocation;
+	PFN_vkFreeFunction                      pfnFree;
+	PFN_vkInternalAllocationNotification    pfnInternalAllocation;
+	PFN_vkInternalFreeNotification          pfnInternalFree;
 } AllocationCallbacks;
 
 typedef struct ExtensionProperties {
-    char        extensionName[MaxExtensionNameSize];
-    uint32_t    specVersion;
+	char        extensionName[MaxExtensionNameSize];
+	uint32_t    specVersion;
 } ExtensionProperties;
 
 typedef struct LayerProperties {
-    char        layerName[MaxExtensionNameSize];
-    uint32_t    specVersion;
-    uint32_t    implementationVersion;
-    char        description[MaxDescriptionSize];
+	char        layerName[MaxExtensionNameSize];
+	uint32_t    specVersion;
+	uint32_t    implementationVersion;
+	char        description[MaxDescriptionSize];
 } LayerProperties;
 
 typedef struct ApplicationInfo {
-    StructureType      sType = StructureType::eApplicationInfo;
-    const void*        pNext = nullptr;
-    const char*        pApplicationName;
-    uint32_t           applicationVersion;
-    const char*        pEngineName;
-    uint32_t           engineVersion;
-    uint32_t           apiVersion;
+	StructureType      sType = StructureType::eApplicationInfo;
+	const void*        pNext = nullptr;
+	const char*        pApplicationName;
+	uint32_t           applicationVersion;
+	const char*        pEngineName;
+	uint32_t           engineVersion;
+	uint32_t           apiVersion;
 } ApplicationInfo;
 
 typedef struct InstanceCreateInfo {
-    StructureType               sType = StructureType::eInstanceCreateInfo;
-    const void*                 pNext = nullptr;
-    InstanceCreateFlags         flags;
-    const ApplicationInfo*      pApplicationInfo;
-    uint32_t                    enabledLayerCount;
-    const char* const*          ppEnabledLayerNames;
-    uint32_t                    enabledExtensionCount;
-    const char* const*          ppEnabledExtensionNames;
+	StructureType               sType = StructureType::eInstanceCreateInfo;
+	const void*                 pNext = nullptr;
+	InstanceCreateFlags         flags;
+	const ApplicationInfo*      pApplicationInfo;
+	uint32_t                    enabledLayerCount;
+	const char* const*          ppEnabledLayerNames;
+	uint32_t                    enabledExtensionCount;
+	const char* const*          ppEnabledExtensionNames;
 } InstanceCreateInfo;
 
 typedef struct PhysicalDeviceLimits {
-    uint32_t              maxImageDimension1D;
-    uint32_t              maxImageDimension2D;
-    uint32_t              maxImageDimension3D;
-    uint32_t              maxImageDimensionCube;
-    uint32_t              maxImageArrayLayers;
-    uint32_t              maxTexelBufferElements;
-    uint32_t              maxUniformBufferRange;
-    uint32_t              maxStorageBufferRange;
-    uint32_t              maxPushConstantsSize;
-    uint32_t              maxMemoryAllocationCount;
-    uint32_t              maxSamplerAllocationCount;
-    DeviceSize            bufferImageGranularity;
-    DeviceSize            sparseAddressSpaceSize;
-    uint32_t              maxBoundDescriptorSets;
-    uint32_t              maxPerStageDescriptorSamplers;
-    uint32_t              maxPerStageDescriptorUniformBuffers;
-    uint32_t              maxPerStageDescriptorStorageBuffers;
-    uint32_t              maxPerStageDescriptorSampledImages;
-    uint32_t              maxPerStageDescriptorStorageImages;
-    uint32_t              maxPerStageDescriptorInputAttachments;
-    uint32_t              maxPerStageResources;
-    uint32_t              maxDescriptorSetSamplers;
-    uint32_t              maxDescriptorSetUniformBuffers;
-    uint32_t              maxDescriptorSetUniformBuffersDynamic;
-    uint32_t              maxDescriptorSetStorageBuffers;
-    uint32_t              maxDescriptorSetStorageBuffersDynamic;
-    uint32_t              maxDescriptorSetSampledImages;
-    uint32_t              maxDescriptorSetStorageImages;
-    uint32_t              maxDescriptorSetInputAttachments;
-    uint32_t              maxVertexInputAttributes;
-    uint32_t              maxVertexInputBindings;
-    uint32_t              maxVertexInputAttributeOffset;
-    uint32_t              maxVertexInputBindingStride;
-    uint32_t              maxVertexOutputComponents;
-    uint32_t              maxTessellationGenerationLevel;
-    uint32_t              maxTessellationPatchSize;
-    uint32_t              maxTessellationControlPerVertexInputComponents;
-    uint32_t              maxTessellationControlPerVertexOutputComponents;
-    uint32_t              maxTessellationControlPerPatchOutputComponents;
-    uint32_t              maxTessellationControlTotalOutputComponents;
-    uint32_t              maxTessellationEvaluationInputComponents;
-    uint32_t              maxTessellationEvaluationOutputComponents;
-    uint32_t              maxGeometryShaderInvocations;
-    uint32_t              maxGeometryInputComponents;
-    uint32_t              maxGeometryOutputComponents;
-    uint32_t              maxGeometryOutputVertices;
-    uint32_t              maxGeometryTotalOutputComponents;
-    uint32_t              maxFragmentInputComponents;
-    uint32_t              maxFragmentOutputAttachments;
-    uint32_t              maxFragmentDualSrcAttachments;
-    uint32_t              maxFragmentCombinedOutputResources;
-    uint32_t              maxComputeSharedMemorySize;
-    uint32_t              maxComputeWorkGroupCount[3];
-    uint32_t              maxComputeWorkGroupInvocations;
-    uint32_t              maxComputeWorkGroupSize[3];
-    uint32_t              subPixelPrecisionBits;
-    uint32_t              subTexelPrecisionBits;
-    uint32_t              mipmapPrecisionBits;
-    uint32_t              maxDrawIndexedIndexValue;
-    uint32_t              maxDrawIndirectCount;
-    float                 maxSamplerLodBias;
-    float                 maxSamplerAnisotropy;
-    uint32_t              maxViewports;
-    uint32_t              maxViewportDimensions[2];
-    float                 viewportBoundsRange[2];
-    uint32_t              viewportSubPixelBits;
-    size_t                minMemoryMapAlignment;
-    DeviceSize            minTexelBufferOffsetAlignment;
-    DeviceSize            minUniformBufferOffsetAlignment;
-    DeviceSize            minStorageBufferOffsetAlignment;
-    int32_t               minTexelOffset;
-    uint32_t              maxTexelOffset;
-    int32_t               minTexelGatherOffset;
-    uint32_t              maxTexelGatherOffset;
-    float                 minInterpolationOffset;
-    float                 maxInterpolationOffset;
-    uint32_t              subPixelInterpolationOffsetBits;
-    uint32_t              maxFramebufferWidth;
-    uint32_t              maxFramebufferHeight;
-    uint32_t              maxFramebufferLayers;
-    SampleCountFlags      framebufferColorSampleCounts;
-    SampleCountFlags      framebufferDepthSampleCounts;
-    SampleCountFlags      framebufferStencilSampleCounts;
-    SampleCountFlags      framebufferNoAttachmentsSampleCounts;
-    uint32_t              maxColorAttachments;
-    SampleCountFlags      sampledImageColorSampleCounts;
-    SampleCountFlags      sampledImageIntegerSampleCounts;
-    SampleCountFlags      sampledImageDepthSampleCounts;
-    SampleCountFlags      sampledImageStencilSampleCounts;
-    SampleCountFlags      storageImageSampleCounts;
-    uint32_t              maxSampleMaskWords;
-    Bool32                timestampComputeAndGraphics;
-    float                 timestampPeriod;
-    uint32_t              maxClipDistances;
-    uint32_t              maxCullDistances;
-    uint32_t              maxCombinedClipAndCullDistances;
-    uint32_t              discreteQueuePriorities;
-    float                 pointSizeRange[2];
-    float                 lineWidthRange[2];
-    float                 pointSizeGranularity;
-    float                 lineWidthGranularity;
-    Bool32                strictLines;
-    Bool32                standardSampleLocations;
-    DeviceSize            optimalBufferCopyOffsetAlignment;
-    DeviceSize            optimalBufferCopyRowPitchAlignment;
-    DeviceSize            nonCoherentAtomSize;
+	uint32_t              maxImageDimension1D;
+	uint32_t              maxImageDimension2D;
+	uint32_t              maxImageDimension3D;
+	uint32_t              maxImageDimensionCube;
+	uint32_t              maxImageArrayLayers;
+	uint32_t              maxTexelBufferElements;
+	uint32_t              maxUniformBufferRange;
+	uint32_t              maxStorageBufferRange;
+	uint32_t              maxPushConstantsSize;
+	uint32_t              maxMemoryAllocationCount;
+	uint32_t              maxSamplerAllocationCount;
+	DeviceSize            bufferImageGranularity;
+	DeviceSize            sparseAddressSpaceSize;
+	uint32_t              maxBoundDescriptorSets;
+	uint32_t              maxPerStageDescriptorSamplers;
+	uint32_t              maxPerStageDescriptorUniformBuffers;
+	uint32_t              maxPerStageDescriptorStorageBuffers;
+	uint32_t              maxPerStageDescriptorSampledImages;
+	uint32_t              maxPerStageDescriptorStorageImages;
+	uint32_t              maxPerStageDescriptorInputAttachments;
+	uint32_t              maxPerStageResources;
+	uint32_t              maxDescriptorSetSamplers;
+	uint32_t              maxDescriptorSetUniformBuffers;
+	uint32_t              maxDescriptorSetUniformBuffersDynamic;
+	uint32_t              maxDescriptorSetStorageBuffers;
+	uint32_t              maxDescriptorSetStorageBuffersDynamic;
+	uint32_t              maxDescriptorSetSampledImages;
+	uint32_t              maxDescriptorSetStorageImages;
+	uint32_t              maxDescriptorSetInputAttachments;
+	uint32_t              maxVertexInputAttributes;
+	uint32_t              maxVertexInputBindings;
+	uint32_t              maxVertexInputAttributeOffset;
+	uint32_t              maxVertexInputBindingStride;
+	uint32_t              maxVertexOutputComponents;
+	uint32_t              maxTessellationGenerationLevel;
+	uint32_t              maxTessellationPatchSize;
+	uint32_t              maxTessellationControlPerVertexInputComponents;
+	uint32_t              maxTessellationControlPerVertexOutputComponents;
+	uint32_t              maxTessellationControlPerPatchOutputComponents;
+	uint32_t              maxTessellationControlTotalOutputComponents;
+	uint32_t              maxTessellationEvaluationInputComponents;
+	uint32_t              maxTessellationEvaluationOutputComponents;
+	uint32_t              maxGeometryShaderInvocations;
+	uint32_t              maxGeometryInputComponents;
+	uint32_t              maxGeometryOutputComponents;
+	uint32_t              maxGeometryOutputVertices;
+	uint32_t              maxGeometryTotalOutputComponents;
+	uint32_t              maxFragmentInputComponents;
+	uint32_t              maxFragmentOutputAttachments;
+	uint32_t              maxFragmentDualSrcAttachments;
+	uint32_t              maxFragmentCombinedOutputResources;
+	uint32_t              maxComputeSharedMemorySize;
+	uint32_t              maxComputeWorkGroupCount[3];
+	uint32_t              maxComputeWorkGroupInvocations;
+	uint32_t              maxComputeWorkGroupSize[3];
+	uint32_t              subPixelPrecisionBits;
+	uint32_t              subTexelPrecisionBits;
+	uint32_t              mipmapPrecisionBits;
+	uint32_t              maxDrawIndexedIndexValue;
+	uint32_t              maxDrawIndirectCount;
+	float                 maxSamplerLodBias;
+	float                 maxSamplerAnisotropy;
+	uint32_t              maxViewports;
+	uint32_t              maxViewportDimensions[2];
+	float                 viewportBoundsRange[2];
+	uint32_t              viewportSubPixelBits;
+	size_t                minMemoryMapAlignment;
+	DeviceSize            minTexelBufferOffsetAlignment;
+	DeviceSize            minUniformBufferOffsetAlignment;
+	DeviceSize            minStorageBufferOffsetAlignment;
+	int32_t               minTexelOffset;
+	uint32_t              maxTexelOffset;
+	int32_t               minTexelGatherOffset;
+	uint32_t              maxTexelGatherOffset;
+	float                 minInterpolationOffset;
+	float                 maxInterpolationOffset;
+	uint32_t              subPixelInterpolationOffsetBits;
+	uint32_t              maxFramebufferWidth;
+	uint32_t              maxFramebufferHeight;
+	uint32_t              maxFramebufferLayers;
+	SampleCountFlags      framebufferColorSampleCounts;
+	SampleCountFlags      framebufferDepthSampleCounts;
+	SampleCountFlags      framebufferStencilSampleCounts;
+	SampleCountFlags      framebufferNoAttachmentsSampleCounts;
+	uint32_t              maxColorAttachments;
+	SampleCountFlags      sampledImageColorSampleCounts;
+	SampleCountFlags      sampledImageIntegerSampleCounts;
+	SampleCountFlags      sampledImageDepthSampleCounts;
+	SampleCountFlags      sampledImageStencilSampleCounts;
+	SampleCountFlags      storageImageSampleCounts;
+	uint32_t              maxSampleMaskWords;
+	Bool32                timestampComputeAndGraphics;
+	float                 timestampPeriod;
+	uint32_t              maxClipDistances;
+	uint32_t              maxCullDistances;
+	uint32_t              maxCombinedClipAndCullDistances;
+	uint32_t              discreteQueuePriorities;
+	float                 pointSizeRange[2];
+	float                 lineWidthRange[2];
+	float                 pointSizeGranularity;
+	float                 lineWidthGranularity;
+	Bool32                strictLines;
+	Bool32                standardSampleLocations;
+	DeviceSize            optimalBufferCopyOffsetAlignment;
+	DeviceSize            optimalBufferCopyRowPitchAlignment;
+	DeviceSize            nonCoherentAtomSize;
 } PhysicalDeviceLimits;
 
 typedef struct PhysicalDeviceSparseProperties {
-    Bool32    residencyStandard2DBlockShape;
-    Bool32    residencyStandard2DMultisampleBlockShape;
-    Bool32    residencyStandard3DBlockShape;
-    Bool32    residencyAlignedMipSize;
-    Bool32    residencyNonResidentStrict;
+	Bool32    residencyStandard2DBlockShape;
+	Bool32    residencyStandard2DMultisampleBlockShape;
+	Bool32    residencyStandard3DBlockShape;
+	Bool32    residencyAlignedMipSize;
+	Bool32    residencyNonResidentStrict;
 } PhysicalDeviceSparseProperties;
 
 typedef struct PhysicalDeviceProperties {
-    uint32_t                            apiVersion;
-    uint32_t                            driverVersion;
-    uint32_t                            vendorID;
-    uint32_t                            deviceID;
-    PhysicalDeviceType                  deviceType;
-    char                                deviceName[MaxPhysicalDeviceNameSize];
-    uint8_t                             pipelineCacheUUID[UuidSize];
-    PhysicalDeviceLimits                limits;
-    PhysicalDeviceSparseProperties      sparseProperties;
+	uint32_t                            apiVersion;
+	uint32_t                            driverVersion;
+	uint32_t                            vendorID;
+	uint32_t                            deviceID;
+	PhysicalDeviceType                  deviceType;
+	char                                deviceName[MaxPhysicalDeviceNameSize];
+	uint8_t                             pipelineCacheUUID[UuidSize];
+	PhysicalDeviceLimits                limits;
+	PhysicalDeviceSparseProperties      sparseProperties;
 } PhysicalDeviceProperties;
 
 typedef struct PhysicalDeviceProperties2 {
-    StructureType               sType = StructureType::ePhysicalDeviceProperties2;
-    void*                       pNext = nullptr;
-    PhysicalDeviceProperties    properties;
+	StructureType               sType = StructureType::ePhysicalDeviceProperties2;
+	void*                       pNext = nullptr;
+	PhysicalDeviceProperties    properties;
 } PhysicalDeviceProperties2;
 
 typedef struct PhysicalDeviceVulkan11Properties {
-    StructureType            sType = StructureType::ePhysicalDeviceVulkan11Properties;
-    void*                    pNext = nullptr;
-    uint8_t                  deviceUUID[UuidSize];
-    uint8_t                  driverUUID[UuidSize];
-    uint8_t                  deviceLUID[LuidSize];
-    uint32_t                 deviceNodeMask;
-    Bool32                   deviceLUIDValid;
-    uint32_t                 subgroupSize;
-    ShaderStageFlags         subgroupSupportedStages;
-    SubgroupFeatureFlags     subgroupSupportedOperations;
-    Bool32                   subgroupQuadOperationsInAllStages;
-    PointClippingBehavior    pointClippingBehavior;
-    uint32_t                 maxMultiviewViewCount;
-    uint32_t                 maxMultiviewInstanceIndex;
-    Bool32                   protectedNoFault;
-    uint32_t                 maxPerSetDescriptors;
-    DeviceSize               maxMemoryAllocationSize;
+	StructureType            sType = StructureType::ePhysicalDeviceVulkan11Properties;
+	void*                    pNext = nullptr;
+	uint8_t                  deviceUUID[UuidSize];
+	uint8_t                  driverUUID[UuidSize];
+	uint8_t                  deviceLUID[LuidSize];
+	uint32_t                 deviceNodeMask;
+	Bool32                   deviceLUIDValid;
+	uint32_t                 subgroupSize;
+	ShaderStageFlags         subgroupSupportedStages;
+	SubgroupFeatureFlags     subgroupSupportedOperations;
+	Bool32                   subgroupQuadOperationsInAllStages;
+	PointClippingBehavior    pointClippingBehavior;
+	uint32_t                 maxMultiviewViewCount;
+	uint32_t                 maxMultiviewInstanceIndex;
+	Bool32                   protectedNoFault;
+	uint32_t                 maxPerSetDescriptors;
+	DeviceSize               maxMemoryAllocationSize;
 } PhysicalDeviceVulkan11Properties;
 
 typedef struct ConformanceVersion {
-    uint8_t    major;
-    uint8_t    minor;
-    uint8_t    subminor;
-    uint8_t    patch;
+	uint8_t    major;
+	uint8_t    minor;
+	uint8_t    subminor;
+	uint8_t    patch;
 } ConformanceVersion;
 
 typedef struct PhysicalDeviceVulkan12Properties {
-    StructureType                      sType = StructureType::ePhysicalDeviceVulkan12Properties;
-    void*                              pNext = nullptr;
-    DriverId                           driverID;
-    char                               driverName[MaxDriverNameSize];
-    char                               driverInfo[MaxDriverInfoSize];
-    ConformanceVersion                 conformanceVersion;
-    ShaderFloatControlsIndependence    denormBehaviorIndependence;
-    ShaderFloatControlsIndependence    roundingModeIndependence;
-    Bool32                             shaderSignedZeroInfNanPreserveFloat16;
-    Bool32                             shaderSignedZeroInfNanPreserveFloat32;
-    Bool32                             shaderSignedZeroInfNanPreserveFloat64;
-    Bool32                             shaderDenormPreserveFloat16;
-    Bool32                             shaderDenormPreserveFloat32;
-    Bool32                             shaderDenormPreserveFloat64;
-    Bool32                             shaderDenormFlushToZeroFloat16;
-    Bool32                             shaderDenormFlushToZeroFloat32;
-    Bool32                             shaderDenormFlushToZeroFloat64;
-    Bool32                             shaderRoundingModeRTEFloat16;
-    Bool32                             shaderRoundingModeRTEFloat32;
-    Bool32                             shaderRoundingModeRTEFloat64;
-    Bool32                             shaderRoundingModeRTZFloat16;
-    Bool32                             shaderRoundingModeRTZFloat32;
-    Bool32                             shaderRoundingModeRTZFloat64;
-    uint32_t                           maxUpdateAfterBindDescriptorsInAllPools;
-    Bool32                             shaderUniformBufferArrayNonUniformIndexingNative;
-    Bool32                             shaderSampledImageArrayNonUniformIndexingNative;
-    Bool32                             shaderStorageBufferArrayNonUniformIndexingNative;
-    Bool32                             shaderStorageImageArrayNonUniformIndexingNative;
-    Bool32                             shaderInputAttachmentArrayNonUniformIndexingNative;
-    Bool32                             robustBufferAccessUpdateAfterBind;
-    Bool32                             quadDivergentImplicitLod;
-    uint32_t                           maxPerStageDescriptorUpdateAfterBindSamplers;
-    uint32_t                           maxPerStageDescriptorUpdateAfterBindUniformBuffers;
-    uint32_t                           maxPerStageDescriptorUpdateAfterBindStorageBuffers;
-    uint32_t                           maxPerStageDescriptorUpdateAfterBindSampledImages;
-    uint32_t                           maxPerStageDescriptorUpdateAfterBindStorageImages;
-    uint32_t                           maxPerStageDescriptorUpdateAfterBindInputAttachments;
-    uint32_t                           maxPerStageUpdateAfterBindResources;
-    uint32_t                           maxDescriptorSetUpdateAfterBindSamplers;
-    uint32_t                           maxDescriptorSetUpdateAfterBindUniformBuffers;
-    uint32_t                           maxDescriptorSetUpdateAfterBindUniformBuffersDynamic;
-    uint32_t                           maxDescriptorSetUpdateAfterBindStorageBuffers;
-    uint32_t                           maxDescriptorSetUpdateAfterBindStorageBuffersDynamic;
-    uint32_t                           maxDescriptorSetUpdateAfterBindSampledImages;
-    uint32_t                           maxDescriptorSetUpdateAfterBindStorageImages;
-    uint32_t                           maxDescriptorSetUpdateAfterBindInputAttachments;
-    ResolveModeFlags                   supportedDepthResolveModes;
-    ResolveModeFlags                   supportedStencilResolveModes;
-    Bool32                             independentResolveNone;
-    Bool32                             independentResolve;
-    Bool32                             filterMinmaxSingleComponentFormats;
-    Bool32                             filterMinmaxImageComponentMapping;
-    uint64_t                           maxTimelineSemaphoreValueDifference;
-    SampleCountFlags                   framebufferIntegerColorSampleCounts;
+	StructureType                      sType = StructureType::ePhysicalDeviceVulkan12Properties;
+	void*                              pNext = nullptr;
+	DriverId                           driverID;
+	char                               driverName[MaxDriverNameSize];
+	char                               driverInfo[MaxDriverInfoSize];
+	ConformanceVersion                 conformanceVersion;
+	ShaderFloatControlsIndependence    denormBehaviorIndependence;
+	ShaderFloatControlsIndependence    roundingModeIndependence;
+	Bool32                             shaderSignedZeroInfNanPreserveFloat16;
+	Bool32                             shaderSignedZeroInfNanPreserveFloat32;
+	Bool32                             shaderSignedZeroInfNanPreserveFloat64;
+	Bool32                             shaderDenormPreserveFloat16;
+	Bool32                             shaderDenormPreserveFloat32;
+	Bool32                             shaderDenormPreserveFloat64;
+	Bool32                             shaderDenormFlushToZeroFloat16;
+	Bool32                             shaderDenormFlushToZeroFloat32;
+	Bool32                             shaderDenormFlushToZeroFloat64;
+	Bool32                             shaderRoundingModeRTEFloat16;
+	Bool32                             shaderRoundingModeRTEFloat32;
+	Bool32                             shaderRoundingModeRTEFloat64;
+	Bool32                             shaderRoundingModeRTZFloat16;
+	Bool32                             shaderRoundingModeRTZFloat32;
+	Bool32                             shaderRoundingModeRTZFloat64;
+	uint32_t                           maxUpdateAfterBindDescriptorsInAllPools;
+	Bool32                             shaderUniformBufferArrayNonUniformIndexingNative;
+	Bool32                             shaderSampledImageArrayNonUniformIndexingNative;
+	Bool32                             shaderStorageBufferArrayNonUniformIndexingNative;
+	Bool32                             shaderStorageImageArrayNonUniformIndexingNative;
+	Bool32                             shaderInputAttachmentArrayNonUniformIndexingNative;
+	Bool32                             robustBufferAccessUpdateAfterBind;
+	Bool32                             quadDivergentImplicitLod;
+	uint32_t                           maxPerStageDescriptorUpdateAfterBindSamplers;
+	uint32_t                           maxPerStageDescriptorUpdateAfterBindUniformBuffers;
+	uint32_t                           maxPerStageDescriptorUpdateAfterBindStorageBuffers;
+	uint32_t                           maxPerStageDescriptorUpdateAfterBindSampledImages;
+	uint32_t                           maxPerStageDescriptorUpdateAfterBindStorageImages;
+	uint32_t                           maxPerStageDescriptorUpdateAfterBindInputAttachments;
+	uint32_t                           maxPerStageUpdateAfterBindResources;
+	uint32_t                           maxDescriptorSetUpdateAfterBindSamplers;
+	uint32_t                           maxDescriptorSetUpdateAfterBindUniformBuffers;
+	uint32_t                           maxDescriptorSetUpdateAfterBindUniformBuffersDynamic;
+	uint32_t                           maxDescriptorSetUpdateAfterBindStorageBuffers;
+	uint32_t                           maxDescriptorSetUpdateAfterBindStorageBuffersDynamic;
+	uint32_t                           maxDescriptorSetUpdateAfterBindSampledImages;
+	uint32_t                           maxDescriptorSetUpdateAfterBindStorageImages;
+	uint32_t                           maxDescriptorSetUpdateAfterBindInputAttachments;
+	ResolveModeFlags                   supportedDepthResolveModes;
+	ResolveModeFlags                   supportedStencilResolveModes;
+	Bool32                             independentResolveNone;
+	Bool32                             independentResolve;
+	Bool32                             filterMinmaxSingleComponentFormats;
+	Bool32                             filterMinmaxImageComponentMapping;
+	uint64_t                           maxTimelineSemaphoreValueDifference;
+	SampleCountFlags                   framebufferIntegerColorSampleCounts;
 } PhysicalDeviceVulkan12Properties;
 
 typedef struct PhysicalDeviceFeatures {
-    Bool32    robustBufferAccess;
-    Bool32    fullDrawIndexUint32;
-    Bool32    imageCubeArray;
-    Bool32    independentBlend;
-    Bool32    geometryShader;
-    Bool32    tessellationShader;
-    Bool32    sampleRateShading;
-    Bool32    dualSrcBlend;
-    Bool32    logicOp;
-    Bool32    multiDrawIndirect;
-    Bool32    drawIndirectFirstInstance;
-    Bool32    depthClamp;
-    Bool32    depthBiasClamp;
-    Bool32    fillModeNonSolid;
-    Bool32    depthBounds;
-    Bool32    wideLines;
-    Bool32    largePoints;
-    Bool32    alphaToOne;
-    Bool32    multiViewport;
-    Bool32    samplerAnisotropy;
-    Bool32    textureCompressionETC2;
-    Bool32    textureCompressionASTC_LDR;
-    Bool32    textureCompressionBC;
-    Bool32    occlusionQueryPrecise;
-    Bool32    pipelineStatisticsQuery;
-    Bool32    vertexPipelineStoresAndAtomics;
-    Bool32    fragmentStoresAndAtomics;
-    Bool32    shaderTessellationAndGeometryPointSize;
-    Bool32    shaderImageGatherExtended;
-    Bool32    shaderStorageImageExtendedFormats;
-    Bool32    shaderStorageImageMultisample;
-    Bool32    shaderStorageImageReadWithoutFormat;
-    Bool32    shaderStorageImageWriteWithoutFormat;
-    Bool32    shaderUniformBufferArrayDynamicIndexing;
-    Bool32    shaderSampledImageArrayDynamicIndexing;
-    Bool32    shaderStorageBufferArrayDynamicIndexing;
-    Bool32    shaderStorageImageArrayDynamicIndexing;
-    Bool32    shaderClipDistance;
-    Bool32    shaderCullDistance;
-    Bool32    shaderFloat64;
-    Bool32    shaderInt64;
-    Bool32    shaderInt16;
-    Bool32    shaderResourceResidency;
-    Bool32    shaderResourceMinLod;
-    Bool32    sparseBinding;
-    Bool32    sparseResidencyBuffer;
-    Bool32    sparseResidencyImage2D;
-    Bool32    sparseResidencyImage3D;
-    Bool32    sparseResidency2Samples;
-    Bool32    sparseResidency4Samples;
-    Bool32    sparseResidency8Samples;
-    Bool32    sparseResidency16Samples;
-    Bool32    sparseResidencyAliased;
-    Bool32    variableMultisampleRate;
-    Bool32    inheritedQueries;
+	Bool32    robustBufferAccess;
+	Bool32    fullDrawIndexUint32;
+	Bool32    imageCubeArray;
+	Bool32    independentBlend;
+	Bool32    geometryShader;
+	Bool32    tessellationShader;
+	Bool32    sampleRateShading;
+	Bool32    dualSrcBlend;
+	Bool32    logicOp;
+	Bool32    multiDrawIndirect;
+	Bool32    drawIndirectFirstInstance;
+	Bool32    depthClamp;
+	Bool32    depthBiasClamp;
+	Bool32    fillModeNonSolid;
+	Bool32    depthBounds;
+	Bool32    wideLines;
+	Bool32    largePoints;
+	Bool32    alphaToOne;
+	Bool32    multiViewport;
+	Bool32    samplerAnisotropy;
+	Bool32    textureCompressionETC2;
+	Bool32    textureCompressionASTC_LDR;
+	Bool32    textureCompressionBC;
+	Bool32    occlusionQueryPrecise;
+	Bool32    pipelineStatisticsQuery;
+	Bool32    vertexPipelineStoresAndAtomics;
+	Bool32    fragmentStoresAndAtomics;
+	Bool32    shaderTessellationAndGeometryPointSize;
+	Bool32    shaderImageGatherExtended;
+	Bool32    shaderStorageImageExtendedFormats;
+	Bool32    shaderStorageImageMultisample;
+	Bool32    shaderStorageImageReadWithoutFormat;
+	Bool32    shaderStorageImageWriteWithoutFormat;
+	Bool32    shaderUniformBufferArrayDynamicIndexing;
+	Bool32    shaderSampledImageArrayDynamicIndexing;
+	Bool32    shaderStorageBufferArrayDynamicIndexing;
+	Bool32    shaderStorageImageArrayDynamicIndexing;
+	Bool32    shaderClipDistance;
+	Bool32    shaderCullDistance;
+	Bool32    shaderFloat64;
+	Bool32    shaderInt64;
+	Bool32    shaderInt16;
+	Bool32    shaderResourceResidency;
+	Bool32    shaderResourceMinLod;
+	Bool32    sparseBinding;
+	Bool32    sparseResidencyBuffer;
+	Bool32    sparseResidencyImage2D;
+	Bool32    sparseResidencyImage3D;
+	Bool32    sparseResidency2Samples;
+	Bool32    sparseResidency4Samples;
+	Bool32    sparseResidency8Samples;
+	Bool32    sparseResidency16Samples;
+	Bool32    sparseResidencyAliased;
+	Bool32    variableMultisampleRate;
+	Bool32    inheritedQueries;
 } PhysicalDeviceFeatures;
 
 typedef struct PhysicalDeviceFeatures2 {
-    StructureType             sType = StructureType::ePhysicalDeviceFeatures2;
-    void*                     pNext = nullptr;
-    PhysicalDeviceFeatures    features;
+	StructureType             sType = StructureType::ePhysicalDeviceFeatures2;
+	void*                     pNext = nullptr;
+	PhysicalDeviceFeatures    features;
 } PhysicalDeviceFeatures2;
 
 typedef struct PhysicalDeviceVulkan12Features {
-    StructureType    sType = StructureType::ePhysicalDeviceVulkan12Features;
-    void*            pNext = nullptr;
-    Bool32           samplerMirrorClampToEdge;
-    Bool32           drawIndirectCount;
-    Bool32           storageBuffer8BitAccess;
-    Bool32           uniformAndStorageBuffer8BitAccess;
-    Bool32           storagePushConstant8;
-    Bool32           shaderBufferInt64Atomics;
-    Bool32           shaderSharedInt64Atomics;
-    Bool32           shaderFloat16;
-    Bool32           shaderInt8;
-    Bool32           descriptorIndexing;
-    Bool32           shaderInputAttachmentArrayDynamicIndexing;
-    Bool32           shaderUniformTexelBufferArrayDynamicIndexing;
-    Bool32           shaderStorageTexelBufferArrayDynamicIndexing;
-    Bool32           shaderUniformBufferArrayNonUniformIndexing;
-    Bool32           shaderSampledImageArrayNonUniformIndexing;
-    Bool32           shaderStorageBufferArrayNonUniformIndexing;
-    Bool32           shaderStorageImageArrayNonUniformIndexing;
-    Bool32           shaderInputAttachmentArrayNonUniformIndexing;
-    Bool32           shaderUniformTexelBufferArrayNonUniformIndexing;
-    Bool32           shaderStorageTexelBufferArrayNonUniformIndexing;
-    Bool32           descriptorBindingUniformBufferUpdateAfterBind;
-    Bool32           descriptorBindingSampledImageUpdateAfterBind;
-    Bool32           descriptorBindingStorageImageUpdateAfterBind;
-    Bool32           descriptorBindingStorageBufferUpdateAfterBind;
-    Bool32           descriptorBindingUniformTexelBufferUpdateAfterBind;
-    Bool32           descriptorBindingStorageTexelBufferUpdateAfterBind;
-    Bool32           descriptorBindingUpdateUnusedWhilePending;
-    Bool32           descriptorBindingPartiallyBound;
-    Bool32           descriptorBindingVariableDescriptorCount;
-    Bool32           runtimeDescriptorArray;
-    Bool32           samplerFilterMinmax;
-    Bool32           scalarBlockLayout;
-    Bool32           imagelessFramebuffer;
-    Bool32           uniformBufferStandardLayout;
-    Bool32           shaderSubgroupExtendedTypes;
-    Bool32           separateDepthStencilLayouts;
-    Bool32           hostQueryReset;
-    Bool32           timelineSemaphore;
-    Bool32           bufferDeviceAddress;
-    Bool32           bufferDeviceAddressCaptureReplay;
-    Bool32           bufferDeviceAddressMultiDevice;
-    Bool32           vulkanMemoryModel;
-    Bool32           vulkanMemoryModelDeviceScope;
-    Bool32           vulkanMemoryModelAvailabilityVisibilityChains;
-    Bool32           shaderOutputViewportIndex;
-    Bool32           shaderOutputLayer;
-    Bool32           subgroupBroadcastDynamicId;
+	StructureType    sType = StructureType::ePhysicalDeviceVulkan12Features;
+	void*            pNext = nullptr;
+	Bool32           samplerMirrorClampToEdge;
+	Bool32           drawIndirectCount;
+	Bool32           storageBuffer8BitAccess;
+	Bool32           uniformAndStorageBuffer8BitAccess;
+	Bool32           storagePushConstant8;
+	Bool32           shaderBufferInt64Atomics;
+	Bool32           shaderSharedInt64Atomics;
+	Bool32           shaderFloat16;
+	Bool32           shaderInt8;
+	Bool32           descriptorIndexing;
+	Bool32           shaderInputAttachmentArrayDynamicIndexing;
+	Bool32           shaderUniformTexelBufferArrayDynamicIndexing;
+	Bool32           shaderStorageTexelBufferArrayDynamicIndexing;
+	Bool32           shaderUniformBufferArrayNonUniformIndexing;
+	Bool32           shaderSampledImageArrayNonUniformIndexing;
+	Bool32           shaderStorageBufferArrayNonUniformIndexing;
+	Bool32           shaderStorageImageArrayNonUniformIndexing;
+	Bool32           shaderInputAttachmentArrayNonUniformIndexing;
+	Bool32           shaderUniformTexelBufferArrayNonUniformIndexing;
+	Bool32           shaderStorageTexelBufferArrayNonUniformIndexing;
+	Bool32           descriptorBindingUniformBufferUpdateAfterBind;
+	Bool32           descriptorBindingSampledImageUpdateAfterBind;
+	Bool32           descriptorBindingStorageImageUpdateAfterBind;
+	Bool32           descriptorBindingStorageBufferUpdateAfterBind;
+	Bool32           descriptorBindingUniformTexelBufferUpdateAfterBind;
+	Bool32           descriptorBindingStorageTexelBufferUpdateAfterBind;
+	Bool32           descriptorBindingUpdateUnusedWhilePending;
+	Bool32           descriptorBindingPartiallyBound;
+	Bool32           descriptorBindingVariableDescriptorCount;
+	Bool32           runtimeDescriptorArray;
+	Bool32           samplerFilterMinmax;
+	Bool32           scalarBlockLayout;
+	Bool32           imagelessFramebuffer;
+	Bool32           uniformBufferStandardLayout;
+	Bool32           shaderSubgroupExtendedTypes;
+	Bool32           separateDepthStencilLayouts;
+	Bool32           hostQueryReset;
+	Bool32           timelineSemaphore;
+	Bool32           bufferDeviceAddress;
+	Bool32           bufferDeviceAddressCaptureReplay;
+	Bool32           bufferDeviceAddressMultiDevice;
+	Bool32           vulkanMemoryModel;
+	Bool32           vulkanMemoryModelDeviceScope;
+	Bool32           vulkanMemoryModelAvailabilityVisibilityChains;
+	Bool32           shaderOutputViewportIndex;
+	Bool32           shaderOutputLayer;
+	Bool32           subgroupBroadcastDynamicId;
 } PhysicalDeviceVulkan12Features;
 
 typedef struct QueueFamilyProperties {
-    QueueFlags    queueFlags;
-    uint32_t      queueCount;
-    uint32_t      timestampValidBits;
-    Extent3D      minImageTransferGranularity;
+	QueueFlags    queueFlags;
+	uint32_t      queueCount;
+	uint32_t      timestampValidBits;
+	Extent3D      minImageTransferGranularity;
 } QueueFamilyProperties;
 
 typedef struct QueueFamilyProperties2 {
-    StructureType            sType = StructureType::eQueueFamilyProperties2;
-    void*                    pNext = nullptr;
-    QueueFamilyProperties    queueFamilyProperties;
+	StructureType            sType = StructureType::eQueueFamilyProperties2;
+	void*                    pNext = nullptr;
+	QueueFamilyProperties    queueFamilyProperties;
 } QueueFamilyProperties2;
 
 typedef struct QueueFamilyVideoPropertiesKHR {
-    StructureType                  sType = StructureType::eQueueFamilyVideoPropertiesKHR;
-    void*                          pNext = nullptr;
-    VideoCodecOperationFlagsKHR    videoCodecOperations;
+	StructureType                  sType = StructureType::eQueueFamilyVideoPropertiesKHR;
+	void*                          pNext = nullptr;
+	VideoCodecOperationFlagsKHR    videoCodecOperations;
 } QueueFamilyVideoPropertiesKHR;
 
 typedef struct FormatProperties {
-    FormatFeatureFlags    linearTilingFeatures;
-    FormatFeatureFlags    optimalTilingFeatures;
-    FormatFeatureFlags    bufferFeatures;
+	FormatFeatureFlags    linearTilingFeatures;
+	FormatFeatureFlags    optimalTilingFeatures;
+	FormatFeatureFlags    bufferFeatures;
 } FormatProperties;
 
 typedef struct ImageFormatProperties {
-    Extent3D            maxExtent;
-    uint32_t            maxMipLevels;
-    uint32_t            maxArrayLayers;
-    SampleCountFlags    sampleCounts;
-    DeviceSize          maxResourceSize;
+	Extent3D            maxExtent;
+	uint32_t            maxMipLevels;
+	uint32_t            maxArrayLayers;
+	SampleCountFlags    sampleCounts;
+	DeviceSize          maxResourceSize;
 } ImageFormatProperties;
 
 typedef struct MemoryHeap {
-    DeviceSize         size;
-    MemoryHeapFlags    flags;
+	DeviceSize         size;
+	MemoryHeapFlags    flags;
 } MemoryHeap;
 
 typedef struct MemoryType {
-    MemoryPropertyFlags    propertyFlags;
-    uint32_t               heapIndex;
+	MemoryPropertyFlags    propertyFlags;
+	uint32_t               heapIndex;
 } MemoryType;
 
 typedef struct PhysicalDeviceMemoryProperties {
-    uint32_t      memoryTypeCount;
-    MemoryType    memoryTypes[MaxMemoryTypes];
-    uint32_t      memoryHeapCount;
-    MemoryHeap    memoryHeaps[MaxMemoryHeaps];
+	uint32_t      memoryTypeCount;
+	MemoryType    memoryTypes[MaxMemoryTypes];
+	uint32_t      memoryHeapCount;
+	MemoryHeap    memoryHeaps[MaxMemoryHeaps];
 } PhysicalDeviceMemoryProperties;
 
 typedef struct PhysicalDeviceMemoryProperties2 {
-    StructureType                     sType = StructureType::ePhysicalDeviceMemoryProperties2;
-    void*                             pNext = nullptr;
-    PhysicalDeviceMemoryProperties    memoryProperties;
+	StructureType                     sType = StructureType::ePhysicalDeviceMemoryProperties2;
+	void*                             pNext = nullptr;
+	PhysicalDeviceMemoryProperties    memoryProperties;
 } PhysicalDeviceMemoryProperties2;
 
 typedef struct DeviceQueueCreateInfo {
-    StructureType               sType = StructureType::eDeviceQueueCreateInfo;
-    const void*                 pNext = nullptr;
-    DeviceQueueCreateFlags      flags;
-    uint32_t                    queueFamilyIndex;
-    uint32_t                    queueCount;
-    const float*                pQueuePriorities;
+	StructureType               sType = StructureType::eDeviceQueueCreateInfo;
+	const void*                 pNext = nullptr;
+	DeviceQueueCreateFlags      flags;
+	uint32_t                    queueFamilyIndex;
+	uint32_t                    queueCount;
+	const float*                pQueuePriorities;
 } DeviceQueueCreateInfo;
 
 typedef struct DeviceCreateInfo {
-    StructureType                      sType = StructureType::eDeviceCreateInfo;
-    const void*                        pNext = nullptr;
-    DeviceCreateFlags                  flags;
-    uint32_t                           queueCreateInfoCount;
-    const DeviceQueueCreateInfo*       pQueueCreateInfos;
-    uint32_t                           enabledLayerCount;
-    const char* const*                 ppEnabledLayerNames;
-    uint32_t                           enabledExtensionCount;
-    const char* const*                 ppEnabledExtensionNames;
-    const PhysicalDeviceFeatures*      pEnabledFeatures;
+	StructureType                      sType = StructureType::eDeviceCreateInfo;
+	const void*                        pNext = nullptr;
+	DeviceCreateFlags                  flags;
+	uint32_t                           queueCreateInfoCount;
+	const DeviceQueueCreateInfo*       pQueueCreateInfos;
+	uint32_t                           enabledLayerCount;
+	const char* const*                 ppEnabledLayerNames;
+	uint32_t                           enabledExtensionCount;
+	const char* const*                 ppEnabledExtensionNames;
+	const PhysicalDeviceFeatures*      pEnabledFeatures;
 } DeviceCreateInfo;
 
 
@@ -2325,7 +2316,7 @@ struct Funcs {
 	PFN_vkCreateInstance            vkCreateInstance = nullptr;
 	PFN_vkDestroyInstance           vkDestroyInstance = nullptr;
 	PFN_vkEnumeratePhysicalDevices  vkEnumeratePhysicalDevices = nullptr;
-    PFN_vkEnumerateDeviceExtensionProperties      vkEnumerateDeviceExtensionProperties = nullptr;
+	PFN_vkEnumerateDeviceExtensionProperties      vkEnumerateDeviceExtensionProperties = nullptr;
 	PFN_vkGetPhysicalDeviceProperties             vkGetPhysicalDeviceProperties = nullptr;
 	PFN_vkGetPhysicalDeviceFeatures               vkGetPhysicalDeviceFeatures = nullptr;
 	PFN_vkGetPhysicalDeviceFormatProperties       vkGetPhysicalDeviceFormatProperties = nullptr;
@@ -2335,7 +2326,7 @@ struct Funcs {
 	PFN_vkGetPhysicalDeviceProperties2            vkGetPhysicalDeviceProperties2 = nullptr;
 	PFN_vkGetPhysicalDeviceFeatures2              vkGetPhysicalDeviceFeatures2 = nullptr;
 	PFN_vkGetPhysicalDeviceMemoryProperties2      vkGetPhysicalDeviceMemoryProperties2 = nullptr;
-    PFN_vkGetPhysicalDeviceQueueFamilyProperties2 vkGetPhysicalDeviceQueueFamilyProperties2 = nullptr;
+	PFN_vkGetPhysicalDeviceQueueFamilyProperties2 vkGetPhysicalDeviceQueueFamilyProperties2 = nullptr;
 	PFN_vkCreateDevice              vkCreateDevice = nullptr;
 	PFN_vkDestroyDevice             vkDestroyDevice = nullptr;
 	PFN_vkGetDeviceProcAddr         vkGetDeviceProcAddr = nullptr;
@@ -2404,15 +2395,15 @@ protected:
 	Type* _data;
 	size_t _size;
 public:
-	Vector() : _data(nullptr), _size(0)  {}
+	Vector() noexcept : _data(nullptr), _size(0)  {}
 	Vector(size_t size) : _data(new Type[size]), _size(size)  {}
-	Vector(Type* data, size_t size) : _data(data), _size(size)  {}
-	~Vector()  { delete[] _data; }
+	Vector(Type* data, size_t size) noexcept : _data(data), _size(size)  {}
+	~Vector() noexcept  { delete[] _data; }
 
 	Vector(const Vector& other);
-	Vector(Vector&& other) : _data(other._data), _size(other._size)  { other._data = nullptr; other._size = 0; }
+	Vector(Vector&& other) noexcept : _data(other._data), _size(other._size)  { other._data = nullptr; other._size = 0; }
 	Vector& operator=(const Vector& rhs);
-	Vector& operator=(Vector&& rhs)  { delete[] _data; _data = rhs._data; _size = rhs._size; rhs._data = nullptr; rhs._size = 0; return *this; }
+	Vector& operator=(Vector&& rhs) noexcept  { delete[] _data; _data = rhs._data; _size = rhs._size; rhs._data = nullptr; rhs._size = 0; return *this; }
 
 	Type& operator[](size_t index)  { return _data[index]; }
 	const Type& operator[](size_t index) const  { return _data[index]; }
@@ -2421,9 +2412,11 @@ public:
 	size_t size() const  { return _size; }
 	bool empty() const  { return _size == 0; }
 
-	void clear()  { if(_data == nullptr) return; delete[] _data; _data = nullptr; _size = 0; }
+	void clear() noexcept  { if(_data == nullptr) return; delete[] _data; _data = nullptr; _size = 0; }
 	void alloc(size_t size)  { delete[] _data; _data = nullptr; _size = 0; if(size) { _data = new Type[size]; _size = size; } }
+	bool alloc_noThrow(size_t size) noexcept  { delete[] _data; if(size == 0) { _data = nullptr; _size = 0; return true; } _data = new(std::nothrow) Type[size]; if(!_data) { _size = 0; return false; } _size = size; return true; }
 	void resize(size_t newSize);
+	bool resize_noThrow(size_t newSize) noexcept;
 };
 
 
@@ -2536,6 +2529,68 @@ void Vector<Type>::resize(size_t newSize)
 }
 
 
+template<typename Type>
+bool Vector<Type>::resize_noThrow(size_t newSize) noexcept
+{
+	if(newSize > size()) {
+		Type* m = reinterpret_cast<Type*>(::operator new(sizeof(Type) * newSize, std::nothrow));
+		if(!m)  return false;
+		size_t i = 0;
+		size_t s = size();
+		size_t j = s;
+		try {
+			for(; i<s; i++)
+				new(&m[i]) Type(std::move(_data[i]));
+			for(; j<newSize; j++)
+				new(&m[j]) Type();
+		} catch(...) {
+			while(j != s) {
+				j--;
+				m[j].~Type();
+			}
+			while(i != 0) {
+				i--;
+				m[i].~Type();
+			}
+			::operator delete[](m);
+			clear();
+			return false;
+		}
+		Type* tmp = _data;
+		_data = m;
+		_size = newSize;
+		delete[] tmp;
+	}
+	else if(newSize < size())
+	{
+		if(newSize == 0)
+			clear();
+		else {
+			Type* m = reinterpret_cast<Type*>(::operator new(sizeof(Type) * newSize, std::nothrow));
+			if(!m)  return false;
+			size_t i = 0;
+			try {
+				for(size_t c=newSize; i<c; i++)
+					new(&m[i]) Type(std::move(_data[i]));
+			} catch(...) {
+				while(i != 0) {
+					i--;
+					m[i].~Type();
+				}
+				::operator delete[](m);
+				clear();
+				return false;
+			}
+			Type* tmp = _data;
+			_data = m;
+			_size = newSize;
+			delete[] tmp;
+		}
+	}
+	return true;
+}
+
+
 // conversions
 // resultToString() returns Span that contains pointer to const char array
 // and size of the string excluding terminating zero character
@@ -2551,7 +2606,7 @@ size_t int32ToString(int32_t value, char* bufferAtLeast12BytesLong);
 // author: PCJohn (peciva at fit.vut.cz)
 void throwResultExceptionWithMessage(Result result, const char* message);
 void throwResultException(const char* funcName, Result result);
-inline void checkSuccessValue(Result result, const char* funcName)  { if(result != vk::Result::eSuccess) throwResultException(funcName, result); }
+inline void checkForSuccessValue(Result result, const char* funcName)  { if(result != vk::Result::eSuccess) throwResultException(funcName, result); }
 inline void checkSuccess(Result result, const char* funcName)  { if(int32_t(result) < 0) throwResultException(funcName, result); }
 
 class Error {
@@ -2614,38 +2669,36 @@ inline bool isExtensionSupported(const Vector<ExtensionProperties>& extensionLis
 			return true;
 	return false;
 }
-Vector<ExtensionProperties> enumerateInstanceExtensionProperties(const char* pLayerName);
-Vector<LayerProperties> enumerateInstanceLayerProperties();
-Vector<PhysicalDevice> enumeratePhysicalDevices();
-Vector<ExtensionProperties> enumerateDeviceExtensionProperties(PhysicalDevice pd, const char* pLayerName);
-inline PhysicalDeviceProperties getPhysicalDeviceProperties(PhysicalDevice pd)  { PhysicalDeviceProperties p; funcs.vkGetPhysicalDeviceProperties(pd, &p); return p; }
-inline void getPhysicalDeviceProperties2(PhysicalDevice pd, PhysicalDeviceProperties2& pProperties)  { funcs.vkGetPhysicalDeviceProperties2(pd, &pProperties); }
-inline PhysicalDeviceFeatures getPhysicalDeviceFeatures(PhysicalDevice pd)  { PhysicalDeviceFeatures f; funcs.vkGetPhysicalDeviceFeatures(pd, &f); return f; }
-inline void getPhysicalDeviceFeatures2(PhysicalDevice pd, PhysicalDeviceFeatures2& pFeatures)  { funcs.vkGetPhysicalDeviceFeatures2(pd, &pFeatures); }
-inline FormatProperties getPhysicalDeviceFormatProperties(PhysicalDevice pd, Format f)  { FormatProperties p; funcs.vkGetPhysicalDeviceFormatProperties(pd, f, &p); return p; }
-inline ImageFormatProperties getPhysicalDeviceImageFormatProperties(PhysicalDevice pd, Format f, ImageType type, ImageTiling tiling, ImageUsageFlags usage, ImageCreateFlags flags)  { ImageFormatProperties p; checkSuccessValue(funcs.vkGetPhysicalDeviceImageFormatProperties(pd, f, type, tiling, usage, flags, &p), "vkGetPhysicalDeviceImageFormatProperties"); return p; }
-inline PhysicalDeviceMemoryProperties getPhysicalDeviceMemoryProperties(PhysicalDevice pd)  { PhysicalDeviceMemoryProperties p; funcs.vkGetPhysicalDeviceMemoryProperties(pd, &p); return p; }
-inline void getPhysicalDeviceMemoryProperties2(PhysicalDevice pd, PhysicalDeviceMemoryProperties2& pMemoryProperties)  { funcs.vkGetPhysicalDeviceMemoryProperties2(pd, &pMemoryProperties); }
-Vector<QueueFamilyProperties> getPhysicalDeviceQueueFamilyProperties(PhysicalDevice pd);
-Vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2(PhysicalDevice pd);
-template<typename T>
-Vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2(PhysicalDevice pd, Vector<T>& t)
-{
-	// get num queue families
-	uint32_t n;
-	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd, &n, nullptr);
 
-	// alloc and link lists
-	Vector<QueueFamilyProperties2> queueFamilyProperties;
-	t.alloc(n);  // this might throw
-	queueFamilyProperties.alloc(n);  // this might throw
-	for(size_t i=0; i<n; i++)
-		queueFamilyProperties[i].pNext = &t[i];
+Vector<ExtensionProperties> enumerateInstanceExtensionProperties_throw(const char* pLayerName);
+Result enumerateInstanceExtensionProperties_noThrow(const char* pLayerName, Vector<ExtensionProperties>& extensionList) noexcept;
+inline Vector<ExtensionProperties> enumerateInstanceExtensionProperties(const char* pLayerName)  { return enumerateInstanceExtensionProperties_throw(pLayerName); }
+Vector<LayerProperties> enumerateInstanceLayerProperties_throw();
+Result enumerateInstanceLayerProperties_noThrow(Vector<LayerProperties>& properties) noexcept;
+inline Vector<LayerProperties> enumerateInstanceLayerProperties()  { return enumerateInstanceLayerProperties_throw(); }
+Vector<PhysicalDevice> enumeratePhysicalDevices_throw();
+Result enumeratePhysicalDevices_noThrow(Vector<PhysicalDevice>& physicalDevices) noexcept;
+inline Vector<PhysicalDevice> enumeratePhysicalDevices()  { return enumeratePhysicalDevices_throw(); }
+Vector<ExtensionProperties> enumerateDeviceExtensionProperties_throw(PhysicalDevice pd, const char* pLayerName);
+Result enumerateDeviceExtensionProperties_noThrow(PhysicalDevice pd, const char* pLayerName, Vector<ExtensionProperties>& physicalDevices) noexcept;
+inline Vector<ExtensionProperties> enumerateDeviceExtensionProperties(PhysicalDevice pd, const char* pLayerName)  { return enumerateDeviceExtensionProperties_throw(pd, pLayerName); }
+inline PhysicalDeviceProperties getPhysicalDeviceProperties(PhysicalDevice pd) noexcept  { PhysicalDeviceProperties p; funcs.vkGetPhysicalDeviceProperties(pd, &p); return p; }
+inline void getPhysicalDeviceProperties2(PhysicalDevice pd, PhysicalDeviceProperties2& pProperties) noexcept  { funcs.vkGetPhysicalDeviceProperties2(pd, &pProperties); }
+inline PhysicalDeviceFeatures getPhysicalDeviceFeatures(PhysicalDevice pd) noexcept  { PhysicalDeviceFeatures f; funcs.vkGetPhysicalDeviceFeatures(pd, &f); return f; }
+inline void getPhysicalDeviceFeatures2(PhysicalDevice pd, PhysicalDeviceFeatures2& pFeatures) noexcept  { funcs.vkGetPhysicalDeviceFeatures2(pd, &pFeatures); }
+inline FormatProperties getPhysicalDeviceFormatProperties(PhysicalDevice pd, Format f) noexcept  { FormatProperties p; funcs.vkGetPhysicalDeviceFormatProperties(pd, f, &p); return p; }
+inline ImageFormatProperties getPhysicalDeviceImageFormatProperties_throw(PhysicalDevice pd, Format f, ImageType type, ImageTiling tiling, ImageUsageFlags usage, ImageCreateFlags flags)  { ImageFormatProperties p; Result r = funcs.vkGetPhysicalDeviceImageFormatProperties(pd, f, type, tiling, usage, flags, &p); checkForSuccessValue(r, "vkGetPhysicalDeviceImageFormatProperties"); return p; }
+inline Result getPhysicalDeviceImageFormatProperties_noThrow(PhysicalDevice pd, Format f, ImageType type, ImageTiling tiling, ImageUsageFlags usage, ImageCreateFlags flags, ImageFormatProperties& imageFormatProperties) noexcept  { return funcs.vkGetPhysicalDeviceImageFormatProperties(pd, f, type, tiling, usage, flags, &imageFormatProperties); }
+inline ImageFormatProperties getPhysicalDeviceImageFormatProperties(PhysicalDevice pd, Format f, ImageType type, ImageTiling tiling, ImageUsageFlags usage, ImageCreateFlags flags)  { return getPhysicalDeviceImageFormatProperties_throw(pd, f, type, tiling, usage, flags); }
+inline PhysicalDeviceMemoryProperties getPhysicalDeviceMemoryProperties(PhysicalDevice pd) noexcept  { PhysicalDeviceMemoryProperties p; funcs.vkGetPhysicalDeviceMemoryProperties(pd, &p); return p; }
+inline void getPhysicalDeviceMemoryProperties2(PhysicalDevice pd, PhysicalDeviceMemoryProperties2& pMemoryProperties) noexcept  { funcs.vkGetPhysicalDeviceMemoryProperties2(pd, &pMemoryProperties); }
+Vector<QueueFamilyProperties> getPhysicalDeviceQueueFamilyProperties_throw(PhysicalDevice pd);
+Result getPhysicalDeviceQueueFamilyProperties_noThrow(PhysicalDevice pd, Vector<QueueFamilyProperties>& queueFamilyList) noexcept;
+inline Vector<QueueFamilyProperties> getPhysicalDeviceQueueFamilyProperties(PhysicalDevice pd)  { return getPhysicalDeviceQueueFamilyProperties_throw(pd); }
+Vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2_throw(PhysicalDevice pd);
+Result getPhysicalDeviceQueueFamilyProperties2_noThrow(PhysicalDevice pd, Vector<QueueFamilyProperties2>& queueFamilyProperties) noexcept;
+inline Vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2(PhysicalDevice pd)  { return getPhysicalDeviceQueueFamilyProperties2_throw(pd); }
 
-	// enumerate physical devices
-	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd, &n, queueFamilyProperties.data());
-	return queueFamilyProperties;
-}
 namespace detail {
 	struct GetPhysicalDeviceQueueFamilyProperties2_struct {
 		uint8_t* pStruct;
@@ -2653,7 +2706,7 @@ namespace detail {
 	};
 	template<typename T>
 	GetPhysicalDeviceQueueFamilyProperties2_struct
-	getPhysicalDeviceQueueFamilyProperties2_helper(uint32_t n, Vector<T>& v, bool useV)
+	getPhysicalDeviceQueueFamilyProperties2_throw_helper(uint32_t n, Vector<T>& v, bool useV)
 	{
 		if(useV) {
 			v.alloc(n);
@@ -2665,9 +2718,26 @@ namespace detail {
 		else
 			return {nullptr, 0};
 	}
+	template<typename T>
+	GetPhysicalDeviceQueueFamilyProperties2_struct
+	getPhysicalDeviceQueueFamilyProperties2_noThrow_helper(uint32_t n, Vector<T>& v, bool useV) noexcept
+	{
+		if(useV) {
+			if(!v.alloc_noThrow(n))
+				return GetPhysicalDeviceQueueFamilyProperties2_struct{
+					.pStruct = reinterpret_cast<uint8_t*>(~uint64_t(0)),
+				};
+			return GetPhysicalDeviceQueueFamilyProperties2_struct{
+				.pStruct = reinterpret_cast<uint8_t*>(v.data()),
+				.structSize = sizeof(T),
+			};
+		}
+		else
+			return {nullptr, 0};
+	}
 	template<typename T, typename... ArgPack>
 	GetPhysicalDeviceQueueFamilyProperties2_struct
-	getPhysicalDeviceQueueFamilyProperties2_helper(uint32_t n, Vector<T>& v, bool useV, ArgPack&&... argPack)
+	getPhysicalDeviceQueueFamilyProperties2_throw_helper(uint32_t n, Vector<T>& v, bool useV, ArgPack&&... argPack)
 	{
 		GetPhysicalDeviceQueueFamilyProperties2_struct s =
 			getPhysicalDeviceQueueFamilyProperties2_helper(n, argPack...);
@@ -2685,9 +2755,34 @@ namespace detail {
 		else
 			return s;
 	}
+	template<typename T, typename... ArgPack>
+	GetPhysicalDeviceQueueFamilyProperties2_struct
+	getPhysicalDeviceQueueFamilyProperties2_noThrow_helper(uint32_t n, Vector<T>& v, bool useV, ArgPack&&... argPack) noexcept
+	{
+		GetPhysicalDeviceQueueFamilyProperties2_struct s =
+			getPhysicalDeviceQueueFamilyProperties2_helper(n, argPack...);
+		if(s.pStruct == reinterpret_cast<uint8_t*>(~uint64_t(0)))
+			return s;
+		if(useV) {
+			if(!v.alloc_noThrow(n))
+				return GetPhysicalDeviceQueueFamilyProperties2_struct{
+					.pStruct = reinterpret_cast<uint8_t*>(~uint64_t(0)),
+				};
+			if(s.pStruct) {
+				uint8_t* p = s.pStruct;
+				for(size_t i=0; i<n; i++) {
+					v[i].pNext = p;
+					p += s.structSize;
+				}
+			}
+			return {reinterpret_cast<uint8_t*>(v.data()), sizeof(T)};
+		}
+		else
+			return s;
+	}
 }
 template<typename... ArgPack>
-Vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2(PhysicalDevice pd, ArgPack&&... argPack)  // FIXME: develop general solution for any number of parameters
+Vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2_throw(PhysicalDevice pd, ArgPack&&... argPack)
 {
 	// get num queue families
 	uint32_t n;
@@ -2697,7 +2792,7 @@ Vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2(PhysicalD
 
 	// alloc and link pNext structures
 	detail::GetPhysicalDeviceQueueFamilyProperties2_struct s =
-		detail::getPhysicalDeviceQueueFamilyProperties2_helper(n, argPack...);
+		detail::getPhysicalDeviceQueueFamilyProperties2_throw_helper(n, argPack...);
 
 	// QueueFamilyProperties2 list
 	Vector<QueueFamilyProperties2> queueFamilyProperties;
@@ -2714,5 +2809,40 @@ Vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2(PhysicalD
 	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd, &n, queueFamilyProperties.data());
 	return queueFamilyProperties;
 }
+template<typename... ArgPack>
+Result getPhysicalDeviceQueueFamilyProperties2_noThrow(PhysicalDevice pd, Vector<QueueFamilyProperties2>& queueFamilyProperties, ArgPack&&... argPack) noexcept
+{
+	// get num queue families
+	uint32_t n;
+	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd, &n, nullptr);
+
+	// alloc and link pNext structures
+	detail::GetPhysicalDeviceQueueFamilyProperties2_struct s =
+		detail::getPhysicalDeviceQueueFamilyProperties2_noThrow_helper(n, argPack...);
+	if(s.pStruct == reinterpret_cast<uint8_t*>(~uint64_t(0)))
+		return Result::eErrorOutOfHostMemory;
+
+	// QueueFamilyProperties2 list
+	if(!queueFamilyProperties.alloc_noThrow(n))
+		return Result::eErrorOutOfHostMemory;
+	if(s.pStruct) {
+		uint8_t* p = s.pStruct;
+		for(size_t i=0; i<n; i++) {
+			queueFamilyProperties[i].pNext = p;
+			p += s.structSize;
+		}
+	}
+
+	// enumerate physical devices
+	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd, &n, queueFamilyProperties.data());
+	return Result::eSuccess;
+}
+template<typename... ArgPack>
+Vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2(PhysicalDevice pd, ArgPack&&... argPack)  { return getPhysicalDeviceQueueFamilyProperties2_throw(pd, argPack...); }
+template<typename T>
+Vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2_throw(PhysicalDevice pd, Vector<T>& t)  { return getPhysicalDeviceQueueFamilyProperties2(pd, t, true); }
+template<typename T>
+Result getPhysicalDeviceQueueFamilyProperties2_noThrow(PhysicalDevice pd, Vector<QueueFamilyProperties2>& queueFamilyProperties, Vector<T>& t) noexcept  { return getPhysicalDeviceQueueFamilyProperties2_noThrow(pd, queueFamilyProperties, t, true); }
+
 
 }

@@ -65,12 +65,12 @@ void vk::loadLib(const char* libPath)
 	funcs.vkEnumerateInstanceLayerProperties = getInstanceProcAddr<PFN_vkEnumerateInstanceLayerProperties>("vkEnumerateInstanceLayerProperties");
 	funcs.vkCreateInstance = getInstanceProcAddr<PFN_vkCreateInstance>("vkCreateInstance");
 	PFN_vkEnumerateInstanceVersion vkEnumerateInstanceVersion = getInstanceProcAddr<PFN_vkEnumerateInstanceVersion>("vkEnumerateInstanceVersion");
-	
+
 	// instance version
 	if(vkEnumerateInstanceVersion) {
 		uint32_t v;
 		Result r = vkEnumerateInstanceVersion(&v);
-		checkSuccessValue(r, "vkEnumerateInstanceVersion");  // this might throw
+		checkForSuccessValue(r, "vkEnumerateInstanceVersion");  // this might throw
 		detail::_instanceVersion = v;
 	}
 	else
@@ -106,7 +106,7 @@ void vk::initInstance(const vk::InstanceCreateInfo& pCreateInfo)
 		else
 			r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instance);
 	}
-	checkSuccessValue(r, "vkCreateInstance");  // might throw
+	checkForSuccessValue(r, "vkCreateInstance");  // might throw
 
 	// init instance functionality
 	initInstance(instance);
@@ -155,7 +155,7 @@ void vk::initDevice(PhysicalDevice pd, const struct DeviceCreateInfo& createInfo
 	destroyDevice();
 	Device device;
 	vk::Result r = funcs.vkCreateDevice(pd, &createInfo, nullptr, &device);
-	checkSuccessValue(r, "vkCreateDevice");  // might throw
+	checkForSuccessValue(r, "vkCreateDevice");  // might throw
 	initDevice(device);
 }
 
@@ -298,22 +298,6 @@ void vk::cleanUp() noexcept
 	destroyDevice();
 	destroyInstance();
 	unloadLib();
-}
-
-
-// nifty counter / Schwarz counter
-// author: PCJohn (peciva at fit.vut.cz)
-static int niftyCounter = 0;
-
-vk::VkgInitAndCleanUp::VkgInitAndCleanUp()
-{
-	niftyCounter++;
-}
-
-vk::VkgInitAndCleanUp::~VkgInitAndCleanUp()
-{
-	if(--niftyCounter == 0)
-		vk::cleanUp();
 }
 
 
@@ -500,7 +484,7 @@ Error::Error(const char* funcName, Result result) noexcept
 }
 
 
-Vector<ExtensionProperties> vk::enumerateInstanceExtensionProperties(const char* pLayerName)
+Vector<ExtensionProperties> vk::enumerateInstanceExtensionProperties_throw(const char* pLayerName)
 {
 	Vector<ExtensionProperties> v;
 	uint32_t n;
@@ -508,14 +492,14 @@ Vector<ExtensionProperties> vk::enumerateInstanceExtensionProperties(const char*
 	do {
 		// get num extensions
 		r = funcs.vkEnumerateInstanceExtensionProperties(pLayerName, &n, nullptr);
-		checkSuccessValue(r, "vkEnumerateInstanceExtensionProperties");
+		checkForSuccessValue(r, "vkEnumerateInstanceExtensionProperties");
 
 		// enumerate extensions
 		v.alloc(n);
 		r = funcs.vkEnumerateInstanceExtensionProperties(pLayerName, &n, v.data());
 		checkSuccess(r, "vkEnumerateInstanceExtensionProperties");
 
-	} while(r == vk::Result::eIncomplete);
+	} while(r == Result::eIncomplete);
 
 	// number of returned items might got lower before the last get/enumerate call
 	if(n != v.size())
@@ -525,32 +509,35 @@ Vector<ExtensionProperties> vk::enumerateInstanceExtensionProperties(const char*
 }
 
 
-Vector<ExtensionProperties> vk::enumerateDeviceExtensionProperties(PhysicalDevice pd, const char* pLayerName)
+Result vk::enumerateInstanceExtensionProperties_noThrow(const char* pLayerName, Vector<ExtensionProperties>& v) noexcept
 {
-	Vector<ExtensionProperties> v;
 	uint32_t n;
 	Result r;
 	do {
 		// get num extensions
-		r = funcs.vkEnumerateDeviceExtensionProperties(pd, pLayerName, &n, nullptr);
-		checkSuccessValue(r, "vkEnumerateInstanceExtensionProperties");
+		r = funcs.vkEnumerateInstanceExtensionProperties(pLayerName, &n, nullptr);
+		if(r != Result::eSuccess)
+			return r;
 
 		// enumerate extensions
-		v.alloc(n);
-		r = funcs.vkEnumerateDeviceExtensionProperties(pd, pLayerName, &n, v.data());
-		checkSuccess(r, "vkEnumerateInstanceExtensionProperties");
+		if(!v.alloc_noThrow(n))
+			return Result::eErrorOutOfHostMemory;
+		r = funcs.vkEnumerateInstanceExtensionProperties(pLayerName, &n, v.data());
+		if(int32_t(r) < 0)
+			return r;
 
-	} while(r == vk::Result::eIncomplete);
+	} while(r == Result::eIncomplete);
 
 	// number of returned items might got lower before the last get/enumerate call
 	if(n != v.size())
-		v.resize(n);
+		if(!v.resize_noThrow(n))
+			return Result::eErrorOutOfHostMemory;
 
-	return v;
+	return Result::eSuccess;
 }
 
 
-Vector<LayerProperties> vk::enumerateInstanceLayerProperties()
+Vector<LayerProperties> vk::enumerateInstanceLayerProperties_throw()
 {
 	Vector<LayerProperties> v;
 	uint32_t n;
@@ -558,7 +545,7 @@ Vector<LayerProperties> vk::enumerateInstanceLayerProperties()
 	do {
 		// get num layers
 		r = funcs.vkEnumerateInstanceLayerProperties(&n, nullptr);
-		checkSuccessValue(r, "vkEnumerateInstanceLayerProperties");
+		checkForSuccessValue(r, "vkEnumerateInstanceLayerProperties");
 
 		// enumerate layers
 		v.alloc(n);
@@ -575,7 +562,35 @@ Vector<LayerProperties> vk::enumerateInstanceLayerProperties()
 }
 
 
-Vector<PhysicalDevice> vk::enumeratePhysicalDevices()
+Result vk::enumerateInstanceLayerProperties_noThrow(Vector<LayerProperties>& v) noexcept
+{
+	uint32_t n;
+	Result r;
+	do {
+		// get num layers
+		r = funcs.vkEnumerateInstanceLayerProperties(&n, nullptr);
+		if(r != Result::eSuccess)
+			return r;
+
+		// enumerate layers
+		if(!v.alloc_noThrow(n))
+			return Result::eErrorOutOfHostMemory;
+		r = funcs.vkEnumerateInstanceLayerProperties(&n, v.data());
+		if(int32_t(r) < 0)
+			return r;
+
+	} while(r == vk::Result::eIncomplete);
+
+	// number of returned items might got lower before the last get/enumerate call
+	if(n != v.size())
+		if(!v.resize_noThrow(n))
+			return Result::eErrorOutOfHostMemory;
+
+	return Result::eSuccess;
+}
+
+
+Vector<PhysicalDevice> vk::enumeratePhysicalDevices_throw()
 {
 	Vector<PhysicalDevice> v;
 	uint32_t n;
@@ -583,7 +598,7 @@ Vector<PhysicalDevice> vk::enumeratePhysicalDevices()
 	do {
 		// get number of physical devices
 		r = funcs.vkEnumeratePhysicalDevices(instance(), &n, nullptr);
-		checkSuccessValue(r, "vkEnumeratePhysicalDevices");
+		checkForSuccessValue(r, "vkEnumeratePhysicalDevices");
 
 		// enumerate physical devices
 		v.alloc(n);
@@ -600,7 +615,88 @@ Vector<PhysicalDevice> vk::enumeratePhysicalDevices()
 }
 
 
-Vector<QueueFamilyProperties> vk::getPhysicalDeviceQueueFamilyProperties(PhysicalDevice pd)
+Result vk::enumeratePhysicalDevices_noThrow(Vector<PhysicalDevice>& v) noexcept
+{
+	uint32_t n;
+	Result r;
+	do {
+		// get num layers
+		r = funcs.vkEnumeratePhysicalDevices(instance(), &n, nullptr);
+		if(r != Result::eSuccess)
+			return r;
+
+		// enumerate layers
+		if(!v.alloc_noThrow(n))
+			return Result::eErrorOutOfHostMemory;
+		r = funcs.vkEnumeratePhysicalDevices(instance(), &n, v.data());
+		if(int32_t(r) < 0)
+			return r;
+
+	} while(r == vk::Result::eIncomplete);
+
+	// number of returned items might got lower before the last get/enumerate call
+	if(n != v.size())
+		if(!v.resize_noThrow(n))
+			return Result::eErrorOutOfHostMemory;
+
+	return Result::eSuccess;
+}
+
+
+Vector<ExtensionProperties> vk::enumerateDeviceExtensionProperties_throw(PhysicalDevice pd, const char* pLayerName)
+{
+	Vector<ExtensionProperties> v;
+	uint32_t n;
+	Result r;
+	do {
+		// get num extensions
+		r = funcs.vkEnumerateDeviceExtensionProperties(pd, pLayerName, &n, nullptr);
+		checkForSuccessValue(r, "vkEnumerateInstanceExtensionProperties");
+
+		// enumerate extensions
+		v.alloc(n);
+		r = funcs.vkEnumerateDeviceExtensionProperties(pd, pLayerName, &n, v.data());
+		checkSuccess(r, "vkEnumerateInstanceExtensionProperties");
+
+	} while(r == vk::Result::eIncomplete);
+
+	// number of returned items might got lower before the last get/enumerate call
+	if(n != v.size())
+		v.resize(n);
+
+	return v;
+}
+
+
+Result vk::enumerateDeviceExtensionProperties_noThrow(PhysicalDevice pd, const char* pLayerName, Vector<ExtensionProperties>& v) noexcept
+{
+	uint32_t n;
+	Result r;
+	do {
+		// get num layers
+		r = funcs.vkEnumerateDeviceExtensionProperties(pd, pLayerName, &n, nullptr);
+		if(r != Result::eSuccess)
+			return r;
+
+		// enumerate layers
+		if(!v.alloc_noThrow(n))
+			return Result::eErrorOutOfHostMemory;
+		r = funcs.vkEnumerateDeviceExtensionProperties(pd, pLayerName, &n, v.data());
+		if(int32_t(r) < 0)
+			return r;
+
+	} while(r == vk::Result::eIncomplete);
+
+	// number of returned items might got lower before the last get/enumerate call
+	if(n != v.size())
+		if(!v.resize_noThrow(n))
+			return Result::eErrorOutOfHostMemory;
+
+	return Result::eSuccess;
+}
+
+
+Vector<QueueFamilyProperties> vk::getPhysicalDeviceQueueFamilyProperties_throw(PhysicalDevice pd)
 {
 	Vector<QueueFamilyProperties> v;
 
@@ -616,15 +712,50 @@ Vector<QueueFamilyProperties> vk::getPhysicalDeviceQueueFamilyProperties(Physica
 }
 
 
-Vector<QueueFamilyProperties2> vk::getPhysicalDeviceQueueFamilyProperties2(PhysicalDevice pd)
+Result vk::getPhysicalDeviceQueueFamilyProperties_noThrow(PhysicalDevice pd, Vector<QueueFamilyProperties>& v) noexcept
+{
+	// get num queue families
+	uint32_t n;
+	funcs.vkGetPhysicalDeviceQueueFamilyProperties(pd, &n, nullptr);
+
+	// enumerate physical devices
+	if(!v.alloc_noThrow(n));  // this might throw
+		return Result::eErrorOutOfHostMemory;
+	funcs.vkGetPhysicalDeviceQueueFamilyProperties(pd, &n, v.data());
+
+	return Result::eSuccess;
+}
+
+
+Vector<QueueFamilyProperties2> vk::getPhysicalDeviceQueueFamilyProperties2_throw(PhysicalDevice pd)
+{
+	// get num queue families
+	uint32_t n;
+	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd, &n, nullptr);
+	if(n == 0)
+		return {};
+
+	// QueueFamilyProperties2 list
+	Vector<QueueFamilyProperties2> queueFamilyProperties;
+	queueFamilyProperties.alloc(n);  // this might throw
+
+	// enumerate physical devices
+	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd, &n, queueFamilyProperties.data());
+	return queueFamilyProperties;
+}
+
+
+Result vk::getPhysicalDeviceQueueFamilyProperties2_noThrow(PhysicalDevice pd, Vector<QueueFamilyProperties2>& queueFamilyProperties) noexcept
 {
 	// get num queue families
 	uint32_t n;
 	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd, &n, nullptr);
 
+	// QueueFamilyProperties2 list
+	if(!queueFamilyProperties.alloc_noThrow(n))
+		return Result::eErrorOutOfHostMemory;
+
 	// enumerate physical devices
-	Vector<QueueFamilyProperties2> queueFamilyProperties;
-	queueFamilyProperties.alloc(n);  // this might throw
 	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd, &n, queueFamilyProperties.data());
-	return queueFamilyProperties;
+	return Result::eSuccess;
 }
