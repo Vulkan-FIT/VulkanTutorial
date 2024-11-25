@@ -14,10 +14,10 @@ int main(int, char**)
 		vk::loadLib();
 
 		// instance version
-		uint32_t version = vk::enumerateInstanceVersion();
+		uint32_t instanceVersion = vk::enumerateInstanceVersion();
 		cout << "Vulkan instance:\n"
-		     << "   Version: " << vk::apiVersionMajor(version) << "."
-		     << vk::apiVersionMinor(version) << "." << vk::apiVersionPatch(version) << endl;
+		     << "   Version: " << vk::apiVersionMajor(instanceVersion) << "."
+		     << vk::apiVersionMinor(instanceVersion) << "." << vk::apiVersionPatch(instanceVersion) << endl;
 
 		// Vulkan instance
 		vk::initInstance(
@@ -33,7 +33,7 @@ int main(int, char**)
 						.applicationVersion = 0,
 						.pEngineName = nullptr,
 						.engineVersion = 0,
-						.apiVersion = vk::ApiVersion1_0,
+						.apiVersion = vk::ApiVersion10,
 					},
 				.enabledLayerCount = 0,
 				.ppEnabledLayerNames = nullptr,
@@ -49,58 +49,78 @@ int main(int, char**)
 			vk::PhysicalDevice pd = deviceList[i];
 
 			// device properties
-			vk::PhysicalDeviceProperties p = vk::getPhysicalDeviceProperties(pd);
-			cout << "   " << p.deviceName << endl;
+			vk::PhysicalDeviceProperties properties = vk::getPhysicalDeviceProperties(pd);
+			cout << "   " << properties.deviceName << endl;
 
 			// device Vulkan version
-			cout << "      Vulkan version:  " << vk::apiVersionMajor(p.apiVersion) << "."
-			     << vk::apiVersionMinor(p.apiVersion) << "." << vk::apiVersionPatch(p.apiVersion) << endl;
+			cout << "      Vulkan version:  " << vk::apiVersionMajor(properties.apiVersion) << "."
+			     << vk::apiVersionMinor(properties.apiVersion) << "." << vk::apiVersionPatch(properties.apiVersion) << endl;
+
+			// device type
+			const char* s;
+			switch(properties.deviceType) {
+			case vk::PhysicalDeviceType::eIntegratedGpu: s = "IntegratedGpu"; break;
+			case vk::PhysicalDeviceType::eDiscreteGpu:   s = "DiscreteGpu"; break;
+			case vk::PhysicalDeviceType::eVirtualGpu:    s = "VirtualGpu"; break;
+			case vk::PhysicalDeviceType::eCpu:           s = "Cpu"; break;
+			default: s = "Other";
+			}
+			cout << "      Device type:     " << s << endl;
+
+			// VendorID and DeviceID
+			cout << "      VendorID:        0x" << hex << properties.vendorID << endl;
+			cout << "      DeviceID:        0x" << properties.deviceID << dec << endl;
 
 			// device limits
-			cout << "      MaxTextureSize:  " << p.limits.maxImageDimension2D << endl;
+			cout << "      MaxTextureSize:  " << properties.limits.maxImageDimension2D << endl;
 
 			// device features
-			vk::PhysicalDeviceFeatures f = vk::getPhysicalDeviceFeatures(pd);
-			cout << "      Geometry shader:  ";
-			if(f.geometryShader)
+			vk::PhysicalDeviceFeatures features = vk::getPhysicalDeviceFeatures(pd);
+			cout << "      Geometry shader:   ";
+			if(features.geometryShader)
 				cout << "supported" << endl;
 			else
 				cout << "not supported" << endl;
 			cout << "      Double precision:  ";
-			if(f.shaderFloat64)
+			if(features.shaderFloat64)
 				cout << "supported" << endl;
 			else
 				cout << "not supported" << endl;
 
 			// memory properties
-			vk::PhysicalDeviceMemoryProperties m = vk::getPhysicalDeviceMemoryProperties(pd);
 			cout << "      Memory heaps:" << endl;
-			for(uint32_t i=0, c=m.memoryHeapCount; i<c; i++)
-				cout << "         " << i << ": " << m.memoryHeaps[i].size/1024/1024 << "MiB" << endl;
-
-			// queue family properties
-			vk::Vector<vk::QueueFamilyProperties> queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties(pd);
-			cout << "      Queue families:" << endl;
-			for(uint32_t i=0, c=uint32_t(queueFamilyList.size()); i<c; i++) {
-				cout << "         " << i << ": ";
-				if(queueFamilyList[i].queueFlags & vk::QueueFlagBits::eGraphics)
-					cout << "g";
-				if(queueFamilyList[i].queueFlags & vk::QueueFlagBits::eCompute)
-					cout << "c";
-				if(queueFamilyList[i].queueFlags & vk::QueueFlagBits::eTransfer)
-					cout << "t";
-				cout << "  (count: " << queueFamilyList[i].queueCount << ")" << endl;
+			vk::PhysicalDeviceMemoryProperties memoryProperties = vk::getPhysicalDeviceMemoryProperties(pd);
+			for(uint32_t i=0, c=memoryProperties.memoryHeapCount; i<c; i++) {
+				vk::MemoryHeap& h = memoryProperties.memoryHeaps[i];
+				cout << "         " << i << ": " << h.size/1024/1024 << "MiB";
+				if(h.flags & vk::MemoryHeapFlagBits::eDeviceLocal)  cout << "  (device local)";
+				cout << endl;
 			}
 
-			// color attachment R8G8B8A8Unorm format support
-			vk::FormatProperties fp = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR8G8B8A8Unorm);
-			cout << "      R8G8B8A8Unorm format support for color attachment:" << endl;
+			// queue family properties
+			cout << "      Queue families:" << endl;
+			vk::Vector<vk::QueueFamilyProperties> queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties(pd);
+			for(uint32_t i=0, c=uint32_t(queueFamilyList.size()); i<c; i++) {
+				cout << "         " << i << ": ";
+				vk::QueueFamilyProperties& queueFamilyProperties = queueFamilyList[i];
+				if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eGraphics)
+					cout << "g";
+				if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eCompute)
+					cout << "c";
+				if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eTransfer)
+					cout << "t";
+				cout << "  (count: " << queueFamilyProperties.queueCount << ")" << endl;
+			}
+
+			// color attachment R8G8B8A8Srgb format support
+			vk::FormatProperties formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR8G8B8A8Srgb);
+			cout << "      R8G8B8A8Srgb format support for color attachment:" << endl;
 			cout << "         Images with linear tiling: " <<
-				string(fp.linearTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
+				string(formatProperties.linearTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
 			cout << "         Images with optimal tiling: " <<
-				string(fp.optimalTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
+				string(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
 			cout << "         Buffers: " <<
-				string(fp.bufferFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
+				string(formatProperties.bufferFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
 
 		}
 
