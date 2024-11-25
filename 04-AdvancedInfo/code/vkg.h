@@ -13,6 +13,7 @@ struct ExtensionProperties;
 template<typename Type> class Vector;
 struct InstanceCreateInfo;
 struct DeviceCreateInfo;
+enum class Result;
 
 
 // handle types
@@ -39,12 +40,24 @@ inline uint32_t enumerateInstanceVersion()  { return detail::_instanceVersion; }
 
 // initialization and cleanUp functions
 // author: PCJohn (peciva at fit.vut.cz)
-void loadLib();
-void loadLib(const char* libPath);  // or const std::filesystem::path& libPath if import std
-void initInstance(const InstanceCreateInfo& createInfo);
-void initInstance(Instance instance);
-void initDevice(PhysicalDevice pd, const DeviceCreateInfo& createInfo);
-void initDevice(Device device);
+void loadLib_throw();
+Result loadLib_noThrow() noexcept;
+inline void loadLib()  { loadLib_throw(); }
+
+void loadLib_throw(const char* libPath);  // or const std::filesystem::path& libPath if import std
+Result loadLib_noThrow(const char* libPath) noexcept;  // or const std::filesystem::path& libPath if import std
+inline void loadLib(const char* libPath)  { loadLib_throw(libPath); }  // or const std::filesystem::path& libPath if import std
+
+void initInstance_throw(const InstanceCreateInfo& createInfo);
+Result initInstance_noThrow(const InstanceCreateInfo& createInfo) noexcept;
+inline void initInstance(const InstanceCreateInfo& createInfo)  { initInstance_throw(createInfo); }
+void initInstance(Instance instance) noexcept;
+
+void initDevice_throw(PhysicalDevice pd, const DeviceCreateInfo& createInfo);
+Result initDevice_noThrow(PhysicalDevice pd, const DeviceCreateInfo& createInfo) noexcept;
+inline void initDevice(PhysicalDevice pd, const DeviceCreateInfo& createInfo)  { initDevice_throw(pd, createInfo); }
+void initDevice(Device device) noexcept;
+
 template<typename T> inline T getInstanceProcAddr(const char* name) noexcept;
 template<typename T> inline T getDeviceProcAddr(const char* name) noexcept;
 bool isExtensionSupported(const Vector<ExtensionProperties>& extensionList, const char* extensionName) noexcept;

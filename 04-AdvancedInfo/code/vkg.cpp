@@ -26,17 +26,28 @@ Funcs vk::funcs;
 
 // init and clean up functions
 // author: PCJohn (peciva at fit.vut.cz)
-void vk::loadLib()
+
+void vk::loadLib_throw()
 {
 #ifdef _WIN32
-	loadLib("vulkan-1.dll");
+	loadLib_throw("vulkan-1.dll");
 #else
-	loadLib("libvulkan.so.1");
+	loadLib_throw("libvulkan.so.1");
 #endif
 }
 
 
-void vk::loadLib(const char* libPath)
+Result vk::loadLib_noThrow() noexcept
+{
+#ifdef _WIN32
+	return loadLib_noThrow("vulkan-1.dll");
+#else
+	return loadLib_noThrow("libvulkan.so.1");
+#endif
+}
+
+
+void vk::loadLib_throw(const char* libPath)
 {
 	// avoid multiple initialization attempts
 	if(detail::_library)
@@ -57,8 +68,10 @@ void vk::loadLib(const char* libPath)
 		throw VkgError((string("Vulkan error: Can not open \"") + p.native() + "\".").c_str());
 	funcs.vkGetInstanceProcAddr = PFN_vkGetInstanceProcAddr(dlsym(detail::_library, "vkGetInstanceProcAddr"));
 #endif
-	if(funcs.vkGetInstanceProcAddr == nullptr)
+	if(funcs.vkGetInstanceProcAddr == nullptr) {
+		unloadLib();
 		throw VkgError((string("Vulkan error: Can not retrieve vkGetInstanceProcAddr function pointer out of \"") + p.string() + ".").c_str());
+	}
 
 	// function pointers available without vk::Instance
 	funcs.vkEnumerateInstanceExtensionProperties = getInstanceProcAddr<PFN_vkEnumerateInstanceExtensionProperties>("vkEnumerateInstanceExtensionProperties");
@@ -70,7 +83,10 @@ void vk::loadLib(const char* libPath)
 	if(vkEnumerateInstanceVersion) {
 		uint32_t v;
 		Result r = vkEnumerateInstanceVersion(&v);
-		checkForSuccessValue(r, "vkEnumerateInstanceVersion");  // this might throw
+		if(r != Result::eSuccess) {
+			unloadLib();
+			throwResultException("vkEnumerateInstanceVersion", r);
+		}
 		detail::_instanceVersion = v;
 	}
 	else
@@ -78,7 +94,56 @@ void vk::loadLib(const char* libPath)
 }
 
 
-void vk::initInstance(const vk::InstanceCreateInfo& pCreateInfo)
+Result vk::loadLib_noThrow(const char* libPath) noexcept
+{
+	// avoid multiple initialization attempts
+	if(detail::_library)
+		return Result::eErrorUnknown;
+
+	// load library
+	// and get vkGetInstanceProcAddr pointer
+	filesystem::path p = filesystem::path(libPath);
+#ifdef _WIN32
+	detail::_library = reinterpret_cast<void*>(LoadLibraryW(p.native().c_str()));
+	if(detail::_library == nullptr)
+		return Result::eErrorInitializationFailed;
+	funcs.vkGetInstanceProcAddr = PFN_vkGetInstanceProcAddr(
+		GetProcAddress(reinterpret_cast<HMODULE>(detail::_library), "vkGetInstanceProcAddr"));
+#else
+	detail::_library = dlopen(p.native().c_str(),RTLD_NOW);
+	if(detail::_library == nullptr)
+		return Result::eErrorInitializationFailed;
+	funcs.vkGetInstanceProcAddr = PFN_vkGetInstanceProcAddr(dlsym(detail::_library, "vkGetInstanceProcAddr"));
+#endif
+	if(funcs.vkGetInstanceProcAddr == nullptr) {
+		unloadLib();
+		return Result::eErrorIncompatibleDriver;
+	}
+
+	// function pointers available without vk::Instance
+	funcs.vkEnumerateInstanceExtensionProperties = getInstanceProcAddr<PFN_vkEnumerateInstanceExtensionProperties>("vkEnumerateInstanceExtensionProperties");
+	funcs.vkEnumerateInstanceLayerProperties = getInstanceProcAddr<PFN_vkEnumerateInstanceLayerProperties>("vkEnumerateInstanceLayerProperties");
+	funcs.vkCreateInstance = getInstanceProcAddr<PFN_vkCreateInstance>("vkCreateInstance");
+	PFN_vkEnumerateInstanceVersion vkEnumerateInstanceVersion = getInstanceProcAddr<PFN_vkEnumerateInstanceVersion>("vkEnumerateInstanceVersion");
+
+	// instance version
+	if(vkEnumerateInstanceVersion) {
+		uint32_t v;
+		Result r = vkEnumerateInstanceVersion(&v);
+		if(r != Result::eSuccess) {
+			unloadLib();
+			return r;
+		}
+		detail::_instanceVersion = v;
+	}
+	else
+		detail::_instanceVersion = ApiVersion10;
+
+	return Result::eSuccess;
+}
+
+
+void vk::initInstance_throw(const vk::InstanceCreateInfo& pCreateInfo)
 {
 	assert(detail::_library && "vk::loadLib() must be called before vk::createInstance().");
 
@@ -113,7 +178,44 @@ void vk::initInstance(const vk::InstanceCreateInfo& pCreateInfo)
 }
 
 
-void vk::initInstance(Instance instance)
+Result vk::initInstance_noThrow(const vk::InstanceCreateInfo& pCreateInfo) noexcept
+{
+	assert(detail::_library && "vk::loadLib() must be called before vk::createInstance().");
+
+	// destroy previous instance if any exists
+	destroyInstance();
+
+	// create instance
+	Result r;
+	Instance instance;
+	if(enumerateInstanceVersion() != ApiVersion10)
+		r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instance);
+	else
+	{
+		// (To avoid probably unintended exception, handle the special case of non-1.0 Vulkan version request
+		// on Vulkan 1.0 system. See vkCreateInstance() documentation.)
+		if(pCreateInfo.pApplicationInfo && pCreateInfo.pApplicationInfo->apiVersion != ApiVersion10)
+		{
+			// replace requested Vulkan version by 1.0 to avoid throwing the exception
+			ApplicationInfo appInfo2(*pCreateInfo.pApplicationInfo);
+			appInfo2.apiVersion = ApiVersion10;
+			InstanceCreateInfo createInfo2(pCreateInfo);
+			createInfo2.pApplicationInfo = &appInfo2;
+			r = funcs.vkCreateInstance(&createInfo2, nullptr, &instance);
+		}
+		else
+			r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instance);
+	}
+	if(r != Result::eSuccess)
+		return r;
+
+	// init instance functionality
+	initInstance(instance);
+	return Result::eSuccess;
+}
+
+
+void vk::initInstance(Instance instance) noexcept
 {
 	assert(detail::_library && "vk::loadLib() must be called before vk::initInstance().");
 
@@ -150,17 +252,29 @@ void vk::initInstance(Instance instance)
 }
 
 
-void vk::initDevice(PhysicalDevice pd, const struct DeviceCreateInfo& createInfo)
+void vk::initDevice_throw(PhysicalDevice pd, const struct DeviceCreateInfo& createInfo)
 {
 	destroyDevice();
 	Device device;
-	vk::Result r = funcs.vkCreateDevice(pd, &createInfo, nullptr, &device);
+	Result r = funcs.vkCreateDevice(pd, &createInfo, nullptr, &device);
 	checkForSuccessValue(r, "vkCreateDevice");  // might throw
 	initDevice(device);
 }
 
 
-void vk::initDevice(Device device)
+Result vk::initDevice_noThrow(PhysicalDevice pd, const struct DeviceCreateInfo& createInfo) noexcept
+{
+	destroyDevice();
+	Device device;
+	Result r = funcs.vkCreateDevice(pd, &createInfo, nullptr, &device);
+	if(r != Result::eSuccess)
+		return r;
+	initDevice(device);
+	return Result::eSuccess;
+}
+
+
+void vk::initDevice(Device device) noexcept
 {
 	assert(detail::_instance && "vk::createInstance() or vk::initInstance() must be called before vk::initDevice().");
 
