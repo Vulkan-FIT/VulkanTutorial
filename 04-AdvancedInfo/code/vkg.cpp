@@ -1,9 +1,7 @@
 #include "vkg.h"
 #include <cassert>
 #include <cstdlib>
-#include <set>
 #include <string>
-#include <string_view>
 #include <filesystem>
 #ifdef _WIN32
 # define WIN32_LEAN_AND_MEAN  // this reduces win32 headers default namespace pollution

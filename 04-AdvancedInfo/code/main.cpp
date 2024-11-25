@@ -142,12 +142,12 @@ int main(int, char**)
 			vk::PhysicalDeviceVulkan12Features features12{
 				.pNext = nullptr,
 			};
-			vk::PhysicalDeviceFeatures2 f{
+			vk::PhysicalDeviceFeatures2 features2{
 				.pNext = (properties.apiVersion>=vk::ApiVersion12) ? &features12 : nullptr,
 			};
-			vk::PhysicalDeviceFeatures& features = f.features;
+			vk::PhysicalDeviceFeatures& features = features2.features;
 			if(properties.apiVersion >= vk::ApiVersion11 && instanceVersion >= vk::ApiVersion11)
-				vk::getPhysicalDeviceFeatures2(pd, f);
+				vk::getPhysicalDeviceFeatures2(pd, features2);
 			else
 				features = vk::getPhysicalDeviceFeatures(pd);
 
@@ -208,8 +208,8 @@ int main(int, char**)
 					queueFamilyList[i].queueFamilyProperties = v[i];
 			}
 			for(uint32_t i=0, c=uint32_t(queueFamilyList.size()); i<c; i++) {
-				vk::QueueFamilyProperties& queueFamilyProperties = queueFamilyList[i].queueFamilyProperties;
 				cout << "         " << i << ": ";
+				vk::QueueFamilyProperties& queueFamilyProperties = queueFamilyList[i].queueFamilyProperties;
 				if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eGraphics)
 					cout << "g";
 				if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eCompute)
@@ -233,14 +233,14 @@ int main(int, char**)
 			}
 
 			// color attachment R8G8B8A8Srgb format support
-			vk::FormatProperties fp = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR8G8B8A8Srgb);
+			vk::FormatProperties formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR8G8B8A8Srgb);
 			cout << "      R8G8B8A8Srgb format support for color attachment:" << endl;
 			cout << "         Images with linear tiling: " <<
-				string(fp.linearTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
+				string(formatProperties.linearTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
 			cout << "         Images with optimal tiling: " <<
-				string(fp.optimalTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
+				string(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
 			cout << "         Buffers: " <<
-				string(fp.bufferFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
+				string(formatProperties.bufferFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
 
 			// print extensions
 			if(!extensionList.empty())
