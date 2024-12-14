@@ -28,12 +28,14 @@ using PhysicalDevice = struct PhysicalDevice_T*;
 namespace detail {
 	extern void* _library;
 	extern Instance _instance;
+	extern PhysicalDevice _physicalDevice;
 	extern Device _device;
 	extern uint32_t _instanceVersion;
 }
 
 inline void* library()  { return detail::_library; }
 inline Instance instance()  { return detail::_instance; }
+inline PhysicalDevice physicalDevice()  { return detail::_physicalDevice; }
 inline Device device()  { return detail::_device; }
 inline uint32_t enumerateInstanceVersion()  { return detail::_instanceVersion; }
 
@@ -56,7 +58,7 @@ void initInstance(Instance instance) noexcept;
 void initDevice_throw(PhysicalDevice pd, const DeviceCreateInfo& createInfo);
 Result initDevice_noThrow(PhysicalDevice pd, const DeviceCreateInfo& createInfo) noexcept;
 inline void initDevice(PhysicalDevice pd, const DeviceCreateInfo& createInfo)  { initDevice_throw(pd, createInfo); }
-void initDevice(Device device) noexcept;
+void initDevice(PhysicalDevice physicalDevice, Device device) noexcept;
 
 template<typename T> inline T getInstanceProcAddr(const char* name) noexcept;
 template<typename T> inline T getDeviceProcAddr(const char* name) noexcept;
@@ -2686,31 +2688,60 @@ inline bool isExtensionSupported(const Vector<ExtensionProperties>& extensionLis
 Vector<ExtensionProperties> enumerateInstanceExtensionProperties_throw(const char* pLayerName);
 Result enumerateInstanceExtensionProperties_noThrow(const char* pLayerName, Vector<ExtensionProperties>& extensionList) noexcept;
 inline Vector<ExtensionProperties> enumerateInstanceExtensionProperties(const char* pLayerName)  { return enumerateInstanceExtensionProperties_throw(pLayerName); }
+
 Vector<LayerProperties> enumerateInstanceLayerProperties_throw();
 Result enumerateInstanceLayerProperties_noThrow(Vector<LayerProperties>& properties) noexcept;
 inline Vector<LayerProperties> enumerateInstanceLayerProperties()  { return enumerateInstanceLayerProperties_throw(); }
+
 Vector<PhysicalDevice> enumeratePhysicalDevices_throw();
 Result enumeratePhysicalDevices_noThrow(Vector<PhysicalDevice>& physicalDevices) noexcept;
 inline Vector<PhysicalDevice> enumeratePhysicalDevices()  { return enumeratePhysicalDevices_throw(); }
+
 Vector<ExtensionProperties> enumerateDeviceExtensionProperties_throw(PhysicalDevice pd, const char* pLayerName);
 Result enumerateDeviceExtensionProperties_noThrow(PhysicalDevice pd, const char* pLayerName, Vector<ExtensionProperties>& physicalDevices) noexcept;
 inline Vector<ExtensionProperties> enumerateDeviceExtensionProperties(PhysicalDevice pd, const char* pLayerName)  { return enumerateDeviceExtensionProperties_throw(pd, pLayerName); }
+inline Vector<ExtensionProperties> enumerateDeviceExtensionProperties_throw(const char* pLayerName)  { return enumerateDeviceExtensionProperties_throw(physicalDevice(), pLayerName); }
+inline Result enumerateDeviceExtensionProperties_noThrow(const char* pLayerName, Vector<ExtensionProperties>& physicalDevices) noexcept  { return enumerateDeviceExtensionProperties_noThrow(physicalDevice(), pLayerName, physicalDevices); }
+inline Vector<ExtensionProperties> enumerateDeviceExtensionProperties(const char* pLayerName)  { return enumerateDeviceExtensionProperties_throw(physicalDevice(), pLayerName); }
+
 inline PhysicalDeviceProperties getPhysicalDeviceProperties(PhysicalDevice pd) noexcept  { PhysicalDeviceProperties p; funcs.vkGetPhysicalDeviceProperties(pd, &p); return p; }
+inline PhysicalDeviceProperties getPhysicalDeviceProperties() noexcept  { return getPhysicalDeviceProperties(physicalDevice()); }
 inline void getPhysicalDeviceProperties2(PhysicalDevice pd, PhysicalDeviceProperties2& pProperties) noexcept  { funcs.vkGetPhysicalDeviceProperties2(pd, &pProperties); }
+inline void getPhysicalDeviceProperties2(PhysicalDeviceProperties2& pProperties) noexcept  { getPhysicalDeviceProperties2(physicalDevice(), pProperties); }
+
 inline PhysicalDeviceFeatures getPhysicalDeviceFeatures(PhysicalDevice pd) noexcept  { PhysicalDeviceFeatures f; funcs.vkGetPhysicalDeviceFeatures(pd, &f); return f; }
+inline PhysicalDeviceFeatures getPhysicalDeviceFeatures() noexcept  { return getPhysicalDeviceFeatures(physicalDevice()); }
 inline void getPhysicalDeviceFeatures2(PhysicalDevice pd, PhysicalDeviceFeatures2& pFeatures) noexcept  { funcs.vkGetPhysicalDeviceFeatures2(pd, &pFeatures); }
+inline void getPhysicalDeviceFeatures2(PhysicalDeviceFeatures2& pFeatures) noexcept  { getPhysicalDeviceFeatures2(physicalDevice(), pFeatures); }
+
 inline FormatProperties getPhysicalDeviceFormatProperties(PhysicalDevice pd, Format f) noexcept  { FormatProperties p; funcs.vkGetPhysicalDeviceFormatProperties(pd, f, &p); return p; }
+inline FormatProperties getPhysicalDeviceFormatProperties(Format f) noexcept  { return getPhysicalDeviceFormatProperties(physicalDevice(), f); }
+
 inline ImageFormatProperties getPhysicalDeviceImageFormatProperties_throw(PhysicalDevice pd, Format f, ImageType type, ImageTiling tiling, ImageUsageFlags usage, ImageCreateFlags flags)  { ImageFormatProperties p; Result r = funcs.vkGetPhysicalDeviceImageFormatProperties(pd, f, type, tiling, usage, flags, &p); checkForSuccessValue(r, "vkGetPhysicalDeviceImageFormatProperties"); return p; }
 inline Result getPhysicalDeviceImageFormatProperties_noThrow(PhysicalDevice pd, Format f, ImageType type, ImageTiling tiling, ImageUsageFlags usage, ImageCreateFlags flags, ImageFormatProperties& imageFormatProperties) noexcept  { return funcs.vkGetPhysicalDeviceImageFormatProperties(pd, f, type, tiling, usage, flags, &imageFormatProperties); }
 inline ImageFormatProperties getPhysicalDeviceImageFormatProperties(PhysicalDevice pd, Format f, ImageType type, ImageTiling tiling, ImageUsageFlags usage, ImageCreateFlags flags)  { return getPhysicalDeviceImageFormatProperties_throw(pd, f, type, tiling, usage, flags); }
+inline ImageFormatProperties getPhysicalDeviceImageFormatProperties_throw(Format f, ImageType type, ImageTiling tiling, ImageUsageFlags usage, ImageCreateFlags flags)  { return getPhysicalDeviceImageFormatProperties_throw(physicalDevice(), f, type, tiling, usage, flags); }
+inline Result getPhysicalDeviceImageFormatProperties_noThrow(Format f, ImageType type, ImageTiling tiling, ImageUsageFlags usage, ImageCreateFlags flags, ImageFormatProperties& imageFormatProperties) noexcept  { return getPhysicalDeviceImageFormatProperties_noThrow(physicalDevice(), f, type, tiling, usage, flags, imageFormatProperties); }
+inline ImageFormatProperties getPhysicalDeviceImageFormatProperties(Format f, ImageType type, ImageTiling tiling, ImageUsageFlags usage, ImageCreateFlags flags)  { return getPhysicalDeviceImageFormatProperties_throw(physicalDevice(), f, type, tiling, usage, flags); }
+
 inline PhysicalDeviceMemoryProperties getPhysicalDeviceMemoryProperties(PhysicalDevice pd) noexcept  { PhysicalDeviceMemoryProperties p; funcs.vkGetPhysicalDeviceMemoryProperties(pd, &p); return p; }
+inline PhysicalDeviceMemoryProperties getPhysicalDeviceMemoryProperties() noexcept  { return getPhysicalDeviceMemoryProperties(physicalDevice()); }
 inline void getPhysicalDeviceMemoryProperties2(PhysicalDevice pd, PhysicalDeviceMemoryProperties2& pMemoryProperties) noexcept  { funcs.vkGetPhysicalDeviceMemoryProperties2(pd, &pMemoryProperties); }
+inline void getPhysicalDeviceMemoryProperties2(PhysicalDeviceMemoryProperties2& pMemoryProperties) noexcept  { getPhysicalDeviceMemoryProperties2(physicalDevice(), pMemoryProperties); }
+
 Vector<QueueFamilyProperties> getPhysicalDeviceQueueFamilyProperties_throw(PhysicalDevice pd);
 Result getPhysicalDeviceQueueFamilyProperties_noThrow(PhysicalDevice pd, Vector<QueueFamilyProperties>& queueFamilyList) noexcept;
 inline Vector<QueueFamilyProperties> getPhysicalDeviceQueueFamilyProperties(PhysicalDevice pd)  { return getPhysicalDeviceQueueFamilyProperties_throw(pd); }
+inline Vector<QueueFamilyProperties> getPhysicalDeviceQueueFamilyProperties_throw()  { return getPhysicalDeviceQueueFamilyProperties_throw(physicalDevice()); }
+inline Result getPhysicalDeviceQueueFamilyProperties_noThrow(Vector<QueueFamilyProperties>& queueFamilyList) noexcept  { return getPhysicalDeviceQueueFamilyProperties_noThrow(physicalDevice(), queueFamilyList); }
+inline Vector<QueueFamilyProperties> getPhysicalDeviceQueueFamilyProperties()  { return getPhysicalDeviceQueueFamilyProperties_throw(physicalDevice()); }
+
 Vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2_throw(PhysicalDevice pd);
 Result getPhysicalDeviceQueueFamilyProperties2_noThrow(PhysicalDevice pd, Vector<QueueFamilyProperties2>& queueFamilyProperties) noexcept;
 inline Vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2(PhysicalDevice pd)  { return getPhysicalDeviceQueueFamilyProperties2_throw(pd); }
+inline Vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2_throw()  { return getPhysicalDeviceQueueFamilyProperties2_throw(physicalDevice()); }
+inline Result getPhysicalDeviceQueueFamilyProperties2_noThrow(Vector<QueueFamilyProperties2>& queueFamilyProperties) noexcept  { return getPhysicalDeviceQueueFamilyProperties2_noThrow(physicalDevice(), queueFamilyProperties); }
+inline Vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2()  { return getPhysicalDeviceQueueFamilyProperties2_throw(physicalDevice()); }
 
 namespace detail {
 	struct GetPhysicalDeviceQueueFamilyProperties2_struct {
@@ -2851,11 +2882,22 @@ Result getPhysicalDeviceQueueFamilyProperties2_noThrow(PhysicalDevice pd, Vector
 	return Result::eSuccess;
 }
 template<typename... ArgPack>
-Vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2(PhysicalDevice pd, ArgPack&&... argPack)  { return getPhysicalDeviceQueueFamilyProperties2_throw(pd, argPack...); }
+inline Vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2(PhysicalDevice pd, ArgPack&&... argPack)  { return getPhysicalDeviceQueueFamilyProperties2_throw(pd, argPack...); }
 template<typename T>
-Vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2_throw(PhysicalDevice pd, Vector<T>& t)  { return getPhysicalDeviceQueueFamilyProperties2(pd, t, true); }
+inline Vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2_throw(PhysicalDevice pd, Vector<T>& t)  { return getPhysicalDeviceQueueFamilyProperties2(pd, t, true); }
 template<typename T>
-Result getPhysicalDeviceQueueFamilyProperties2_noThrow(PhysicalDevice pd, Vector<QueueFamilyProperties2>& queueFamilyProperties, Vector<T>& t) noexcept  { return getPhysicalDeviceQueueFamilyProperties2_noThrow(pd, queueFamilyProperties, t, true); }
+inline Result getPhysicalDeviceQueueFamilyProperties2_noThrow(PhysicalDevice pd, Vector<QueueFamilyProperties2>& queueFamilyProperties, Vector<T>& t) noexcept  { return getPhysicalDeviceQueueFamilyProperties2_noThrow(pd, queueFamilyProperties, t, true); }
+
+template<typename... ArgPack>
+inline Vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2_throw(ArgPack&&... argPack)  { return getPhysicalDeviceQueueFamilyProperties2_throw(physicalDevice(), argPack...); }
+template<typename... ArgPack>
+inline Result getPhysicalDeviceQueueFamilyProperties2_noThrow(Vector<QueueFamilyProperties2>& queueFamilyProperties, ArgPack&&... argPack) noexcept  { return getPhysicalDeviceQueueFamilyProperties2_noThrow(physicalDevice(), queueFamilyProperties, argPack...); }
+template<typename... ArgPack>
+inline Vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2(ArgPack&&... argPack)  { return getPhysicalDeviceQueueFamilyProperties2_throw(physicalDevice(), argPack...); }
+template<typename T>
+inline Vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2_throw(Vector<T>& t)  { return getPhysicalDeviceQueueFamilyProperties2(physicalDevice(), t, true); }
+template<typename T>
+inline Result getPhysicalDeviceQueueFamilyProperties2_noThrow(Vector<QueueFamilyProperties2>& queueFamilyProperties, Vector<T>& t) noexcept  { return getPhysicalDeviceQueueFamilyProperties2_noThrow(physicalDevice(), queueFamilyProperties, t, true); }
 
 
 }

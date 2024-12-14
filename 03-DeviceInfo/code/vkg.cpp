@@ -17,6 +17,7 @@ using namespace std;
 // global variables
 void* vk::detail::_library = nullptr;
 Instance vk::detail::_instance = nullptr;
+PhysicalDevice vk::detail::_physicalDevice = nullptr;
 Device vk::detail::_device = nullptr;
 uint32_t vk::detail::_instanceVersion = 0;
 Funcs vk::funcs;
@@ -256,7 +257,7 @@ void vk::initDevice_throw(PhysicalDevice pd, const struct DeviceCreateInfo& crea
 	Device device;
 	Result r = funcs.vkCreateDevice(pd, &createInfo, nullptr, &device);
 	checkForSuccessValue(r, "vkCreateDevice");  // might throw
-	initDevice(device);
+	initDevice(pd, device);
 }
 
 
@@ -267,17 +268,18 @@ Result vk::initDevice_noThrow(PhysicalDevice pd, const struct DeviceCreateInfo& 
 	Result r = funcs.vkCreateDevice(pd, &createInfo, nullptr, &device);
 	if(r != Result::eSuccess)
 		return r;
-	initDevice(device);
+	initDevice(pd, device);
 	return Result::eSuccess;
 }
 
 
-void vk::initDevice(Device device) noexcept
+void vk::initDevice(PhysicalDevice physicalDevice, Device device) noexcept
 {
 	assert(detail::_instance && "vk::createInstance() or vk::initInstance() must be called before vk::initDevice().");
 
 	destroyDevice();
 
+	detail::_physicalDevice = physicalDevice;
 	detail::_device = device;
 
 	funcs.vkGetDeviceProcAddr  = getDeviceProcAddr<PFN_vkGetDeviceProcAddr  >("vkGetDeviceProcAddr");
@@ -376,6 +378,7 @@ void vk::destroyDevice() noexcept
 {
 	if(detail::_device) {
 		funcs.vkDestroyDevice(detail::_device, nullptr);
+		detail::_physicalDevice = nullptr;
 		detail::_device = nullptr;
 	}
 }
