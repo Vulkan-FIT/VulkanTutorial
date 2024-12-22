@@ -13,25 +13,313 @@
 
 <h1>Vulkan Tutorial</h1>
 
-<h3>Device Info</h3>
+<h3>03 - Device Info</h3>
 
-<p>Vulkan is multi-device, multi-vendor and multi-threaded API. These facts are reflected in its architecture.
-Simplified Vulkan architecture is shown on the following picture:</p>
+<p>Each Vulkan device has its own properties, feature set, limits, set of supported extensions and so on.
+We can query maximum texture resolution, find out if geometry shader is supported,
+if we can use double or half precision computations,
+or whether particular image format is supported on the given physical device.
+We can also get supported Vulkan version and list of extensions.</p>
 
-<img src="">
+<p>If you run 03-DeviceInfo example, you can see the output similar to the following one:</p>
 
-<p>On the left side, there is a set of applications using Vulkan API.
-On the right side, there is a set of Vulkan drivers.
-Often, there is only one driver of the only graphics card in the system.
-But there might be two if we have discrete and integrated graphics card.
-There might be also CPU Vulkan driver that implements Vulkan functionality in software.
-In between the set of applications and set of drivers,
-there is Vulkan Loader that processes application requests and
-makes appropriate calls into the particular Vulkan driver.</p>
+<pre>
+Vulkan instance:
+   Version: 1.3.275
+Vulkan devices:
+   Quadro RTX 3000
+      Vulkan version:  1.3.277
+      Device type:     DiscreteGpu
+      VendorID:        0x10de
+      DeviceID:        0x1f36
+      MaxTextureSize:  32768
+      Geometry shader:   supported
+      Double precision:  supported
+      Memory heaps:
+         0: 5955MiB  (device local)
+         1: 16200MiB
+         2: 214MiB  (device local)
+      Queue families:
+         0: gct  (count: 16)
+         1: t  (count: 2)
+         2: ct  (count: 8)
+         3: t  (count: 3)
+         4: t  (count: 1)
+      R8G8B8A8Srgb format support for color attachment:
+         Images with linear tiling: no
+         Images with optimal tiling: yes
+         Buffers: no
+</pre>
+
+<p>We can see various information about the Vulkan instance and device.
+How to get all this information?</p>
+
+<p>Vulkan provides number of query functions that return much of information in number of structures.
+Quick overview can be found in the following text:</p>
+
+<table>
+<tr><td colspan="2">vk::enumerateInstanceVersion() returns instance version as uint32_t</td></tr>
+<tr><td style="background-color: rgba(96,96,96,0.75)"><code>
+Vulkan instance:<br>
+&nbsp;&nbsp;&nbsp;Version: 1.3.275
+</code></td>
+<td><code>
+</code></td></tr>
+
+<tr><td colspan="2">vk::getPhysicalDeviceProperties() returns vk::PhysicalDeviceProperties structure</td></tr>
+<tr><td style="background-color: rgba(96,96,96,0.75)"><code>
+Vulkan devices:<br>
+&nbsp;&nbsp;&nbsp;Quadro RTX 3000<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Vulkan version:  1.3.277<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Device type:     DiscreteGpu<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VendorID:        0x10de<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DeviceID:        0x1f36<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MaxTextureSize:  32768</code></td>
+<td><code>
+VkPhysicalDeviceProperties::deviceName<br>
+VkPhysicalDeviceProperties::apiVersion<br>
+VkPhysicalDeviceProperties::deviceType<br>
+VkPhysicalDeviceProperties::vendorID<br>
+VkPhysicalDeviceProperties::deviceID<br>
+VkPhysicalDeviceProperties::limits::maxImageDimension2D</code></td></tr>
+
+<tr><td colspan="2">vk::getPhysicalDeviceFeatures() returns vk::PhysicalDeviceFeatures structure</td></tr>
+<tr><td style="background-color: rgba(96,96,96,0.75)"><code>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Geometry shader:   supported<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Double precision:  supported
+</code></td><td><code>
+VkPhysicalDeviceFeatures::geometryShader<br>
+VkPhysicalDeviceFeatures::shaderFloat64</code></td></tr>
+
+<tr><td colspan="2">vk::getPhysicalDeviceMemoryProperties() returns vk::PhysicalDeviceMemoryProperties structure</td></tr>
+<tr><td style="background-color: rgba(96,96,96,0.75)"><code>
+&nbsp;&nbsp;&nbsp;Memory heaps:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0: 5955MiB  (device local)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1: 16200MiB<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2: 214MiB  (device local)
+</code></td><td><code>
+vk::PhysicalDeviceMemoryProperties::memoryHeapCount<br>
+vk::PhysicalDeviceMemoryProperties::memoryHeaps</code></td></tr>
+
+<tr><td colspan="2">vk::getPhysicalDeviceQueueFamilyProperties() returns vk::QueueFamilyProperties structure</td></tr>
+<tr><td style="background-color: rgba(96,96,96,0.75)"><code>
+&nbsp;&nbsp;&nbsp;Queue families:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0: gct  (count: 16)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1: t  (count: 2)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2: ct  (count: 8)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3: t  (count: 3)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4: t  (count: 1)
+</code></td><td><code>
+vk::QueueFamilyProperties::queueFlags<br>
+vk::QueueFamilyProperties::queueCount</code></td></tr>
+
+<tr><td colspan="2">vk::getPhysicalDeviceFormatProperties() returns vk::FormatProperties structure</td></tr>
+<tr><td style="background-color: rgba(96,96,96,0.75)"><code>
+&nbsp;&nbsp;&nbsp;R8G8B8A8Srgb format support [...]:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Images with linear tiling: no<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Images with optimal tiling: yes<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Buffers: no
+</code></td><td><code>
+vk::FormatProperties::linearTilingFeatures<br>
+vk::FormatProperties::optimalTilingFeatures<br>
+vk::FormatProperties::bufferFeatures</code></td></tr>
+</table>
 
 
+<h3>Instance version</h3>
+
+<p>To get Vulkan instance version, vk::enumerateInstanceVersion() function is used:</p>
+
+<pre>
+// instance version
+uint32_t instanceVersion = vk::enumerateInstanceVersion();
+cout << "Vulkan instance:\n"
+     << "   Version: " << vk::apiVersionMajor(instanceVersion) << "."
+     << vk::apiVersionMinor(instanceVersion) << "." << vk::apiVersionPatch(instanceVersion) << endl;
+</pre>
+
+<p>As we can see, the version is returned as uint32_t.
+Then, major, minor and patch versions are extracted from particular bits of uint32_t value
+by vk::apiVersion[Major|Minor|Patch]() functions.</p>
+
+<p>Instance version tells us about the functionality that is provided by Vulkan instance.
+For example, version 1.0 might be too low for many applications, while 1.1 is quite ok in many cases.</p>
+
+<p>One note: vkEnumerateInstanceVersion() was introduced by Vulkan 1.1.
+So, if the function is absent, the instance version is 1.0.
+For the sake of convenience, vkg hides this technical detail and vk::enumerateInstanceVersion()
+always returns valid instance version, even in the case of version 1.0.</p>
 
 
+<h3>Device properties</h3>
+
+<p>Vulkan 1.0 stores device properties in vk::PhysicalDeviceProperties structure.
+We can find device name there, device type (integrated/discrete/...), Vulkan version of the device,
+various device limits in nested structure vk::PhysicalDeviceLimits, and so on.</p>
+
+<p>To get the properties, vk::getPhysicalDeviceProperties() function can be used:</p>
+
+<pre>
+// device properties
+vk::PhysicalDeviceProperties properties = vk::getPhysicalDeviceProperties(pd);
+cout << "   " << properties.deviceName << endl;
+
+// device Vulkan version
+cout << "      Vulkan version:  " << vk::apiVersionMajor(properties.apiVersion) << "."
+     << vk::apiVersionMinor(properties.apiVersion) << "." << vk::apiVersionPatch(properties.apiVersion) << endl;
+
+// device type
+const char* s;
+switch(properties.deviceType) {
+case vk::PhysicalDeviceType::eIntegratedGpu: s = "IntegratedGpu"; break;
+case vk::PhysicalDeviceType::eDiscreteGpu:   s = "DiscreteGpu"; break;
+case vk::PhysicalDeviceType::eVirtualGpu:    s = "VirtualGpu"; break;
+case vk::PhysicalDeviceType::eCpu:           s = "Cpu"; break;
+default: s = "Other";
+}
+cout << "      Device type:     " << s << endl;
+
+// VendorID and DeviceID
+cout << "      VendorID:        0x" << hex << properties.vendorID << endl;
+cout << "      DeviceID:        0x" << properties.deviceID << dec << endl;
+
+// device limits
+cout << "      MaxTextureSize:  " << properties.limits.maxImageDimension2D << endl;
+</pre>
+
+<p>More info can be found in the Vulkan specification.</p>
+
+
+<h3>Device features</h3>
+
+<p>Device features are functionalities not necessarily supported on all devices.
+Some functionalities might be supported but others do not.
+Moreover, we must explicitly enable each feature before use.</p>
+
+<pre>
+// device features
+vk::PhysicalDeviceFeatures features = vk::getPhysicalDeviceFeatures(pd);
+cout << "      Geometry shader:   ";
+if(features.geometryShader)
+	cout << "supported" << endl;
+else
+	cout << "not supported" << endl;
+cout << "      Double precision:  ";
+if(features.shaderFloat64)
+	cout << "supported" << endl;
+else
+	cout << "not supported" << endl;
+</pre>
+
+<p>More queryable features of Vulkan 1.0 are described in vk::PhysicalDeviceFeatures
+structure documentation.</p>
+
+
+<h3>Device memory properties</h3>
+
+<p>Vulkan distinguishes between device memory and host memory.
+The device memory is usually the one on graphics card
+and host memory is usually plugged into the motherboard close to the processor.
+No wonder that device can usually access its graphic memory very efficiently
+while access to the host memory on the motherboard might be more complicated and slower.
+The same for the processor - its access to graphics card memory might be more complicated and slower
+than to the memory on the motherboard.
+Interesting situation appears on integrated graphics solutions where device memory
+and host memory might be the same physical memory.</p>
+
+<p>To get information about the memory configuration on given system,
+vk::getPhysicalDeviceMemoryProperties() can be used:</p>
+
+<pre>
+cout << "      Memory heaps:" << endl;
+vk::PhysicalDeviceMemoryProperties memoryProperties = vk::getPhysicalDeviceMemoryProperties(pd);
+for(uint32_t i=0, c=memoryProperties.memoryHeapCount; i&lt;c; i++) {
+	vk::MemoryHeap& h = memoryProperties.memoryHeaps[i];
+	cout << "         " << i << ": " << h.size/1024/1024 << "MiB";
+	if(h.flags & vk::MemoryHeapFlagBits::eDeviceLocal)  cout << "  (device local)";
+	cout << endl;
+}
+</pre>
+
+
+<h3>Device queue family properties</h3>
+
+<p>Device queues execute commands submitted for execution
+on particular device and by particular queue.
+They are organized into families. Each family has the same properties and the same functionality.
+We can list queue families as follows:</p>
+
+<pre>
+cout << "      Queue families:" << endl;
+vk::Vector<vk::QueueFamilyProperties> queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties(pd);
+for(uint32_t i=0, c=uint32_t(queueFamilyList.size()); i&lt;c; i++) {
+	cout << "         " << i << ": ";
+	vk::QueueFamilyProperties& queueFamilyProperties = queueFamilyList[i];
+	if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eGraphics)
+		cout << "g";
+	if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eCompute)
+		cout << "c";
+	if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eTransfer)
+		cout << "t";
+	cout << "  (count: " << queueFamilyProperties.queueCount << ")" << endl;
+}
+</pre>
+
+<p>We output family index followed by letters g,c and t.
+These letters indicate graphics, compute and transfer capability.
+So, we might have queues just for graphics, just for compute or for both.
+Some of the families might support transfer capability as well.
+Finally, we output number of the queues in the given family.</p>
+
+
+<h3>Device format properties</h3>
+
+<p>Buffers and images use various formats for their data.
+However, not all formats are supported for all use cases
+and the support varies across devices.</p>
+
+<p>To find out if we can render into R8G8B8A8Srgb format,
+e.g. if R8G8B8A8Srgb is supported for color attachment,
+we can use following code:</p>
+
+<pre>
+cout << "      Format support for images with optimal tiling:" << endl;
+vk::FormatProperties formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR8G8B8A8Srgb);
+if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment)
+	cout << "         R8G8B8A8Srgb:        yes" << endl;
+else
+	cout << "         R8G8B8A8Srgb:        no" << endl;
+formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR16G16B16A16Sfloat);
+if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment)
+	cout << "         R16G16B16A16Sfloat:  yes" << endl;
+else
+	cout << "         R16G16B16A16Sfloat:  no" << endl;
+formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR32G32B32A32Sfloat);
+if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment)
+	cout << "         R32G32B32A32Sfloat:  yes" << endl;
+else
+	cout << "         R32G32B32A32Sfloat:  no" << endl;
+</pre>
+
+<p>Additionally, we test for R16G16B16A16Sfloat and R32G32B32A32Sfloat as well.
+R8G8B8A8Srgb is a kind of standard rendering output for most applications.
+R16G16B16A16Sfloat and similar formats allow us to do HDR rendering.
+Finally, R32G32B32A32Sfloat is one of the formats that can do HDR with quite high color precision.</p>
+
+
+<h3>Other device query functions</h3>
+
+<p>Vulkan 1.0 supports few more query functions:</p>
+<ul>
+<li>vkGetPhysicalDeviceImageFormatProperties() - useful for image creation</li>
+<li>vkGetPhysicalDeviceSparseImageFormatProperties() - useful for sparse image creation</li>
+<li>vkEnumerateDeviceExtensionProperties() - lists supported device extensions</li>
+<li><s>vkEnumerateDeviceLayerProperties()</s> - device layers are deprecated and they were probably never seriously used</li>
+</ul>
+
+<p>In the case of interest, they are described in Vulkan specification.
+Concerning vkEnumerateDeviceExtensionProperties(), we will deal with the topic of
+device extensions in the next article.</p>
 
 </body>
 </html>

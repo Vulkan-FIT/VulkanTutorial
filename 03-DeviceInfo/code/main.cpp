@@ -112,15 +112,23 @@ int main(int, char**)
 				cout << "  (count: " << queueFamilyProperties.queueCount << ")" << endl;
 			}
 
-			// color attachment R8G8B8A8Srgb format support
+			// format support for images with optimal tiling
+			cout << "      Format support for images with optimal tiling:" << endl;
 			vk::FormatProperties formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR8G8B8A8Srgb);
-			cout << "      R8G8B8A8Srgb format support for color attachment:" << endl;
-			cout << "         Images with linear tiling: " <<
-				string(formatProperties.linearTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
-			cout << "         Images with optimal tiling: " <<
-				string(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
-			cout << "         Buffers: " <<
-				string(formatProperties.bufferFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
+			if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment)
+				cout << "         R8G8B8A8Srgb:        yes" << endl;
+			else
+				cout << "         R8G8B8A8Srgb:        no" << endl;
+			formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR16G16B16A16Sfloat);
+			if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment)
+				cout << "         R16G16B16A16Sfloat:  yes" << endl;
+			else
+				cout << "         R16G16B16A16Sfloat:  no" << endl;
+			formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR32G32B32A32Sfloat);
+			if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment)
+				cout << "         R32G32B32A32Sfloat:  yes" << endl;
+			else
+				cout << "         R32G32B32A32Sfloat:  no" << endl;
 
 		}
 
