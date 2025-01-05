@@ -1,14 +1,18 @@
 #include <iostream>
+#include <string.h>
 #include "vkg.h"
 
 using namespace std;
 
 
-int main(int, char**)
+int main(int argc, char* argv[])
 {
 	// catch exceptions
 	// (vk functions throw if they fail)
 	try {
+
+		// process cmd-line arguments
+		bool noExtensionList = (argc == 2) && (strcmp(argv[1], "--no-extension-list") == 0);
 
 		// load Vulkan library
 		vk::loadLib();
@@ -16,14 +20,20 @@ int main(int, char**)
 		// instance version
 		uint32_t instanceVersion = vk::enumerateInstanceVersion();
 		cout << "Vulkan instance:\n"
-		     << "   Version: " << vk::apiVersionMajor(instanceVersion) << "."
+		     << "   Version:  " << vk::apiVersionMajor(instanceVersion) << "."
 		     << vk::apiVersionMinor(instanceVersion) << "." << vk::apiVersionPatch(instanceVersion) << endl;
 
 		// instance extensions
 		vk::Vector<vk::ExtensionProperties> instanceExtensionList = vk::enumerateInstanceExtensionProperties(nullptr);
-		cout << "   Extensions:\n";
-		for(size_t i=0; i<instanceExtensionList.size(); i++)
-			cout << "      " << instanceExtensionList[i].extensionName << endl;
+		cout << "   Extensions (" << instanceExtensionList.size() << " in total):\n";
+		if(noExtensionList)
+			cout << "      < list omitted because of --no-extension-list given on command line >" << endl;
+		else
+			if(instanceExtensionList.empty())
+				cout << "      < none >" << endl;
+			else
+				for(size_t i=0; i<instanceExtensionList.size(); i++)
+					cout << "      " << instanceExtensionList[i].extensionName << endl;
 
 		// Vulkan instance
 		vk::initInstance(
@@ -233,8 +243,8 @@ int main(int, char**)
 			}
 
 			// color attachment R8G8B8A8Srgb format support
-			vk::FormatProperties formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR8G8B8A8Srgb);
 			cout << "      R8G8B8A8Srgb format support for color attachment:" << endl;
+			vk::FormatProperties formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR8G8B8A8Srgb);
 			cout << "         Images with linear tiling: " <<
 				string(formatProperties.linearTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
 			cout << "         Images with optimal tiling: " <<
@@ -243,13 +253,18 @@ int main(int, char**)
 				string(formatProperties.bufferFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
 
 			// print extensions
-			if(!extensionList.empty())
-				cout << "      Extensions:  " << extensionList[0].extensionName;
+			cout << "      Extensions (" << extensionList.size() << " in total):\n";
+			if(noExtensionList)
+				cout << "         < list omitted because of --no-extension-list given on command line >" << endl;
 			else
-				cout << "      Extensions:  < none >";
-			for(size_t i=1,c=extensionList.size(); i<c; i++)
-				cout << ", " << extensionList[i].extensionName;
-			cout << endl;
+				if(extensionList.empty())
+					cout << "         < none >";
+				else {
+					cout << extensionList[0].extensionName;
+					for(size_t i=1,c=extensionList.size(); i<c; i++)
+						cout << ", " << extensionList[i].extensionName;
+				}
+				cout << endl;
 		}
 
 	// catch exceptions
