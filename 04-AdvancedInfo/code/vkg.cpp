@@ -150,26 +150,44 @@ void vk::initInstance_throw(const vk::InstanceCreateInfo& pCreateInfo)
 	destroyInstance();
 
 	// create instance
-	Result r;
 	Instance instance;
-	if(enumerateInstanceVersion() != ApiVersion10)
-		r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instance);
-	else
+	Result r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instance);
+	checkForSuccessValue(r, "vkCreateInstance");  // might throw
+
+	// init instance functionality
+	initInstance(instance);
+}
+
+
+void vk::initInstance_throw(const vk::InstanceCreateInfo& pCreateInfo, bool& vulkan10enforced)
+{
+	assert(detail::_library && "vk::loadLib() must be called before vk::createInstance().");
+
+	// destroy previous instance if any exists
+	destroyInstance();
+
+	// create instance (first attempt)
+	Instance instance;
+	Result r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instance);
+
+	if(r == Result::eErrorIncompatibleDriver && pCreateInfo.pApplicationInfo &&
+	   pCreateInfo.pApplicationInfo->apiVersion != vk::ApiVersion10)
 	{
-		// (To avoid probably unintended exception, handle the special case of non-1.0 Vulkan version request
-		// on Vulkan 1.0 system. See vkCreateInstance() documentation.)
-		if(pCreateInfo.pApplicationInfo && pCreateInfo.pApplicationInfo->apiVersion != ApiVersion10)
-		{
-			// replace requested Vulkan version by 1.0 to avoid throwing the exception
-			ApplicationInfo appInfo2(*pCreateInfo.pApplicationInfo);
-			appInfo2.apiVersion = ApiVersion10;
-			InstanceCreateInfo createInfo2(pCreateInfo);
-			createInfo2.pApplicationInfo = &appInfo2;
-			r = funcs.vkCreateInstance(&createInfo2, nullptr, &instance);
-		}
-		else
-			r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instance);
+		// replace requested Vulkan version by 1.0 to avoid
+		// eErrorIncompatibleDriver error
+		ApplicationInfo appInfo2(*pCreateInfo.pApplicationInfo);
+		appInfo2.apiVersion = ApiVersion10;
+		InstanceCreateInfo createInfo2(pCreateInfo);
+		createInfo2.pApplicationInfo = &appInfo2;
+
+		// create instance (second attempt)
+		r = funcs.vkCreateInstance(&createInfo2, nullptr, &instance);
+		vulkan10enforced = true;
 	}
+	else
+		vulkan10enforced = false;
+
+	// test for eSuccess
 	checkForSuccessValue(r, "vkCreateInstance");  // might throw
 
 	// init instance functionality
@@ -185,26 +203,46 @@ Result vk::initInstance_noThrow(const vk::InstanceCreateInfo& pCreateInfo) noexc
 	destroyInstance();
 
 	// create instance
-	Result r;
 	Instance instance;
-	if(enumerateInstanceVersion() != ApiVersion10)
-		r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instance);
-	else
+	Result r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instance);
+	if(r != Result::eSuccess)
+		return r;
+
+	// init instance functionality
+	initInstance(instance);
+	return Result::eSuccess;
+}
+
+
+Result vk::initInstance_noThrow(const vk::InstanceCreateInfo& pCreateInfo, bool& vulkan10enforced) noexcept
+{
+	assert(detail::_library && "vk::loadLib() must be called before vk::createInstance().");
+
+	// destroy previous instance if any exists
+	destroyInstance();
+
+	// create instance (first attempt)
+	Instance instance;
+	Result r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instance);
+
+	if(r == Result::eErrorIncompatibleDriver && pCreateInfo.pApplicationInfo &&
+	   pCreateInfo.pApplicationInfo->apiVersion != vk::ApiVersion10)
 	{
-		// (To avoid probably unintended exception, handle the special case of non-1.0 Vulkan version request
-		// on Vulkan 1.0 system. See vkCreateInstance() documentation.)
-		if(pCreateInfo.pApplicationInfo && pCreateInfo.pApplicationInfo->apiVersion != ApiVersion10)
-		{
-			// replace requested Vulkan version by 1.0 to avoid throwing the exception
-			ApplicationInfo appInfo2(*pCreateInfo.pApplicationInfo);
-			appInfo2.apiVersion = ApiVersion10;
-			InstanceCreateInfo createInfo2(pCreateInfo);
-			createInfo2.pApplicationInfo = &appInfo2;
-			r = funcs.vkCreateInstance(&createInfo2, nullptr, &instance);
-		}
-		else
-			r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instance);
+		// replace requested Vulkan version by 1.0 to avoid
+		// eErrorIncompatibleDriver error
+		ApplicationInfo appInfo2(*pCreateInfo.pApplicationInfo);
+		appInfo2.apiVersion = ApiVersion10;
+		InstanceCreateInfo createInfo2(pCreateInfo);
+		createInfo2.pApplicationInfo = &appInfo2;
+
+		// create instance (second attempt)
+		r = funcs.vkCreateInstance(&createInfo2, nullptr, &instance);
+		vulkan10enforced = true;
 	}
+	else
+		vulkan10enforced = false;
+
+	// return errors
 	if(r != Result::eSuccess)
 		return r;
 
