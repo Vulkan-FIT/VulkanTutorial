@@ -50,7 +50,7 @@ int main(int argc, char* argv[])
 						.applicationVersion = 0,
 						.pEngineName = nullptr,
 						.engineVersion = 0,
-						.apiVersion = vk::ApiVersion12,
+						.apiVersion = vk::ApiVersion13,
 					},
 				.enabledLayerCount = 0,
 				.ppEnabledLayerNames = nullptr,
@@ -81,6 +81,10 @@ int main(int argc, char* argv[])
 			vk::PhysicalDeviceProperties& properties = properties2.properties;
 			properties = vk::getPhysicalDeviceProperties(pd);
 
+			// limit device Vulkan version on Vulkan 1.0 instances
+			if(vulkan10enforced)
+				properties.apiVersion = vk::ApiVersion10 | vk::apiVersionPatch(properties.apiVersion);
+
 			// extended device properties
 			vk::PhysicalDeviceVulkan12Properties properties12{  // requires Vulkan 1.2
 				.pNext = nullptr,
@@ -90,12 +94,8 @@ int main(int argc, char* argv[])
 			};
 			if(properties.apiVersion >= vk::ApiVersion12)
 				properties2.pNext = &properties11;
-			if(properties.apiVersion >= vk::ApiVersion11 && !vulkan10enforced)
+			if(properties.apiVersion >= vk::ApiVersion11)
 				vk::getPhysicalDeviceProperties2(pd, properties2);
-
-			// limit device Vulkan version on Vulkan 1.0 instances
-			if(vulkan10enforced)
-				properties.apiVersion = vk::ApiVersion10 | vk::apiVersionPatch(properties.apiVersion);
 
 			// device name
 			cout << "   " << properties.deviceName << endl;
@@ -248,15 +248,31 @@ int main(int argc, char* argv[])
 				cout << ")" << endl;
 			}
 
-			// color attachment R8G8B8A8Srgb format support
-			cout << "      R8G8B8A8Srgb format support for color attachment:" << endl;
-			vk::FormatProperties formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR8G8B8A8Srgb);
-			cout << "         Images with linear tiling: " <<
-				string(formatProperties.linearTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
-			cout << "         Images with optimal tiling: " <<
-				string(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
-			cout << "         Buffers: " <<
-				string(formatProperties.bufferFeatures & vk::FormatFeatureFlagBits::eColorAttachment ? "yes" : "no") << endl;
+			// format support for images with optimal tiling
+			cout << "      Format support for compressed textures:" << endl;
+			vk::FormatProperties formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eBc7SrgbBlock);
+			if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eSampledImageFilterLinear)
+				cout << "         BC7  (BC7_SRGB):            yes" << endl;
+			else
+				cout << "         BC7  (BC7_SRGB):            no" << endl;
+			formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eEtc2R8G8B8A8SrgbBlock);
+			if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eSampledImageFilterLinear)
+				cout << "         ETC2 (ETC2_R8G8B8A8_SRGB):  yes" << endl;
+			else
+				cout << "         ETC2 (ETC2_R8G8B8A8_SRGB):  no" << endl;
+			formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eAstc4x4SrgbBlock);
+			if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eSampledImageFilterLinear)
+				cout << "         ASTC (ASTC_4x4_SRGB):       yes" << endl;
+			else
+				cout << "         ASTC (ASTC_4x4_SRGB):       no" << endl;
+			if(properties.apiVersion >= vk::ApiVersion13) {
+				formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eAstc4x4SfloatBlock);
+				if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eSampledImageFilterLinear)
+					cout << "         ASTC (ASTC_4x4_SFLOAT):     yes" << endl;
+				else
+					cout << "         ASTC (ASTC_4x4_SFLOAT):     no" << endl;
+			} else
+				cout << "         ASTC (ASTC_4x4_SFLOAT):     no" << endl;
 
 			// print extensions
 			cout << "      Extensions (" << extensionList.size() << " in total):\n";

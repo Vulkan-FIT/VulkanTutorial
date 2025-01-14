@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<title>04-AdvancedInfo</title>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../common/vulkanStyle.css">
+<style media="screen" type="text/css">
+</style>
+</head>
+
+<body>
+
+<h1>Vulkan Tutorial</h1>
+
+<h3>04 - Advanced Info</h3>
+
+<p>Vulkan is now much more capable than it was in the time of Vulkan 1.0 release in 2016.
+Some examples of new functionalities can be seen in the following output
+produced by the example code of this article. The new functionalities are marked by the red tint:</p>
+
+<pre>
+Vulkan instance:<b style="color:#ff7060">
+   Version: 1.3.275
+   Extensions (18 in total):
+      VK_KHR_device_group_creation
+      VK_KHR_external_fence_capabilities
+      VK_KHR_external_memory_capabilities
+      VK_KHR_external_semaphore_capabilities
+      VK_KHR_get_physical_device_properties2
+      VK_KHR_get_surface_capabilities2
+      VK_KHR_surface
+      VK_KHR_surface_protected_capabilities
+      VK_KHR_win32_surface
+      VK_EXT_debug_report
+      VK_EXT_debug_utils
+      VK_EXT_surface_maintenance1
+      VK_EXT_swapchain_colorspace
+      VK_NV_external_memory_capabilities
+      VK_KHR_portability_enumeration
+      VK_LUNARG_direct_driver_loading
+      VK_EXT_layer_settings
+      VK_EXT_validation_features</b>
+Vulkan devices:
+   Quadro RTX 3000
+      Vulkan version:  1.3.277
+      Device type:     DiscreteGpu
+      VendorID:        0x10de
+      DeviceID:        0x1f36<b style="color:#ff7060">
+      Device UUID:     e0e7b72b-a391-a141-9bbf-2059ba86ca79
+      Driver name:     NVIDIA
+      Driver info:     552.74</b>
+      MaxTextureSize:  32768
+      Geometry shader:     supported
+      Double precision:    supported<b style="color:#ff7060">
+      Half precision:      supported
+      Vulkan Video:        supported
+      Vulkan Ray Tracing:  supported</b>
+      Memory heaps:
+         0: 5955MiB  (device local)
+         1: 16200MiB
+         2: 214MiB  (device local)
+      Queue families:
+         0: gcts  (count: 16)
+         1: ts  (count: 2)
+         2: cts  (count: 8)
+         3: ts<b style="color:#ff7060">v</b>  (count: 3, <b style="color:#ff7060">decode H264, decode H265</b>)
+         4: ts<b style="color:#ff7060">v</b>  (count: 1)
+      R8G8B8A8Srgb format support for color attachment:
+         Images with linear tiling: no
+         Images with optimal tiling: yes
+         Buffers: no<b style="color:#ff7060">
+      Extensions (215 in total):  VK_KHR_16bit_storage, [...]
+</b></pre>
+
+<p>We can see new extensions for both - instance and devices.
+If list of extensions floods your screen too much, you might disable it by --no-extension-list.
+As we can see, the instance supports 18 extensions and the device 215.
+Out of the supported extension list, we can find out
+Vulkan video and Vulkan raytracing support:</p>
+
+<pre>
+// supported extensions
+vk::Vector<vk::ExtensionProperties> extensionList =
+	vk::enumerateDeviceExtensionProperties(pd, nullptr);
+bool videoQueueSupported = vk::isExtensionSupported(extensionList, "VK_KHR_video_queue") &&
+                           instanceVersion >= vk::ApiVersion11;
+bool raytracingSupported = vk::isExtensionSupported(extensionList, "VK_KHR_acceleration_structure") &&
+                           vk::isExtensionSupported(extensionList, "VK_KHR_ray_tracing_pipeline") &&
+                           vk::isExtensionSupported(extensionList, "VK_KHR_ray_query") &&
+                           instanceVersion >= vk::ApiVersion11;
+</pre>
+
+<p>The important rule is: Before we use some Vulkan functionality,
+we should make sure it is supported. The support can be provided by:</p>
+
+<ul>
+<li>Vulkan core version - e.g. Vulkan 1.0, Vulkan 1.1, ...</li>
+<li>Extension - such as VK_KHR_video_queue or VK_KHR_ray_query</li>
+<li>Feature - such as double precision support - various features might or might not be supported by a particular device</li>
+</ul>
+
+<p>Let's analyze the output of this article example:</p>
+
+<table>
+<tr><td valign="top" style="background-color: rgba(96,96,96,0.75)"><code>
+Vulkan instance:<br>
+&nbsp;&nbsp;&nbsp;Version:&nbsp;&nbsp;1.3.275
+</code></td>
+<td><code>
+<br>
+query for instance version since instance version 1.1,<br>
+but emulated by vkg on Vulkan 1.0
+</code></td></tr>
+
+<tr><td style="background-color: rgba(96,96,96,0.75)"><code>
+&nbsp;&nbsp;&nbsp;Extensions (18 in total):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[...]
+</code></td>
+<td><code>
+extension enumeration since Vulkan 1.0
+</code></td></tr>
+
+<tr><td style="background-color: rgba(96,96,96,0.75)"><code>
+Vulkan devices:<br>
+&nbsp;&nbsp;&nbsp;Quadro RTX 3000<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Vulkan version:&nbsp;&nbsp;1.3.277<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Device type:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DiscreteGpu<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VendorID:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x10de<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DeviceID:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x1f36<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Device UUID:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;e0e7b72b-a391-...<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Driver name:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NVIDIA<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Driver info:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;552.74<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MaxTextureSize:&nbsp;&nbsp;32768</code></td>
+<td valign="top"><code>
+<br>
+Vulkan 1.0<br>
+Vulkan 1.0<br>
+Vulkan 1.0<br>
+Vulkan 1.0<br>
+Vulkan 1.0<br>
+device version 1.2, instance version 1.1<br>
+device version 1.2, instance version 1.1<br>
+device version 1.2, instance version 1.1<br>
+Vulkan 1.0
+</code></td></tr>
+
+<tr><td valign="top" style="background-color: rgba(96,96,96,0.75)"><code>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Geometry shader:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;supported<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Double precision:&nbsp;&nbsp;&nbsp;&nbsp;supported<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Half precision:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;supported<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Vulkan Video:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;supported<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Vulkan Ray Tracing:&nbsp;&nbsp;supported<br>
+</code></td><td><code>
+optional, Vulkan 1.0<br>
+optional, Vulkan 1.0<br>
+optional, device version 1.2, instance version 1.1<br>
+VK_KHR_video_queue extension, instance version 1.1<br>
+VK_KHR_acceleration_structure + VK_KHR_ray_tracing_pipeline +<br>
+VK_KHR_ray_query device extensions, instance version 1.1
+</code></td></tr>
+
+<tr><td style="background-color: rgba(96,96,96,0.75)"><code>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Memory heaps:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0: 5955MiB&nbsp;&nbsp;(device local)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1: 16200MiB<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2: 214MiB&nbsp;&nbsp;(device local)<br>
+</code></td><td><code>
+Vulkan 1.0
+</code></td></tr>
+
+<tr><td style="background-color: rgba(96,96,96,0.75)"><code>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Queue families:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0: gcts&nbsp;&nbsp;(count: 16)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1: ts&nbsp;&nbsp;(count: 2)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2: cts&nbsp;&nbsp;(count: 8)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3: tsv&nbsp;&nbsp;(count: 3, decode<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;H264, decode H265)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4: tsv&nbsp;&nbsp;(count: 1)
+</code></td><td><code>
+queue info: Vulkan 1.0<br>
+video info: device version 1.1, instance version 1.1
+</code></td></tr>
+
+<tr><td style="background-color: rgba(96,96,96,0.75)"><code>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Extensions (215 in total):&nbsp;&nbsp;[...]
+</code></td><td><code>
+Vulkan 1.0
+</code></td></tr>
+
+</table>
+
+
+<h3>Device properties</h3>
+
+<p>Vulkan 1.1 introduces vk::PhysicalDeviceProperties2 structure
+that allows for extending vk::PhysicalDeviceProperties by pNext pointer:</p>
+
+<pre>
+struct PhysicalDeviceProperties2 {
+	StructureType               sType = StructureType::ePhysicalDeviceProperties2;
+	void*                       pNext = nullptr;
+	PhysicalDeviceProperties    properties;
+};
+</pre>
+
+<p>Now, we can chain structures using pNext pointer.
+For example, pNext may point to vk::PhysicalDeviceVulkan12Properties or
+vk::PhysicalDeviceVulkan11Properties structure.
+Both of them were introduced by Vulkan 1.2, so we should include them in pNext chain
+only if the device version is at least 1.2.
+We start with getting device version:</p>
+
+<pre>
+// get device properties
+vk::PhysicalDeviceProperties2 properties2;
+vk::PhysicalDeviceProperties& properties = properties2.properties;
+properties = vk::getPhysicalDeviceProperties(pd);
+</pre>
+
+<p>Now, we will do a little trick. If Vulkan instance is of version 1.0 only,
+we cannot use any device core functionality of Vulkan 1.1+.
+It is a historical limitation when Vulkan was very new and some functionality
+was not yet developed for instance.
+Such condition is indicated by vulkan10enforced boolean.
+When this boolean is set, we just reduce device version to 1.0.
+Using this trick we can skip all the further tests whether instance is at least 1.1
+when dealing with device 1.1+ functionality:</p>
+
+<pre>
+// limit device Vulkan version on Vulkan 1.0 instances
+if(vulkan10enforced)
+	properties.apiVersion = vk::ApiVersion10 | vk::apiVersionPatch(properties.apiVersion);
+</pre>
+
+<p>Then, we create properties12 and properties11 and chain it with pNext pointers.
+We just omit structures that are not supported by the device:</p>
+
+<pre>
+// extended device properties
+vk::PhysicalDeviceVulkan12Properties properties12{  // requires Vulkan 1.2
+	.pNext = nullptr,
+};
+vk::PhysicalDeviceVulkan11Properties properties11{  // requires Vulkan 1.2 (really 1.2, not 1.1)
+	.pNext = &properties12,
+};
+if(properties.apiVersion >= vk::ApiVersion12)
+	properties2.pNext = &properties11;
+</pre>
+
+<p>Finally, if we are on Vulkan 1.1+, we call vk::getPhysicalDeviceProperties2().
+It makes all the structures to be filled with the data:</p>
+
+<pre>
+if(properties.apiVersion >= vk::ApiVersion11)
+	vk::getPhysicalDeviceProperties2(pd, properties2);
+
+// device name
+cout << "   " << properties.deviceName << endl;
+</pre>
+
+<p>If we are on Vulkan 1.0 only, data pointed by properties variable is all the valid data we have.
+On Vulkan 1.2+, we can print additional info from vk::PhysicalDeviceVulkan11Properties and
+vk::PhysicalDeviceVulkan12Properties structures.
+For example, we can print device UUID to distinguish the same graphics cards in multi-gpu systems.
+We can print driver name and its info string, and so on:
+
+<pre>
+if(properties.apiVersion >= vk::ApiVersion12) {
+	cout << "      Driver name:     " << properties12.driverName << endl;
+	cout << "      Driver info:     " << properties12.driverInfo << endl;
+}
+else {
+	cout << "      Driver name:     < unknown >" << endl;
+	cout << "      Driver info:     < unknown >" << endl;
+}
+</pre>
+
+
+<h3>Device features</h3>
+
+<p>Vulkan 1.1+ features are retrieved in the similar way as properties:</p>
+
+<pre>
+// device features
+vk::PhysicalDeviceVulkan12Features features12{
+	.pNext = nullptr,
+};
+vk::PhysicalDeviceFeatures2 features2{
+	.pNext = (properties.apiVersion>=vk::ApiVersion12) ? &features12 : nullptr,
+};
+vk::PhysicalDeviceFeatures& features = features2.features;
+if(properties.apiVersion >= vk::ApiVersion11)
+	vk::getPhysicalDeviceFeatures2(pd, features2);
+else
+	features = vk::getPhysicalDeviceFeatures(pd);
+</pre>
+
+<p>Then, we can, for example, find out if half precision floats are supported:</p>
+
+<pre>
+cout << "      Half precision:      ";
+if(properties.apiVersion >= vk::ApiVersion12 && features12.shaderFloat16)
+	cout << "supported" << endl;
+else
+	cout << "not supported" << endl;
+</pre>
+
+
+<h3>Device queue family properties</h3>
+
+<p>To get extended info for queue families, we use vector of vk::QueueFamilyProperties2.
+Any additional info structures, such as vk::QueueFamilyVideoPropertiesKHR,
+use extra vector:</p>
+
+<pre>
+// queue family properties
+cout << "      Queue families:" << endl;
+vk::Vector&lt;vk::QueueFamilyProperties2> queueFamilyList;
+vk::Vector&lt;vk::QueueFamilyVideoPropertiesKHR> queueVideoPropertiesList;
+if(properties.apiVersion >= vk::ApiVersion11)
+	queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties2(
+		pd, queueVideoPropertiesList, videoQueueSupported);
+else {
+	vk::Vector&lt;vk::QueueFamilyProperties> v = vk::getPhysicalDeviceQueueFamilyProperties(pd);
+	queueFamilyList.resize(v.size());
+	for(size_t i=0; i&lt;v.size(); i++)
+		queueFamilyList[i].queueFamilyProperties = v[i];
+}
+</pre>
+
+<p>If we are on Vulkan 1.1+, we call vk::getPhysicalDeviceQueueFamilyProperties2.
+Otherwise, we use old Vulkan 1.0 function and copy the results from the old structures
+into the new ones.</p>
+
+<p>Then, we can process the information about the queue families.
+The extension provided functionality is marked by bold text:</p>
+
+<pre>
+for(uint32_t i=0, c=uint32_t(queueFamilyList.size()); i&lt;c; i++) {
+	cout << "         " << i << ": ";
+	vk::QueueFamilyProperties& queueFamilyProperties = queueFamilyList[i].queueFamilyProperties;
+	if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eGraphics)
+		cout << "g";
+	if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eCompute)
+		cout << "c";
+	if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eTransfer)
+		cout << "t";
+	if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eSparseBinding)
+		cout << "s";
+	<b>if(queueFamilyProperties.queueFlags & (vk::QueueFlagBits::eVideoDecodeKHR | vk::QueueFlagBits::eVideoEncodeKHR))
+		cout << "v";</b>
+	cout << "  (count: " << queueFamilyProperties.queueCount;
+	<b>if(videoQueueSupported) {
+		if(queueVideoPropertiesList[i].videoCodecOperations & vk::VideoCodecOperationFlagBitsKHR::eDecodeH264)
+			cout << ", decode H264";
+		if(queueVideoPropertiesList[i].videoCodecOperations & vk::VideoCodecOperationFlagBitsKHR::eDecodeH265)
+			cout << ", decode H265";
+		if(queueVideoPropertiesList[i].videoCodecOperations & vk::VideoCodecOperationFlagBitsKHR::eDecodeAV1)
+			cout << ", decode AV1";
+	}</b>
+	cout << ")" << endl;
+}
+</pre>
+
+
+<h3>Device format properties</h3>
+
+<p>We can test, for example, for compressed texture support. The compressed textures reduce memory consumption,
+lower bandwidth, but might reduce visual quality. Memory consumption and bandwidth requirements might be of issue
+for example, on mobile devices. But checking of the visual quality of compressed textures might be useful.</p>
+
+<p>As of 2025, we can query for these Vulkan core formats:</p>
+<ul><li>Block-Compressed image formats (BC1 to BC7)</li>
+<li>ETC compressed formats (ETC2 and EAC)</li>
+<li>ASTC LDR formats (since Vulkan 1.0)</li>
+<li>ASTC HDR formats (since Vulkan 1.3)</li></ul>
+
+<p>So, we query for Bc7Srgb, Etc2R8G8B8A8Srgb, Astc4x4Srgb formats. If Vulkan 1.3 is supported, we query for
+Astc4x4Sfloat as well. In all the cases, we test for SampledImageFilterLinear bit:</p>
+
+<pre>
+cout << "      Format support for compressed textures:" << endl;
+vk::FormatProperties formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eBc7SrgbBlock);
+if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eSampledImageFilterLinear)
+	cout << "         BC7  (BC7_SRGB):            yes" << endl;
+else
+	cout << "         BC7  (BC7_SRGB):            no" << endl;
+formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eEtc2R8G8B8A8SrgbBlock);
+if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eSampledImageFilterLinear)
+	cout << "         ETC2 (ETC2_R8G8B8A8_SRGB):  yes" << endl;
+else
+	cout << "         ETC2 (ETC2_R8G8B8A8_SRGB):  no" << endl;
+formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eAstc4x4SrgbBlock);
+if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eSampledImageFilterLinear)
+	cout << "         ASTC (ASTC_4x4_SRGB):       yes" << endl;
+else
+	cout << "         ASTC (ASTC_4x4_SRGB):       no" << endl;
+if(properties.apiVersion >= vk::ApiVersion13) {
+	formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eAstc4x4SfloatBlock);
+	if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eSampledImageFilterLinear)
+		cout << "         ASTC (ASTC_4x4_SFLOAT):     yes" << endl;
+	else
+		cout << "         ASTC (ASTC_4x4_SFLOAT):     no" << endl;
+} else
+	cout << "         ASTC (ASTC_4x4_SFLOAT):     no" << endl;
+</pre>
+
+</body>
+</html>
