@@ -3,9 +3,9 @@ cmake_minimum_required(VERSION 3.16.0)
 project(VulkanTutorial)
 
 set(PACKAGES
-    01-DeviceList
-    03-DeviceInfo
-    04-AdvancedInfo
+    1-1-DeviceList
+    1-3-DeviceInfo
+    1-4-AdvancedInfo
    )
 
 foreach(pkg ${PACKAGES})

@@ -4,10 +4,10 @@
 
 Devices, Instance and Loader
 
-1. [List of devices](https://vulkan-fit.github.io/VulkanTutorial/01-DeviceList/text.html)
-2. [Development Tools](https://vulkan-fit.github.io/VulkanTutorial/02-DevelopmentTools/text.html)
-3. [Device Info](https://vulkan-fit.github.io/VulkanTutorial/03-DeviceInfo/text.html)
-4. [Advanced Device Info](https://vulkan-fit.github.io/VulkanTutorial/04-AdvancedInfo/text.html)
+1. [List of devices](https://vulkan-fit.github.io/VulkanTutorial/1-1-DeviceList/text.html)
+2. [Development Tools](https://vulkan-fit.github.io/VulkanTutorial/1-2-DevelopmentTools/text.html)
+3. [Device Info](https://vulkan-fit.github.io/VulkanTutorial/1-3-DeviceInfo/text.html)
+4. [Advanced Device Info](https://vulkan-fit.github.io/VulkanTutorial/1-4-AdvancedInfo/text.html)
 5. Logical device
 
 Command submission, pipeline and queries
