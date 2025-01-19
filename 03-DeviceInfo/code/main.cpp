@@ -16,7 +16,7 @@ int main(int, char**)
 		// instance version
 		uint32_t instanceVersion = vk::enumerateInstanceVersion();
 		cout << "Vulkan instance:\n"
-		     << "   Version: " << vk::apiVersionMajor(instanceVersion) << "."
+		     << "   Version:  " << vk::apiVersionMajor(instanceVersion) << "."
 		     << vk::apiVersionMinor(instanceVersion) << "." << vk::apiVersionPatch(instanceVersion) << endl;
 
 		// Vulkan instance
@@ -93,7 +93,8 @@ int main(int, char**)
 			for(uint32_t i=0, c=memoryProperties.memoryHeapCount; i<c; i++) {
 				vk::MemoryHeap& h = memoryProperties.memoryHeaps[i];
 				cout << "         " << i << ": " << h.size/1024/1024 << "MiB";
-				if(h.flags & vk::MemoryHeapFlagBits::eDeviceLocal)  cout << "  (device local)";
+				if(h.flags & vk::MemoryHeapFlagBits::eDeviceLocal)
+					cout << "  (device local)";
 				cout << endl;
 			}
 
@@ -113,22 +114,27 @@ int main(int, char**)
 			}
 
 			// format support for images with optimal tiling
-			cout << "      Format support for images with optimal tiling:" << endl;
+			cout << "      Format support for rendering into images with optimal tiling:" << endl;
 			vk::FormatProperties formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR8G8B8A8Srgb);
 			if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment)
 				cout << "         R8G8B8A8Srgb:        yes" << endl;
 			else
 				cout << "         R8G8B8A8Srgb:        no" << endl;
+			formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR8G8B8Srgb);
+			if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment)
+				cout << "         R8G8B8Srgb:          yes" << endl;
+			else
+				cout << "         R8G8B8Srgb:          no" << endl;
 			formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR16G16B16A16Sfloat);
 			if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment)
 				cout << "         R16G16B16A16Sfloat:  yes" << endl;
 			else
 				cout << "         R16G16B16A16Sfloat:  no" << endl;
-			formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR32G32B32A32Sfloat);
+			formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR16G16B16Sfloat);
 			if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment)
-				cout << "         R32G32B32A32Sfloat:  yes" << endl;
+				cout << "         R16G16B16Sfloat:     yes" << endl;
 			else
-				cout << "         R32G32B32A32Sfloat:  no" << endl;
+				cout << "         R16G16B16Sfloat:     no" << endl;
 
 		}
 

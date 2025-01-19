@@ -53,6 +53,9 @@ inline void loadLib(const char* libPath)  { loadLib_throw(libPath); }  // or con
 void initInstance_throw(const InstanceCreateInfo& createInfo);
 Result initInstance_noThrow(const InstanceCreateInfo& createInfo) noexcept;
 inline void initInstance(const InstanceCreateInfo& createInfo)  { initInstance_throw(createInfo); }
+void initInstance_throw(const InstanceCreateInfo& createInfo, bool& vulkan10enforced);
+Result initInstance_noThrow(const InstanceCreateInfo& createInfo, bool& vulkan10enforced) noexcept;
+inline void initInstance(const InstanceCreateInfo& createInfo, bool& vulkan10enforced)  { initInstance_throw(createInfo, vulkan10enforced); }
 void initInstance(Instance instance) noexcept;
 
 void initDevice_throw(PhysicalDevice pd, const DeviceCreateInfo& createInfo);
@@ -163,7 +166,7 @@ enum class Format {
 	VK_FORMAT_R8G8B8_SSCALED = 26,
 	VK_FORMAT_R8G8B8_UINT = 27,
 	VK_FORMAT_R8G8B8_SINT = 28,
-	VK_FORMAT_R8G8B8_SRGB = 29,
+	eR8G8B8Srgb = 29,
 	VK_FORMAT_B8G8R8_UNORM = 30,
 	VK_FORMAT_B8G8R8_SNORM = 31,
 	VK_FORMAT_B8G8R8_USCALED = 32,
@@ -224,7 +227,7 @@ enum class Format {
 	VK_FORMAT_R16G16B16_SSCALED = 87,
 	VK_FORMAT_R16G16B16_UINT = 88,
 	VK_FORMAT_R16G16B16_SINT = 89,
-	VK_FORMAT_R16G16B16_SFLOAT = 90,
+	eR16G16B16Sfloat = 90,
 	VK_FORMAT_R16G16B16A16_UNORM = 91,
 	VK_FORMAT_R16G16B16A16_SNORM = 92,
 	VK_FORMAT_R16G16B16A16_USCALED = 93,
@@ -240,7 +243,7 @@ enum class Format {
 	VK_FORMAT_R32G32_SFLOAT = 103,
 	VK_FORMAT_R32G32B32_UINT = 104,
 	VK_FORMAT_R32G32B32_SINT = 105,
-	VK_FORMAT_R32G32B32_SFLOAT = 106,
+	eR32G32B32Sfloat = 106,
 	VK_FORMAT_R32G32B32A32_UINT = 107,
 	VK_FORMAT_R32G32B32A32_SINT = 108,
 	eR32G32B32A32Sfloat = 109,
@@ -280,19 +283,19 @@ enum class Format {
 	VK_FORMAT_BC6H_UFLOAT_BLOCK = 143,
 	VK_FORMAT_BC6H_SFLOAT_BLOCK = 144,
 	VK_FORMAT_BC7_UNORM_BLOCK = 145,
-	VK_FORMAT_BC7_SRGB_BLOCK = 146,
+	eBc7SrgbBlock = 146,
 	VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK = 147,
 	VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK = 148,
 	VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK = 149,
 	VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK = 150,
 	VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK = 151,
-	VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK = 152,
+	eEtc2R8G8B8A8SrgbBlock = 152,
 	VK_FORMAT_EAC_R11_UNORM_BLOCK = 153,
 	VK_FORMAT_EAC_R11_SNORM_BLOCK = 154,
 	VK_FORMAT_EAC_R11G11_UNORM_BLOCK = 155,
 	VK_FORMAT_EAC_R11G11_SNORM_BLOCK = 156,
-	VK_FORMAT_ASTC_4x4_UNORM_BLOCK = 157,
-	VK_FORMAT_ASTC_4x4_SRGB_BLOCK = 158,
+	eAstc4x4UnormBlock = 157,
+	eAstc4x4SrgbBlock = 158,
 	VK_FORMAT_ASTC_5x4_UNORM_BLOCK = 159,
 	VK_FORMAT_ASTC_5x4_SRGB_BLOCK = 160,
 	VK_FORMAT_ASTC_5x5_UNORM_BLOCK = 161,
@@ -359,7 +362,7 @@ enum class Format {
 	VK_FORMAT_G16_B16R16_2PLANE_444_UNORM = 1000330003,
 	VK_FORMAT_A4R4G4B4_UNORM_PACK16 = 1000340000,
 	VK_FORMAT_A4B4G4R4_UNORM_PACK16 = 1000340001,
-	VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK = 1000066000,
+	eAstc4x4SfloatBlock = 1000066000,
 	VK_FORMAT_ASTC_5x4_SFLOAT_BLOCK = 1000066001,
 	VK_FORMAT_ASTC_5x5_SFLOAT_BLOCK = 1000066002,
 	VK_FORMAT_ASTC_6x5_SFLOAT_BLOCK = 1000066003,
@@ -384,7 +387,7 @@ enum class Format {
 	VK_FORMAT_R16G16_SFIXED5_NV = 1000464000,
 	VK_FORMAT_A1B5G5R5_UNORM_PACK16_KHR = 1000470000,
 	VK_FORMAT_A8_UNORM_KHR = 1000470001,
-	VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK,
+	VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK_EXT = eAstc4x4SfloatBlock,
 	VK_FORMAT_ASTC_5x4_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_5x4_SFLOAT_BLOCK,
 	VK_FORMAT_ASTC_5x5_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_5x5_SFLOAT_BLOCK,
 	VK_FORMAT_ASTC_6x5_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_6x5_SFLOAT_BLOCK,
@@ -1682,13 +1685,13 @@ namespace FormatFeatureFlagBits {
 	constexpr const Flags eColorAttachment = 0x00000080;
 	constexpr const Flags eColorAttachmentBlend = 0x00000100;
 	constexpr const Flags eDepthStencilAttachment = 0x00000200;
+	constexpr const Flags eBlitSrc = 0x00000400;
+	constexpr const Flags eBlitDst = 0x00000800;
+	constexpr const Flags eSampledImageFilterLinear = 0x00001000;
+	constexpr const Flags eTransferSrc = 0x00004000;
+	constexpr const Flags eTransferDst = 0x00008000;
 	constexpr const Flags eAllFlags = 0x7fffffff;
 	/* TODO: fill remaining constants here
-	VK_FORMAT_FEATURE_BLIT_SRC_BIT = 0x00000400,
-	VK_FORMAT_FEATURE_BLIT_DST_BIT = 0x00000800,
-	VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT = 0x00001000,
-	VK_FORMAT_FEATURE_TRANSFER_SRC_BIT = 0x00004000,
-	VK_FORMAT_FEATURE_TRANSFER_DST_BIT = 0x00008000,
 	VK_FORMAT_FEATURE_MIDPOINT_CHROMA_SAMPLES_BIT = 0x00020000,
 	VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_LINEAR_FILTER_BIT = 0x00040000,
 	VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_SEPARATE_RECONSTRUCTION_FILTER_BIT = 0x00080000,
@@ -1753,6 +1756,7 @@ constexpr const uint32_t ApiVersion10 = makeApiVersion(0, 1, 0, 0);
 constexpr const uint32_t ApiVersion11 = makeApiVersion(0, 1, 1, 0);
 constexpr const uint32_t ApiVersion12 = makeApiVersion(0, 1, 2, 0);
 constexpr const uint32_t ApiVersion13 = makeApiVersion(0, 1, 3, 0);
+constexpr const uint32_t ApiVersion14 = makeApiVersion(0, 1, 4, 0);
 constexpr uint32_t apiVersionVariant(uint32_t version)  { return version >> 29; }
 constexpr uint32_t apiVersionMajor(uint32_t version)  { return (version >> 22) & 0x7f; }
 constexpr uint32_t apiVersionMinor(uint32_t version)  { return (version >> 12) & 0x3ff; }

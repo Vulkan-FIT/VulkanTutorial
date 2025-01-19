@@ -45,10 +45,11 @@ Vulkan devices:
          2: ct  (count: 8)
          3: t  (count: 3)
          4: t  (count: 1)
-      R8G8B8A8Srgb format support for color attachment:
-         Images with linear tiling: no
-         Images with optimal tiling: yes
-         Buffers: no
+      Format support for images with optimal tiling:
+         R8G8B8A8Srgb:        yes
+         R8G8B8Srgb:          no
+         R16G16B16A16Sfloat:  yes
+         R16G16B16Sfloat:     no
 </pre>
 
 <p>We can see various information about the Vulkan instance and device.
@@ -115,14 +116,14 @@ vk::QueueFamilyProperties::queueCount</code></td></tr>
 
 <tr><td colspan="2">vk::getPhysicalDeviceFormatProperties() returns vk::FormatProperties structure</td></tr>
 <tr><td style="background-color: rgba(96,96,96,0.75)"><code>
-&nbsp;&nbsp;&nbsp;R8G8B8A8Srgb format support [...]:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Images with linear tiling: no<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Images with optimal tiling: yes<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Buffers: no
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Format support for [...]:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;R8G8B8A8Srgb:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;R8G8B8Srgb:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;no<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;R16G16B16A16Sfloat:&nbsp;&nbsp;yes<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;R16G16B16Sfloat:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;no
 </code></td><td><code>
-vk::FormatProperties::linearTilingFeatures<br>
-vk::FormatProperties::optimalTilingFeatures<br>
-vk::FormatProperties::bufferFeatures</code></td></tr>
+vk::FormatProperties::optimalTilingFeatures
+</code></td></tr>
 </table>
 
 
@@ -134,7 +135,7 @@ vk::FormatProperties::bufferFeatures</code></td></tr>
 // instance version
 uint32_t instanceVersion = vk::enumerateInstanceVersion();
 cout << "Vulkan instance:\n"
-     << "   Version: " << vk::apiVersionMajor(instanceVersion) << "."
+     << "   Version:  " << vk::apiVersionMajor(instanceVersion) << "."
      << vk::apiVersionMinor(instanceVersion) << "." << vk::apiVersionPatch(instanceVersion) << endl;
 </pre>
 
@@ -236,7 +237,8 @@ vk::PhysicalDeviceMemoryProperties memoryProperties = vk::getPhysicalDeviceMemor
 for(uint32_t i=0, c=memoryProperties.memoryHeapCount; i&lt;c; i++) {
 	vk::MemoryHeap& h = memoryProperties.memoryHeaps[i];
 	cout << "         " << i << ": " << h.size/1024/1024 << "MiB";
-	if(h.flags & vk::MemoryHeapFlagBits::eDeviceLocal)  cout << "  (device local)";
+	if(h.flags & vk::MemoryHeapFlagBits::eDeviceLocal)
+		cout << "  (device local)";
 	cout << endl;
 }
 </pre>
@@ -275,36 +277,56 @@ Finally, we output number of the queues in the given family.</p>
 <h3>Device format properties</h3>
 
 <p>Buffers and images use various formats for their data.
-However, not all formats are supported for all use cases
-and the support varies across devices.</p>
+To find our if particular format is supported on the device,
+we can use vk::getPhysicalDeviceFormatProperties().</p>
 
-<p>To find out if we can render into R8G8B8A8Srgb format,
-e.g. if R8G8B8A8Srgb is supported for color attachment,
+<p>For example, to find out if we can render into R8G8B8A8Srgb format,
 we can use following code:</p>
 
 <pre>
-cout << "      Format support for images with optimal tiling:" << endl;
+cout << "      Format support for rendering into images with optimal tiling:" << endl;
 vk::FormatProperties formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR8G8B8A8Srgb);
 if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment)
 	cout << "         R8G8B8A8Srgb:        yes" << endl;
 else
 	cout << "         R8G8B8A8Srgb:        no" << endl;
+</pre>
+
+<p>As the result, we get vk::FormatProperties structure that contains few variables
+full of bit flags that indicate support for various use cases.
+In our case, we are interested in eColorAttachment flag inside optimal tiling member. 
+If the flag is set, we can render into image with R8G8B8A8Srgb format and optimal tiling.</p>
+
+<p>For other formats, we use the same code:</p>
+
+<pre>
+formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR8G8B8Srgb);
+if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment)
+	cout << "         R8G8B8Srgb:          yes" << endl;
+else
+	cout << "         R8G8B8Srgb:          no" << endl;
 formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR16G16B16A16Sfloat);
 if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment)
 	cout << "         R16G16B16A16Sfloat:  yes" << endl;
 else
 	cout << "         R16G16B16A16Sfloat:  no" << endl;
-formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR32G32B32A32Sfloat);
+formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR16G16B16Sfloat);
 if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment)
-	cout << "         R32G32B32A32Sfloat:  yes" << endl;
+	cout << "         R16G16B16Sfloat:     yes" << endl;
 else
-	cout << "         R32G32B32A32Sfloat:  no" << endl;
+	cout << "         R16G16B16Sfloat:     no" << endl;
 </pre>
 
-<p>Additionally, we test for R16G16B16A16Sfloat and R32G32B32A32Sfloat as well.
-R8G8B8A8Srgb is a kind of standard rendering output for most applications.
-R16G16B16A16Sfloat and similar formats allow us to do HDR rendering.
-Finally, R32G32B32A32Sfloat is one of the formats that can do HDR with quite high color precision.</p>
+<p>R8G8B8A8Srgb is a kind of standard rendering output for many applications.
+Its support is mandatory by Vulkan specification in Formats chapter. So, our test is actually superfluous.
+R8G8B8Srgb would be more memory efficient alternative
+while less memory bandwidth might sometimes improve the performance despite that fact that it is not 4-byte aligned.
+R8G8B8Srgb format support is optional and we have to test for it.</p>
+
+<p>R16G16B16A16Sfloat is half float based format. It can be used to do HDR rendering.
+Its support is mandatory, at least for color attachment (e.g. for rendering output),
+so our test is again superfluous.
+R16G16B16Srgb is optional. So, we would need to test for its support before use.</p>
 
 
 <h3>Other device query functions</h3>
@@ -314,7 +336,7 @@ Finally, R32G32B32A32Sfloat is one of the formats that can do HDR with quite hig
 <li>vkGetPhysicalDeviceImageFormatProperties() - useful for image creation</li>
 <li>vkGetPhysicalDeviceSparseImageFormatProperties() - useful for sparse image creation</li>
 <li>vkEnumerateDeviceExtensionProperties() - lists supported device extensions</li>
-<li><s>vkEnumerateDeviceLayerProperties()</s> - device layers are deprecated and they were probably never seriously used</li>
+<li><s>vkEnumerateDeviceLayerProperties()</s> - device layers are deprecated and they were probably never used seriously</li>
 </ul>
 
 <p>In the case of interest, they are described in Vulkan specification.
