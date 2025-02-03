@@ -1,4 +1,4 @@
-set(APP_NAME 04-AdvancedInfo)
+set(APP_NAME 1-4-AdvancedInfo)
 
 project(${APP_NAME})
 

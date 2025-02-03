@@ -29,7 +29,7 @@ int main(int, char**)
 					&(const vk::ApplicationInfo&)vk::ApplicationInfo{
 						.sType = vk::StructureType::eApplicationInfo,
 						.pNext = nullptr,
-						.pApplicationName = "03-DeviceInfo",
+						.pApplicationName = "1-3-DeviceInfo",
 						.applicationVersion = 0,
 						.pEngineName = nullptr,
 						.engineVersion = 0,

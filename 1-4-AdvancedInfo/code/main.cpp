@@ -46,7 +46,7 @@ int main(int argc, char* argv[])
 					&(const vk::ApplicationInfo&)vk::ApplicationInfo{
 						.sType = vk::StructureType::eApplicationInfo,
 						.pNext = nullptr,
-						.pApplicationName = "04-AdvancedInfo",
+						.pApplicationName = "1-4-AdvancedInfo",
 						.applicationVersion = 0,
 						.pEngineName = nullptr,
 						.engineVersion = 0,
