@@ -6,6 +6,7 @@ set(PACKAGES
     1-1-DeviceList
     1-3-DeviceInfo
     1-4-AdvancedInfo
+    1-5-LogicalDevice
    )
 
 foreach(pkg ${PACKAGES})
