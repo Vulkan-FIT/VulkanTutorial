@@ -2,7 +2,7 @@
 <html lang="en">
 
 <head>
-<title>01-DeviceList</title>
+<title>1-1-DeviceList</title>
 <meta charset="utf-8">
 <link rel="stylesheet" href="../common/vulkanStyle.css">
 <style media="screen" type="text/css">
@@ -13,7 +13,7 @@
 
 <h1>Vulkan Tutorial</h1>
 
-<h2>01 - DeviceList</h2>
+<h2>1-1 - Device List</h2>
   
 <p>Vulkan is a low-level, low-overhead API for 3D graphics and computing.
 Currently, it is probably the most important APIs in its area.</p>
@@ -139,7 +139,7 @@ int main(int, char**)
 					&amp;(const vk::ApplicationInfo&amp;)vk::ApplicationInfo{
 						.sType = vk::STRUCTURE_TYPE_APPLICATION_INFO,
 						.pNext = nullptr,
-						.pApplicationName = "01-deviceList",
+						.pApplicationName = "1-1-DeviceList",
 						.applicationVersion = 0,
 						.pEngineName = nullptr,
 						.engineVersion = 0,
@@ -192,7 +192,7 @@ int main(int, char**)
 				vk::InstanceCreateInfo{
 					vk::InstanceCreateFlags(),  // flags
 					&(const vk::ApplicationInfo&)vk::ApplicationInfo{
-						"01-deviceList",         // application name
+						"1-1-DeviceList",         // application name
 						VK_MAKE_VERSION(0,0,0),  // application version
 						nullptr,                 // engine name
 						VK_MAKE_VERSION(0,0,0),  // engine version
