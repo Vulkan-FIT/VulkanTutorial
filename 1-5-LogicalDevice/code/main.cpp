@@ -59,7 +59,6 @@ int main(int argc, char* argv[])
 		vk::loadLib();
 
 		// Vulkan instance
-		bool vulkan10enforced;
 		vk::initInstance(
 			vk::InstanceCreateInfo{
 				.sType = vk::StructureType::eInstanceCreateInfo,
