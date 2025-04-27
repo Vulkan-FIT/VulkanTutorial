@@ -145,24 +145,22 @@ Result vk::loadLib_noThrow(const char* libPath) noexcept
 }
 
 
-void vk::initInstance_throw(const vk::InstanceCreateInfo& pCreateInfo)
+static PFN_vkGetPhysicalDeviceProperties original_vkGetPhysicalDeviceProperties;
+static void VKAPI_CALL vulkan10_getPhysicalDeviceProperties(PhysicalDevice::HandleType physicalDeviceHandle, PhysicalDeviceProperties* pProperties)
 {
-	assert(detail::_library && "vk::loadLib() must be called before vk::createInstance().");
+	original_vkGetPhysicalDeviceProperties(physicalDeviceHandle, pProperties);
+	pProperties->apiVersion = vk::ApiVersion10;
+}
 
-	// destroy previous instance if any exists
-	destroyInstance();
-
-	// create instance
-	Instance::HandleType instanceHandle;
-	Result r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instanceHandle);
-	checkForSuccessValue(r, "vkCreateInstance");  // might throw
-
-	// init instance functionality
-	initInstance(instanceHandle);
+static PFN_vkGetPhysicalDeviceProperties2 original_vkGetPhysicalDeviceProperties2;
+static void VKAPI_CALL vulkan10_getPhysicalDeviceProperties2(PhysicalDevice::HandleType physicalDeviceHandle, PhysicalDeviceProperties2* pProperties)
+{
+	original_vkGetPhysicalDeviceProperties2(physicalDeviceHandle, pProperties);
+	pProperties->properties.apiVersion = vk::ApiVersion10;
 }
 
 
-void vk::initInstance_throw(const vk::InstanceCreateInfo& pCreateInfo, bool& vulkan10enforced)
+void vk::initInstance_throw(const vk::InstanceCreateInfo& pCreateInfo)
 {
 	assert(detail::_library && "vk::loadLib() must be called before vk::createInstance().");
 
@@ -176,7 +174,7 @@ void vk::initInstance_throw(const vk::InstanceCreateInfo& pCreateInfo, bool& vul
 	if(r == Result::eErrorIncompatibleDriver && pCreateInfo.pApplicationInfo &&
 	   pCreateInfo.pApplicationInfo->apiVersion != vk::ApiVersion10)
 	{
-		// replace requested Vulkan version by 1.0 to avoid
+		// replace the requested Vulkan version by 1.0 to avoid
 		// eErrorIncompatibleDriver error
 		ApplicationInfo appInfo2(*pCreateInfo.pApplicationInfo);
 		appInfo2.apiVersion = ApiVersion10;
@@ -185,10 +183,11 @@ void vk::initInstance_throw(const vk::InstanceCreateInfo& pCreateInfo, bool& vul
 
 		// create instance (second attempt)
 		r = funcs.vkCreateInstance(&createInfo2, nullptr, &instanceHandle);
-		vulkan10enforced = true;
+
+		// force vkGetPhysicalDevice[Properties|Properties2] to return vk::ApiVersion10 in apiVersion
+		funcs.vkGetPhysicalDeviceProperties = vulkan10_getPhysicalDeviceProperties;
+		funcs.vkGetPhysicalDeviceProperties2 = vulkan10_getPhysicalDeviceProperties2;
 	}
-	else
-		vulkan10enforced = false;
 
 	// test for eSuccess
 	checkForSuccessValue(r, "vkCreateInstance");  // might throw
@@ -205,25 +204,6 @@ Result vk::initInstance_noThrow(const vk::InstanceCreateInfo& pCreateInfo) noexc
 	// destroy previous instance if any exists
 	destroyInstance();
 
-	// create instance
-	Instance::HandleType instanceHandle;
-	Result r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instanceHandle);
-	if(r != Result::eSuccess)
-		return r;
-
-	// init instance functionality
-	initInstance(instanceHandle);
-	return Result::eSuccess;
-}
-
-
-Result vk::initInstance_noThrow(const vk::InstanceCreateInfo& pCreateInfo, bool& vulkan10enforced) noexcept
-{
-	assert(detail::_library && "vk::loadLib() must be called before vk::createInstance().");
-
-	// destroy previous instance if any exists
-	destroyInstance();
-
 	// create instance (first attempt)
 	Instance::HandleType instanceHandle;
 	Result r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instanceHandle);
@@ -240,10 +220,11 @@ Result vk::initInstance_noThrow(const vk::InstanceCreateInfo& pCreateInfo, bool&
 
 		// create instance (second attempt)
 		r = funcs.vkCreateInstance(&createInfo2, nullptr, &instanceHandle);
-		vulkan10enforced = true;
+
+		// force vkGetPhysicalDevice[Properties|Properties2] to return vk::ApiVersion10 in apiVersion
+		funcs.vkGetPhysicalDeviceProperties = vulkan10_getPhysicalDeviceProperties;
+		funcs.vkGetPhysicalDeviceProperties2 = vulkan10_getPhysicalDeviceProperties2;
 	}
-	else
-		vulkan10enforced = false;
 
 	// return errors
 	if(r != Result::eSuccess)

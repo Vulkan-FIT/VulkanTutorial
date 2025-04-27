@@ -170,9 +170,6 @@ inline void loadLib(const char* libPath)  { loadLib_throw(libPath); }  // or con
 void initInstance_throw(const InstanceCreateInfo& createInfo);
 Result initInstance_noThrow(const InstanceCreateInfo& createInfo) noexcept;
 inline void initInstance(const InstanceCreateInfo& createInfo)  { initInstance_throw(createInfo); }
-void initInstance_throw(const InstanceCreateInfo& createInfo, bool& vulkan10enforced);
-Result initInstance_noThrow(const InstanceCreateInfo& createInfo, bool& vulkan10enforced) noexcept;
-inline void initInstance(const InstanceCreateInfo& createInfo, bool& vulkan10enforced)  { initInstance_throw(createInfo, vulkan10enforced); }
 void initInstance(Instance instance) noexcept;
 
 void initDevice_throw(PhysicalDevice pd, const DeviceCreateInfo& createInfo);
