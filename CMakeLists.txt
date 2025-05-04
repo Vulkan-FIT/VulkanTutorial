@@ -8,10 +8,11 @@ set(PACKAGES
     1-4-AdvancedInfo
     1-5-LogicalDevice
     2-1-CommandSubmission
+    2-2-ComputeShader
    )
 
 foreach(pkg ${PACKAGES})
 	add_subdirectory(${pkg}/code)
 endforeach()
 
-set_directory_properties(PROPERTIES VS_STARTUP_PROJECT 01-DeviceList)
+set_directory_properties(PROPERTIES VS_STARTUP_PROJECT 1-1-DeviceList)
