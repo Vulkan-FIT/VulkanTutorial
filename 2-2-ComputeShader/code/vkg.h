@@ -10871,6 +10871,8 @@ typedef struct DeviceCreateInfo {
 	uint32_t                           enabledExtensionCount;
 	const char* const*                 ppEnabledExtensionNames;
 	const PhysicalDeviceFeatures*      pEnabledFeatures;
+
+	constexpr DeviceCreateInfo& setPNext(const void* pNext_) noexcept  { pNext = pNext_; return *this; }
 } DeviceCreateInfo;
 
 typedef struct BufferViewCreateInfo {

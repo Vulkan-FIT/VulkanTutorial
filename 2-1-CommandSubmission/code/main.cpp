@@ -43,12 +43,13 @@ int main(int argc, char* argv[])
 
 			// get queue family properties
 			vk::PhysicalDevice pd = deviceList[i];
+			vk::PhysicalDeviceProperties props = vk::getPhysicalDeviceProperties(pd);
 			vk::vector<vk::QueueFamilyProperties> queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties(pd);
 			for(uint32_t i=0, c=uint32_t(queueFamilyList.size()); i<c; i++) {
-				
+
 				// test for graphics operations support
 				if(queueFamilyList[i].queueFlags & vk::QueueFlagBits::eCompute)
-					compatibleDevices.emplace_back(pd, i, vk::getPhysicalDeviceProperties(pd));
+					compatibleDevices.emplace_back(pd, i, props);
 
 			}
 
