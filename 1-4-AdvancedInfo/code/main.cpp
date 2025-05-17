@@ -24,28 +24,23 @@ int main(int argc, char* argv[])
 		     << vk::apiVersionMinor(instanceVersion) << "." << vk::apiVersionPatch(instanceVersion) << endl;
 
 		// instance extensions
-		vk::Vector<vk::ExtensionProperties> instanceExtensionList = vk::enumerateInstanceExtensionProperties(nullptr);
+		vk::vector<vk::ExtensionProperties> instanceExtensionList = vk::enumerateInstanceExtensionProperties(nullptr);
 		cout << "   Extensions (" << instanceExtensionList.size() << " in total):\n";
 		if(noExtensionList)
 			cout << "      < list omitted because of --no-extension-list given on command line >" << endl;
 		else
-			if(instanceExtensionList.empty())
-				cout << "      < none >" << endl;
-			else
+			if(!instanceExtensionList.empty())
 				for(size_t i=0; i<instanceExtensionList.size(); i++)
 					cout << "      " << instanceExtensionList[i].extensionName << endl;
+			else
+				cout << "      < none >" << endl;
 
 		// Vulkan instance
-		bool vulkan10enforced;
 		vk::initInstance(
 			vk::InstanceCreateInfo{
-				.sType = vk::StructureType::eInstanceCreateInfo,
-				.pNext = nullptr,
-				.flags = 0,
+				.flags = {},
 				.pApplicationInfo =
 					&(const vk::ApplicationInfo&)vk::ApplicationInfo{
-						.sType = vk::StructureType::eApplicationInfo,
-						.pNext = nullptr,
 						.pApplicationName = "1-4-AdvancedInfo",
 						.applicationVersion = 0,
 						.pEngineName = nullptr,
@@ -56,34 +51,30 @@ int main(int argc, char* argv[])
 				.ppEnabledLayerNames = nullptr,
 				.enabledExtensionCount = 0,
 				.ppEnabledExtensionNames = nullptr,
-			},
-			vulkan10enforced);
+			}
+		);
 
 		// print device list
 		cout << "Vulkan devices:\n";
-		vk::Vector<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
+		vk::vector<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
 		for(size_t i=0; i<deviceList.size(); i++) {
 
 			vk::PhysicalDevice pd = deviceList[i];
-
-			// supported extensions
-			vk::Vector<vk::ExtensionProperties> extensionList =
-				vk::enumerateDeviceExtensionProperties(pd, nullptr);
-			bool videoQueueSupported = vk::isExtensionSupported(extensionList, "VK_KHR_video_queue") &&
-			                           !vulkan10enforced;
-			bool raytracingSupported = vk::isExtensionSupported(extensionList, "VK_KHR_acceleration_structure") &&
-			                           vk::isExtensionSupported(extensionList, "VK_KHR_ray_tracing_pipeline") &&
-			                           vk::isExtensionSupported(extensionList, "VK_KHR_ray_query") &&
-			                           !vulkan10enforced;
 
 			// get device properties
 			vk::PhysicalDeviceProperties2 properties2;
 			vk::PhysicalDeviceProperties& properties = properties2.properties;
 			properties = vk::getPhysicalDeviceProperties(pd);
 
-			// limit device Vulkan version on Vulkan 1.0 instances
-			if(vulkan10enforced)
-				properties.apiVersion = vk::ApiVersion10 | vk::apiVersionPatch(properties.apiVersion);
+			// supported extensions
+			vk::vector<vk::ExtensionProperties> extensionList =
+				vk::enumerateDeviceExtensionProperties(pd, nullptr);
+			bool videoQueueSupported = vk::isExtensionSupported(extensionList, "VK_KHR_video_queue") &&
+			                           properties.apiVersion >= vk::ApiVersion11;
+			bool raytracingSupported = vk::isExtensionSupported(extensionList, "VK_KHR_acceleration_structure") &&
+			                           vk::isExtensionSupported(extensionList, "VK_KHR_ray_tracing_pipeline") &&
+			                           vk::isExtensionSupported(extensionList, "VK_KHR_ray_query") &&
+			                           properties.apiVersion >= vk::ApiVersion11;
 
 			// extended device properties
 			vk::PhysicalDeviceVulkan12Properties properties12{  // requires Vulkan 1.2
@@ -212,13 +203,13 @@ int main(int argc, char* argv[])
 
 			// queue family properties
 			cout << "      Queue families:" << endl;
-			vk::Vector<vk::QueueFamilyProperties2> queueFamilyList;
-			vk::Vector<vk::QueueFamilyVideoPropertiesKHR> queueVideoPropertiesList;
+			vk::vector<vk::QueueFamilyProperties2> queueFamilyList;
+			vk::vector<vk::QueueFamilyVideoPropertiesKHR> queueVideoPropertiesList;
 			if(properties.apiVersion >= vk::ApiVersion11)
 				queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties2(
 					pd, queueVideoPropertiesList, videoQueueSupported);
 			else {
-				vk::Vector<vk::QueueFamilyProperties> v = vk::getPhysicalDeviceQueueFamilyProperties(pd);
+				vk::vector<vk::QueueFamilyProperties> v = vk::getPhysicalDeviceQueueFamilyProperties(pd);
 				queueFamilyList.resize(v.size());
 				for(size_t i=0; i<v.size(); i++)
 					queueFamilyList[i].queueFamilyProperties = v[i];

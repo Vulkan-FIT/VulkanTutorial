@@ -2595,6 +2595,25 @@ public:
 };
 
 
+template<typename BitType>
+constexpr Flags<BitType> operator&(BitType bit, const Flags<BitType>& flags) noexcept  { return flags.operator&(bit); }
+
+template<typename BitType>
+constexpr Flags<BitType> operator|(BitType bit, const Flags<BitType>& flags) noexcept  { return flags.operator|(bit); }
+
+template<typename BitType>
+constexpr Flags<BitType> operator^(BitType bit, const Flags<BitType>& flags) noexcept  { return flags.operator^(bit); }
+
+template<typename BitType>
+constexpr Flags<BitType> operator&(BitType lhs, BitType rhs) noexcept  { return Flags<BitType>(lhs) & rhs; }
+
+template <typename BitType>
+constexpr Flags<BitType> operator|(BitType lhs, BitType rhs) noexcept  { return Flags<BitType>(lhs) | rhs; }
+
+template <typename BitType>
+constexpr Flags<BitType> operator^(BitType lhs, BitType rhs) noexcept  { return Flags<BitType>(lhs) ^ rhs; }
+
+
 enum class FramebufferCreateFlagBits : uint32_t {
 	eImageless = 0x1,
 	eImagelessKHR = 0x1,
@@ -4207,8 +4226,8 @@ enum class VideoCodecOperationFlagBitsKHR : uint32_t {
 	eEncodeH265 = 0x20000,
 	eDecodeH264 = 0x1,
 	eDecodeH265 = 0x2,
-	eDecodeAv1 = 0x4,
-	eEncodeAv1 = 0x40000,
+	eDecodeAV1 = 0x4,
+	eEncodeAV1 = 0x40000,
 };
 using VideoCodecOperationFlagsKHR = Flags<VideoCodecOperationFlagBitsKHR>;
 
@@ -12957,7 +12976,7 @@ vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2_throw(Phy
 {
 	// get num queue families
 	uint32_t n;
-	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd, &n, nullptr);
+	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd.handle(), &n, nullptr);
 	if(n == 0)
 		return {};
 
@@ -12977,7 +12996,7 @@ vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2_throw(Phy
 	}
 
 	// enumerate physical devices
-	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd, &n, queueFamilyProperties.data());
+	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd.handle(), &n, queueFamilyProperties.data());
 	return queueFamilyProperties;
 }
 template<typename... ArgPack>
@@ -12985,7 +13004,7 @@ Result getPhysicalDeviceQueueFamilyProperties2_noThrow(PhysicalDevice pd, vector
 {
 	// get num queue families
 	uint32_t n;
-	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd, &n, nullptr);
+	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd.handle(), &n, nullptr);
 
 	// alloc and link pNext structures
 	detail::GetPhysicalDeviceQueueFamilyProperties2_struct s =
@@ -13005,7 +13024,7 @@ Result getPhysicalDeviceQueueFamilyProperties2_noThrow(PhysicalDevice pd, vector
 	}
 
 	// enumerate physical devices
-	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd, &n, queueFamilyProperties.data());
+	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd.handle(), &n, queueFamilyProperties.data());
 	return Result::eSuccess;
 }
 template<typename... ArgPack>

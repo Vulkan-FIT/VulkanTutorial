@@ -151,14 +151,14 @@ static PFN_vkGetPhysicalDeviceProperties original_vkGetPhysicalDeviceProperties;
 static void VKAPI_CALL vulkan10_getPhysicalDeviceProperties(PhysicalDevice::HandleType physicalDeviceHandle, PhysicalDeviceProperties* pProperties)
 {
 	original_vkGetPhysicalDeviceProperties(physicalDeviceHandle, pProperties);
-	pProperties->apiVersion = vk::ApiVersion10;
+	pProperties->apiVersion = vk::ApiVersion10 | vk::apiVersionPatch(pProperties->apiVersion);
 }
 
 static PFN_vkGetPhysicalDeviceProperties2 original_vkGetPhysicalDeviceProperties2;
 static void VKAPI_CALL vulkan10_getPhysicalDeviceProperties2(PhysicalDevice::HandleType physicalDeviceHandle, PhysicalDeviceProperties2* pProperties)
 {
 	original_vkGetPhysicalDeviceProperties2(physicalDeviceHandle, pProperties);
-	pProperties->properties.apiVersion = vk::ApiVersion10;
+	pProperties->properties.apiVersion = vk::ApiVersion10 | vk::apiVersionPatch(pProperties->properties.apiVersion);
 }
 
 
@@ -173,8 +173,12 @@ void vk::initInstance_throw(const vk::InstanceCreateInfo& pCreateInfo)
 	Instance::HandleType instanceHandle;
 	Result r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instanceHandle);
 
-	if(r == Result::eErrorIncompatibleDriver && pCreateInfo.pApplicationInfo &&
-	   pCreateInfo.pApplicationInfo->apiVersion != vk::ApiVersion10)
+	// if creation failed, try with Vulkan 1.0 again
+	bool enforceVulkan10 =
+		r == Result::eErrorIncompatibleDriver &&
+		pCreateInfo.pApplicationInfo &&
+		pCreateInfo.pApplicationInfo->apiVersion != vk::ApiVersion10;
+	if(enforceVulkan10)
 	{
 		// replace the requested Vulkan version by 1.0 to avoid
 		// eErrorIncompatibleDriver error
@@ -185,10 +189,6 @@ void vk::initInstance_throw(const vk::InstanceCreateInfo& pCreateInfo)
 
 		// create instance (second attempt)
 		r = funcs.vkCreateInstance(&createInfo2, nullptr, &instanceHandle);
-
-		// force vkGetPhysicalDevice[Properties|Properties2] to return vk::ApiVersion10 in apiVersion
-		funcs.vkGetPhysicalDeviceProperties = vulkan10_getPhysicalDeviceProperties;
-		funcs.vkGetPhysicalDeviceProperties2 = vulkan10_getPhysicalDeviceProperties2;
 	}
 
 	// test for eSuccess
@@ -196,6 +196,15 @@ void vk::initInstance_throw(const vk::InstanceCreateInfo& pCreateInfo)
 
 	// init instance functionality
 	initInstance(instanceHandle);
+
+	if(enforceVulkan10)
+	{
+		// force vkGetPhysicalDevice[Properties|Properties2] to return vk::ApiVersion10 in apiVersion
+		original_vkGetPhysicalDeviceProperties = funcs.vkGetPhysicalDeviceProperties;
+		original_vkGetPhysicalDeviceProperties2 = funcs.vkGetPhysicalDeviceProperties2;
+		funcs.vkGetPhysicalDeviceProperties = vulkan10_getPhysicalDeviceProperties;
+		funcs.vkGetPhysicalDeviceProperties2 = vulkan10_getPhysicalDeviceProperties2;
+	}
 }
 
 
@@ -210,8 +219,12 @@ Result vk::initInstance_noThrow(const vk::InstanceCreateInfo& pCreateInfo) noexc
 	Instance::HandleType instanceHandle;
 	Result r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instanceHandle);
 
-	if(r == Result::eErrorIncompatibleDriver && pCreateInfo.pApplicationInfo &&
-	   pCreateInfo.pApplicationInfo->apiVersion != vk::ApiVersion10)
+	// if creation failed, try with Vulkan 1.0 again
+	bool enforceVulkan10 =
+		r == Result::eErrorIncompatibleDriver &&
+		pCreateInfo.pApplicationInfo &&
+		pCreateInfo.pApplicationInfo->apiVersion != vk::ApiVersion10;
+	if(enforceVulkan10)
 	{
 		// replace requested Vulkan version by 1.0 to avoid
 		// eErrorIncompatibleDriver error
@@ -222,10 +235,6 @@ Result vk::initInstance_noThrow(const vk::InstanceCreateInfo& pCreateInfo) noexc
 
 		// create instance (second attempt)
 		r = funcs.vkCreateInstance(&createInfo2, nullptr, &instanceHandle);
-
-		// force vkGetPhysicalDevice[Properties|Properties2] to return vk::ApiVersion10 in apiVersion
-		funcs.vkGetPhysicalDeviceProperties = vulkan10_getPhysicalDeviceProperties;
-		funcs.vkGetPhysicalDeviceProperties2 = vulkan10_getPhysicalDeviceProperties2;
 	}
 
 	// return errors
@@ -234,6 +243,16 @@ Result vk::initInstance_noThrow(const vk::InstanceCreateInfo& pCreateInfo) noexc
 
 	// init instance functionality
 	initInstance(instanceHandle);
+
+	if(enforceVulkan10)
+	{
+		// force vkGetPhysicalDevice[Properties|Properties2] to return vk::ApiVersion10 in apiVersion
+		original_vkGetPhysicalDeviceProperties = funcs.vkGetPhysicalDeviceProperties;
+		original_vkGetPhysicalDeviceProperties2 = funcs.vkGetPhysicalDeviceProperties2;
+		funcs.vkGetPhysicalDeviceProperties = vulkan10_getPhysicalDeviceProperties;
+		funcs.vkGetPhysicalDeviceProperties2 = vulkan10_getPhysicalDeviceProperties2;
+	}
+
 	return Result::eSuccess;
 }
 
