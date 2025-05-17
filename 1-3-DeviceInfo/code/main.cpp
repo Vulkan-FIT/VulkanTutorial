@@ -22,13 +22,9 @@ int main(int, char**)
 		// Vulkan instance
 		vk::initInstance(
 			vk::InstanceCreateInfo{
-				.sType = vk::StructureType::eInstanceCreateInfo,
-				.pNext = nullptr,
-				.flags = 0,
+				.flags = {},
 				.pApplicationInfo =
 					&(const vk::ApplicationInfo&)vk::ApplicationInfo{
-						.sType = vk::StructureType::eApplicationInfo,
-						.pNext = nullptr,
 						.pApplicationName = "1-3-DeviceInfo",
 						.applicationVersion = 0,
 						.pEngineName = nullptr,
@@ -43,7 +39,7 @@ int main(int, char**)
 
 		// print device list
 		cout << "Vulkan devices:\n";
-		vk::Vector<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
+		vk::vector<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
 		for(size_t i=0; i<deviceList.size(); i++) {
 
 			vk::PhysicalDevice pd = deviceList[i];
@@ -100,7 +96,7 @@ int main(int, char**)
 
 			// queue family properties
 			cout << "      Queue families:" << endl;
-			vk::Vector<vk::QueueFamilyProperties> queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties(pd);
+			vk::vector<vk::QueueFamilyProperties> queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties(pd);
 			for(uint32_t i=0, c=uint32_t(queueFamilyList.size()); i<c; i++) {
 				cout << "         " << i << ": ";
 				vk::QueueFamilyProperties& queueFamilyProperties = queueFamilyList[i];

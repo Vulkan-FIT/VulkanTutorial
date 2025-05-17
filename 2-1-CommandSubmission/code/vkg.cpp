@@ -24,6 +24,8 @@ Funcs vk::funcs;
 
 static_assert(sizeof(vk::Instance) == sizeof(vk::Instance::HandleType), "Handle template class must not have any memory overhead and its size must be equal to encapsulated handle.");
 static_assert(sizeof(vk::Device) == sizeof(vk::Device::HandleType), "Handle template class must not have any memory overhead and its size must be equal to encapsulated handle.");
+static_assert(sizeof(vk::Instance) == sizeof(vk::UniqueInstance), "Handle class and its unique counterpart must be of the same size and must not have any additional memory overhead.");
+static_assert(sizeof(vk::Device) == sizeof(vk::UniqueDevice), "Handle class and its unique counterpart must be of the same size and must not have any additional memory overhead.");
 
 
 // init and clean up functions
@@ -87,7 +89,7 @@ void vk::loadLib_throw(const char* libPath)
 		Result r = vkEnumerateInstanceVersion(&v);
 		if(r != Result::eSuccess) {
 			unloadLib();
-			throwResultException("vkEnumerateInstanceVersion", r);
+			throwResultException(r, "vkEnumerateInstanceVersion");
 		}
 		detail::_instanceVersion = v;
 	}
@@ -149,14 +151,14 @@ static PFN_vkGetPhysicalDeviceProperties original_vkGetPhysicalDeviceProperties;
 static void VKAPI_CALL vulkan10_getPhysicalDeviceProperties(PhysicalDevice::HandleType physicalDeviceHandle, PhysicalDeviceProperties* pProperties)
 {
 	original_vkGetPhysicalDeviceProperties(physicalDeviceHandle, pProperties);
-	pProperties->apiVersion = vk::ApiVersion10;
+	pProperties->apiVersion = vk::ApiVersion10 | vk::apiVersionPatch(pProperties->apiVersion);
 }
 
 static PFN_vkGetPhysicalDeviceProperties2 original_vkGetPhysicalDeviceProperties2;
 static void VKAPI_CALL vulkan10_getPhysicalDeviceProperties2(PhysicalDevice::HandleType physicalDeviceHandle, PhysicalDeviceProperties2* pProperties)
 {
 	original_vkGetPhysicalDeviceProperties2(physicalDeviceHandle, pProperties);
-	pProperties->properties.apiVersion = vk::ApiVersion10;
+	pProperties->properties.apiVersion = vk::ApiVersion10 | vk::apiVersionPatch(pProperties->properties.apiVersion);
 }
 
 
@@ -171,8 +173,12 @@ void vk::initInstance_throw(const vk::InstanceCreateInfo& pCreateInfo)
 	Instance::HandleType instanceHandle;
 	Result r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instanceHandle);
 
-	if(r == Result::eErrorIncompatibleDriver && pCreateInfo.pApplicationInfo &&
-	   pCreateInfo.pApplicationInfo->apiVersion != vk::ApiVersion10)
+	// if creation failed, try with Vulkan 1.0 again
+	bool enforceVulkan10 =
+		r == Result::eErrorIncompatibleDriver &&
+		pCreateInfo.pApplicationInfo &&
+		pCreateInfo.pApplicationInfo->apiVersion != vk::ApiVersion10;
+	if(enforceVulkan10)
 	{
 		// replace the requested Vulkan version by 1.0 to avoid
 		// eErrorIncompatibleDriver error
@@ -183,10 +189,6 @@ void vk::initInstance_throw(const vk::InstanceCreateInfo& pCreateInfo)
 
 		// create instance (second attempt)
 		r = funcs.vkCreateInstance(&createInfo2, nullptr, &instanceHandle);
-
-		// force vkGetPhysicalDevice[Properties|Properties2] to return vk::ApiVersion10 in apiVersion
-		funcs.vkGetPhysicalDeviceProperties = vulkan10_getPhysicalDeviceProperties;
-		funcs.vkGetPhysicalDeviceProperties2 = vulkan10_getPhysicalDeviceProperties2;
 	}
 
 	// test for eSuccess
@@ -194,6 +196,15 @@ void vk::initInstance_throw(const vk::InstanceCreateInfo& pCreateInfo)
 
 	// init instance functionality
 	initInstance(instanceHandle);
+
+	if(enforceVulkan10)
+	{
+		// force vkGetPhysicalDevice[Properties|Properties2] to return vk::ApiVersion10 in apiVersion
+		original_vkGetPhysicalDeviceProperties = funcs.vkGetPhysicalDeviceProperties;
+		original_vkGetPhysicalDeviceProperties2 = funcs.vkGetPhysicalDeviceProperties2;
+		funcs.vkGetPhysicalDeviceProperties = vulkan10_getPhysicalDeviceProperties;
+		funcs.vkGetPhysicalDeviceProperties2 = vulkan10_getPhysicalDeviceProperties2;
+	}
 }
 
 
@@ -208,8 +219,12 @@ Result vk::initInstance_noThrow(const vk::InstanceCreateInfo& pCreateInfo) noexc
 	Instance::HandleType instanceHandle;
 	Result r = funcs.vkCreateInstance(&pCreateInfo, nullptr, &instanceHandle);
 
-	if(r == Result::eErrorIncompatibleDriver && pCreateInfo.pApplicationInfo &&
-	   pCreateInfo.pApplicationInfo->apiVersion != vk::ApiVersion10)
+	// if creation failed, try with Vulkan 1.0 again
+	bool enforceVulkan10 =
+		r == Result::eErrorIncompatibleDriver &&
+		pCreateInfo.pApplicationInfo &&
+		pCreateInfo.pApplicationInfo->apiVersion != vk::ApiVersion10;
+	if(enforceVulkan10)
 	{
 		// replace requested Vulkan version by 1.0 to avoid
 		// eErrorIncompatibleDriver error
@@ -220,10 +235,6 @@ Result vk::initInstance_noThrow(const vk::InstanceCreateInfo& pCreateInfo) noexc
 
 		// create instance (second attempt)
 		r = funcs.vkCreateInstance(&createInfo2, nullptr, &instanceHandle);
-
-		// force vkGetPhysicalDevice[Properties|Properties2] to return vk::ApiVersion10 in apiVersion
-		funcs.vkGetPhysicalDeviceProperties = vulkan10_getPhysicalDeviceProperties;
-		funcs.vkGetPhysicalDeviceProperties2 = vulkan10_getPhysicalDeviceProperties2;
 	}
 
 	// return errors
@@ -232,6 +243,16 @@ Result vk::initInstance_noThrow(const vk::InstanceCreateInfo& pCreateInfo) noexc
 
 	// init instance functionality
 	initInstance(instanceHandle);
+
+	if(enforceVulkan10)
+	{
+		// force vkGetPhysicalDevice[Properties|Properties2] to return vk::ApiVersion10 in apiVersion
+		original_vkGetPhysicalDeviceProperties = funcs.vkGetPhysicalDeviceProperties;
+		original_vkGetPhysicalDeviceProperties2 = funcs.vkGetPhysicalDeviceProperties2;
+		funcs.vkGetPhysicalDeviceProperties = vulkan10_getPhysicalDeviceProperties;
+		funcs.vkGetPhysicalDeviceProperties2 = vulkan10_getPhysicalDeviceProperties2;
+	}
+
 	return Result::eSuccess;
 }
 
@@ -360,7 +381,31 @@ void vk::initInstance(Instance instance) noexcept
 	funcs.vkGetDeviceGroupSurfacePresentModesKHR     = getInstanceProcAddr<PFN_vkGetDeviceGroupSurfacePresentModesKHR     >("vkGetDeviceGroupSurfacePresentModesKHR");
 	funcs.vkGetPhysicalDevicePresentRectanglesKHR    = getInstanceProcAddr<PFN_vkGetPhysicalDevicePresentRectanglesKHR    >("vkGetPhysicalDevicePresentRectanglesKHR");
 	funcs.vkAcquireNextImage2KHR                     = getInstanceProcAddr<PFN_vkAcquireNextImage2KHR                     >("vkAcquireNextImage2KHR");
-	//funcs.vkGetPhysicalDeviceCalibrateableTimeDomainsEXT = getInstanceProcAddr<PFN_vkGetPhysicalDeviceCalibrateableTimeDomainsEXT>("vkGetPhysicalDeviceCalibrateableTimeDomainsEXT");*/
+	funcs.vkCmdNextSubpass                           = getInstanceProcAddr<PFN_vkCmdNextSubpass                           >("vkCmdNextSubpass");
+	funcs.vkCmdSetViewport                           = getInstanceProcAddr<PFN_vkCmdSetViewport                           >("vkCmdSetViewport");
+	funcs.vkCmdSetScissor                            = getInstanceProcAddr<PFN_vkCmdSetScissor                            >("vkCmdSetScissor");
+	funcs.vkCmdSetBlendConstants                     = getInstanceProcAddr<PFN_vkCmdSetBlendConstants                     >("vkCmdSetBlendConstants");
+	funcs.vkCmdSetDepthBounds                        = getInstanceProcAddr<PFN_vkCmdSetDepthBounds                        >("vkCmdSetDepthBounds");
+	funcs.vkCmdSetStencilCompareMask                 = getInstanceProcAddr<PFN_vkCmdSetStencilCompareMask                 >("vkCmdSetStencilCompareMask");
+	funcs.vkCmdSetStencilWriteMask                   = getInstanceProcAddr<PFN_vkCmdSetStencilWriteMask                   >("vkCmdSetStencilWriteMask");
+	funcs.vkCmdSetStencilReference                   = getInstanceProcAddr<PFN_vkCmdSetStencilReference                   >("vkCmdSetStencilReference");
+	funcs.vkCmdCopyImage                             = getInstanceProcAddr<PFN_vkCmdCopyImage                             >("vkCmdCopyImage");
+	funcs.vkCmdBlitImage                             = getInstanceProcAddr<PFN_vkCmdBlitImage                             >("vkCmdBlitImage");
+	funcs.vkCmdCopyBufferToImage                     = getInstanceProcAddr<PFN_vkCmdCopyBufferToImage                     >("vkCmdCopyBufferToImage");
+	funcs.vkCmdCopyImageToBuffer                     = getInstanceProcAddr<PFN_vkCmdCopyImageToBuffer                     >("vkCmdCopyImageToBuffer");
+	funcs.vkCmdUpdateBuffer                          = getInstanceProcAddr<PFN_vkCmdUpdateBuffer                          >("vkCmdUpdateBuffer");
+	funcs.vkCmdFillBuffer                            = getInstanceProcAddr<PFN_vkCmdFillBuffer                            >("vkCmdFillBuffer");
+	funcs.vkCmdClearColorImage                       = getInstanceProcAddr<PFN_vkCmdClearColorImage                       >("vkCmdClearColorImage");
+	funcs.vkCmdClearDepthStencilImage                = getInstanceProcAddr<PFN_vkCmdClearDepthStencilImage                >("vkCmdClearDepthStencilImage");
+	funcs.vkCmdClearAttachments                      = getInstanceProcAddr<PFN_vkCmdClearAttachments                      >("vkCmdClearAttachments");
+	funcs.vkCmdResolveImage                          = getInstanceProcAddr<PFN_vkCmdResolveImage                          >("vkCmdResolveImage");
+	funcs.vkCmdSetEvent                              = getInstanceProcAddr<PFN_vkCmdSetEvent                              >("vkCmdSetEvent");
+	funcs.vkCmdResetEvent                            = getInstanceProcAddr<PFN_vkCmdResetEvent                            >("vkCmdResetEvent");
+	funcs.vkCmdWaitEvents                            = getInstanceProcAddr<PFN_vkCmdWaitEvents                            >("vkCmdWaitEvents");
+	funcs.vkCmdBeginQuery                            = getInstanceProcAddr<PFN_vkCmdBeginQuery                            >("vkCmdBeginQuery");
+	funcs.vkCmdEndQuery                              = getInstanceProcAddr<PFN_vkCmdEndQuery                              >("vkCmdEndQuery");
+	funcs.vkCmdCopyQueryPoolResults                  = getInstanceProcAddr<PFN_vkCmdCopyQueryPoolResults                  >("vkCmdCopyQueryPoolResults");
+	//funcs.vkGetPhysicalDeviceCalibrateableTimeDomainsEXT = getInstanceProcAddr<PFN_vkGetPhysicalDeviceCalibrateableTimeDomainsEXT>("vkGetPhysicalDeviceCalibrateableTimeDomainsEXT");
 }
 
 
@@ -395,95 +440,95 @@ void vk::initDevice(PhysicalDevice physicalDevice, Device device) noexcept
 	detail::_physicalDevice = physicalDevice;
 	detail::_device = device;
 
-	funcs.vkGetDeviceProcAddr  = getDeviceProcAddr<PFN_vkGetDeviceProcAddr  >("vkGetDeviceProcAddr");
-	funcs.vkDestroyDevice      = getDeviceProcAddr<PFN_vkDestroyDevice      >("vkDestroyDevice");
-	funcs.vkGetDeviceQueue     = getDeviceProcAddr<PFN_vkGetDeviceQueue     >("vkGetDeviceQueue");
-/*	vkCreateRenderPass   =getProcAddr<PFN_vkCreateRenderPass   >("vkCreateRenderPass");
-	vkDestroyRenderPass  =getProcAddr<PFN_vkDestroyRenderPass  >("vkDestroyRenderPass");
-	vkCreateBuffer       =getProcAddr<PFN_vkCreateBuffer       >("vkCreateBuffer");
-	vkDestroyBuffer      =getProcAddr<PFN_vkDestroyBuffer      >("vkDestroyBuffer");
-	vkGetBufferDeviceAddress=getProcAddr<PFN_vkGetBufferDeviceAddress>("vkGetBufferDeviceAddress");
-	vkAllocateMemory     =getProcAddr<PFN_vkAllocateMemory     >("vkAllocateMemory");
-	vkBindBufferMemory   =getProcAddr<PFN_vkBindBufferMemory   >("vkBindBufferMemory");
-	vkBindImageMemory    =getProcAddr<PFN_vkBindImageMemory    >("vkBindImageMemory");
-	vkFreeMemory         =getProcAddr<PFN_vkFreeMemory         >("vkFreeMemory");
-	vkGetBufferMemoryRequirements =getProcAddr<PFN_vkGetBufferMemoryRequirements>("vkGetBufferMemoryRequirements");
-	vkGetImageMemoryRequirements  =getProcAddr<PFN_vkGetImageMemoryRequirements >("vkGetImageMemoryRequirements");
-	vkMapMemory          =getProcAddr<PFN_vkMapMemory          >("vkMapMemory");
-	vkUnmapMemory        =getProcAddr<PFN_vkUnmapMemory        >("vkUnmapMemory");
-	vkFlushMappedMemoryRanges=getProcAddr<PFN_vkFlushMappedMemoryRanges>("vkFlushMappedMemoryRanges");
-	vkCreateImage        =getProcAddr<PFN_vkCreateImage        >("vkCreateImage");
-	vkDestroyImage       =getProcAddr<PFN_vkDestroyImage       >("vkDestroyImage");
-	vkCreateImageView    =getProcAddr<PFN_vkCreateImageView    >("vkCreateImageView");
-	vkDestroyImageView   =getProcAddr<PFN_vkDestroyImageView   >("vkDestroyImageView");
-	vkCreateSampler      =getProcAddr<PFN_vkCreateSampler      >("vkCreateSampler");
-	vkDestroySampler     =getProcAddr<PFN_vkDestroySampler     >("vkDestroySampler");
-	vkCreateFramebuffer  =getProcAddr<PFN_vkCreateFramebuffer  >("vkCreateFramebuffer");
-	vkDestroyFramebuffer =getProcAddr<PFN_vkDestroyFramebuffer >("vkDestroyFramebuffer");
-	vkCreateSwapchainKHR =getProcAddr<PFN_vkCreateSwapchainKHR >("vkCreateSwapchainKHR");
-	vkDestroySwapchainKHR=getProcAddr<PFN_vkDestroySwapchainKHR>("vkDestroySwapchainKHR");
-	vkGetSwapchainImagesKHR=getProcAddr<PFN_vkGetSwapchainImagesKHR>("vkGetSwapchainImagesKHR");
-	vkAcquireNextImageKHR=getProcAddr<PFN_vkAcquireNextImageKHR>("vkAcquireNextImageKHR");
-	vkQueuePresentKHR    =getProcAddr<PFN_vkQueuePresentKHR    >("vkQueuePresentKHR");
-	vkCreateShaderModule =getProcAddr<PFN_vkCreateShaderModule >("vkCreateShaderModule");
-	vkDestroyShaderModule=getProcAddr<PFN_vkDestroyShaderModule>("vkDestroyShaderModule");
-	vkCreateDescriptorSetLayout=getProcAddr<PFN_vkCreateDescriptorSetLayout>("vkCreateDescriptorSetLayout");
-	vkDestroyDescriptorSetLayout=getProcAddr<PFN_vkDestroyDescriptorSetLayout>("vkDestroyDescriptorSetLayout");
-	vkCreateDescriptorPool=getProcAddr<PFN_vkCreateDescriptorPool>("vkCreateDescriptorPool");
-	vkDestroyDescriptorPool=getProcAddr<PFN_vkDestroyDescriptorPool>("vkDestroyDescriptorPool");
-	vkResetDescriptorPool=getProcAddr<PFN_vkResetDescriptorPool>("vkResetDescriptorPool");
-	vkAllocateDescriptorSets=getProcAddr<PFN_vkAllocateDescriptorSets>("vkAllocateDescriptorSets");
-	vkUpdateDescriptorSets=getProcAddr<PFN_vkUpdateDescriptorSets>("vkUpdateDescriptorSets");
-	vkFreeDescriptorSets =getProcAddr<PFN_vkFreeDescriptorSets >("vkFreeDescriptorSets");
-	vkCreatePipelineCache=getProcAddr<PFN_vkCreatePipelineCache>("vkCreatePipelineCache");
-	vkDestroyPipelineCache=getProcAddr<PFN_vkDestroyPipelineCache>("vkDestroyPipelineCache");
-	vkCreatePipelineLayout=getProcAddr<PFN_vkCreatePipelineLayout>("vkCreatePipelineLayout");
-	vkDestroyPipelineLayout=getProcAddr<PFN_vkDestroyPipelineLayout>("vkDestroyPipelineLayout");
-	vkCreateGraphicsPipelines=getProcAddr<PFN_vkCreateGraphicsPipelines>("vkCreateGraphicsPipelines");
-	vkCreateComputePipelines=getProcAddr<PFN_vkCreateComputePipelines>("vkCreateComputePipelines");
-	vkDestroyPipeline    =getProcAddr<PFN_vkDestroyPipeline    >("vkDestroyPipeline");
-	vkCreateSemaphore    =getProcAddr<PFN_vkCreateSemaphore    >("vkCreateSemaphore");
-	vkDestroySemaphore   =getProcAddr<PFN_vkDestroySemaphore   >("vkDestroySemaphore");
-	vkCreateCommandPool  =getProcAddr<PFN_vkCreateCommandPool  >("vkCreateCommandPool");
-	vkDestroyCommandPool =getProcAddr<PFN_vkDestroyCommandPool >("vkDestroyCommandPool");
-	vkAllocateCommandBuffers=getProcAddr<PFN_vkAllocateCommandBuffers>("vkAllocateCommandBuffers");
-	vkFreeCommandBuffers =getProcAddr<PFN_vkFreeCommandBuffers >("vkFreeCommandBuffers");
-	vkBeginCommandBuffer =getProcAddr<PFN_vkBeginCommandBuffer >("vkBeginCommandBuffer");
-	vkEndCommandBuffer   =getProcAddr<PFN_vkEndCommandBuffer   >("vkEndCommandBuffer");
-	vkResetCommandPool   =getProcAddr<PFN_vkResetCommandPool   >("vkResetCommandPool");
-	vkCmdPushConstants   =getProcAddr<PFN_vkCmdPushConstants   >("vkCmdPushConstants");
-	vkCmdBeginRenderPass =getProcAddr<PFN_vkCmdBeginRenderPass >("vkCmdBeginRenderPass");
-	vkCmdEndRenderPass   =getProcAddr<PFN_vkCmdEndRenderPass   >("vkCmdEndRenderPass");
-	vkCmdExecuteCommands =getProcAddr<PFN_vkCmdExecuteCommands >("vkCmdExecuteCommands");
-	vkCmdCopyBuffer      =getProcAddr<PFN_vkCmdCopyBuffer      >("vkCmdCopyBuffer");
-	vkCreateFence        =getProcAddr<PFN_vkCreateFence        >("vkCreateFence");
-	vkDestroyFence       =getProcAddr<PFN_vkDestroyFence       >("vkDestroyFence");
-	vkCmdBindPipeline    =getProcAddr<PFN_vkCmdBindPipeline    >("vkCmdBindPipeline");
-	vkCmdBindDescriptorSets=getProcAddr<PFN_vkCmdBindDescriptorSets>("vkCmdBindDescriptorSets");
-	vkCmdBindIndexBuffer =getProcAddr<PFN_vkCmdBindIndexBuffer >("vkCmdBindIndexBuffer");
-	vkCmdBindVertexBuffers=getProcAddr<PFN_vkCmdBindVertexBuffers>("vkCmdBindVertexBuffers");
-	vkCmdDrawIndexedIndirect=getProcAddr<PFN_vkCmdDrawIndexedIndirect>("vkCmdDrawIndexedIndirect");
-	vkCmdDrawIndexed     =getProcAddr<PFN_vkCmdDrawIndexed     >("vkCmdDrawIndexed");
-	vkCmdDraw            =getProcAddr<PFN_vkCmdDraw            >("vkCmdDraw");
-	vkCmdDrawIndirect    =getProcAddr<PFN_vkCmdDrawIndirect    >("vkCmdDrawIndirect");
-	vkCmdDispatch        =getProcAddr<PFN_vkCmdDispatch        >("vkCmdDispatch");
-	vkCmdDispatchIndirect=getProcAddr<PFN_vkCmdDispatchIndirect>("vkCmdDispatchIndirect");
-	vkCmdDispatchBase    =getProcAddr<PFN_vkCmdDispatchBase    >("vkCmdDispatchBase");
-	vkCmdPipelineBarrier =getProcAddr<PFN_vkCmdPipelineBarrier >("vkCmdPipelineBarrier");
-	vkCmdSetDepthBias    =getProcAddr<PFN_vkCmdSetDepthBias    >("vkCmdSetDepthBias");
-	vkCmdSetLineWidth    =getProcAddr<PFN_vkCmdSetLineWidth    >("vkCmdSetLineWidth");
-	vkCmdSetLineStippleEXT=getProcAddr<PFN_vkCmdSetLineStippleEXT>("vkCmdSetLineStippleEXT");
-	vkQueueSubmit        =getProcAddr<PFN_vkQueueSubmit        >("vkQueueSubmit");
-	vkWaitForFences      =getProcAddr<PFN_vkWaitForFences      >("vkWaitForFences");
-	vkResetFences        =getProcAddr<PFN_vkResetFences        >("vkResetFences");
-	vkQueueWaitIdle      =getProcAddr<PFN_vkQueueWaitIdle      >("vkQueueWaitIdle");
-	vkDeviceWaitIdle     =getProcAddr<PFN_vkDeviceWaitIdle     >("vkDeviceWaitIdle");
-	vkCmdResetQueryPool  =getProcAddr<PFN_vkCmdResetQueryPool  >("vkCmdResetQueryPool");
-	vkCmdWriteTimestamp  =getProcAddr<PFN_vkCmdWriteTimestamp  >("vkCmdWriteTimestamp");
-	vkGetCalibratedTimestampsEXT=getProcAddr<PFN_vkGetCalibratedTimestampsEXT>("vkGetCalibratedTimestampsEXT");
-	vkCreateQueryPool    =getProcAddr<PFN_vkCreateQueryPool    >("vkCreateQueryPool");
-	vkDestroyQueryPool   =getProcAddr<PFN_vkDestroyQueryPool   >("vkDestroyQueryPool");
-	vkGetQueryPoolResults=getProcAddr<PFN_vkGetQueryPoolResults>("vkGetQueryPoolResults");*/
+	funcs.vkGetDeviceProcAddr      = getDeviceProcAddr<PFN_vkGetDeviceProcAddr  >("vkGetDeviceProcAddr");
+	funcs.vkDestroyDevice          = getDeviceProcAddr<PFN_vkDestroyDevice      >("vkDestroyDevice");
+	funcs.vkGetDeviceQueue         = getDeviceProcAddr<PFN_vkGetDeviceQueue     >("vkGetDeviceQueue");
+	funcs.vkCreateRenderPass       = getDeviceProcAddr<PFN_vkCreateRenderPass   >("vkCreateRenderPass");
+	funcs.vkDestroyRenderPass      = getDeviceProcAddr<PFN_vkDestroyRenderPass  >("vkDestroyRenderPass");
+	funcs.vkCreateBuffer           = getDeviceProcAddr<PFN_vkCreateBuffer       >("vkCreateBuffer");
+	funcs.vkDestroyBuffer          = getDeviceProcAddr<PFN_vkDestroyBuffer      >("vkDestroyBuffer");
+	funcs.vkGetBufferDeviceAddress = getDeviceProcAddr<PFN_vkGetBufferDeviceAddress>("vkGetBufferDeviceAddress");
+	funcs.vkAllocateMemory         = getDeviceProcAddr<PFN_vkAllocateMemory     >("vkAllocateMemory");
+	funcs.vkBindBufferMemory       = getDeviceProcAddr<PFN_vkBindBufferMemory   >("vkBindBufferMemory");
+	funcs.vkBindImageMemory        = getDeviceProcAddr<PFN_vkBindImageMemory    >("vkBindImageMemory");
+	funcs.vkFreeMemory             = getDeviceProcAddr<PFN_vkFreeMemory         >("vkFreeMemory");
+	funcs.vkGetBufferMemoryRequirements = getDeviceProcAddr<PFN_vkGetBufferMemoryRequirements>("vkGetBufferMemoryRequirements");
+	funcs.vkGetImageMemoryRequirements = getDeviceProcAddr<PFN_vkGetImageMemoryRequirements >("vkGetImageMemoryRequirements");
+	funcs.vkMapMemory              = getDeviceProcAddr<PFN_vkMapMemory          >("vkMapMemory");
+	funcs.vkUnmapMemory            = getDeviceProcAddr<PFN_vkUnmapMemory        >("vkUnmapMemory");
+	funcs.vkFlushMappedMemoryRanges = getDeviceProcAddr<PFN_vkFlushMappedMemoryRanges>("vkFlushMappedMemoryRanges");
+	funcs.vkCreateImage            = getDeviceProcAddr<PFN_vkCreateImage        >("vkCreateImage");
+	funcs.vkDestroyImage           = getDeviceProcAddr<PFN_vkDestroyImage       >("vkDestroyImage");
+	funcs.vkCreateImageView        = getDeviceProcAddr<PFN_vkCreateImageView    >("vkCreateImageView");
+	funcs.vkDestroyImageView       = getDeviceProcAddr<PFN_vkDestroyImageView   >("vkDestroyImageView");
+	funcs.vkCreateSampler          = getDeviceProcAddr<PFN_vkCreateSampler      >("vkCreateSampler");
+	funcs.vkDestroySampler         = getDeviceProcAddr<PFN_vkDestroySampler     >("vkDestroySampler");
+	funcs.vkCreateFramebuffer      = getDeviceProcAddr<PFN_vkCreateFramebuffer  >("vkCreateFramebuffer");
+	funcs.vkDestroyFramebuffer     = getDeviceProcAddr<PFN_vkDestroyFramebuffer >("vkDestroyFramebuffer");
+	funcs.vkCreateSwapchainKHR     = getDeviceProcAddr<PFN_vkCreateSwapchainKHR >("vkCreateSwapchainKHR");
+	funcs.vkDestroySwapchainKHR    = getDeviceProcAddr<PFN_vkDestroySwapchainKHR>("vkDestroySwapchainKHR");
+	funcs.vkGetSwapchainImagesKHR  = getDeviceProcAddr<PFN_vkGetSwapchainImagesKHR>("vkGetSwapchainImagesKHR");
+	funcs.vkAcquireNextImageKHR    = getDeviceProcAddr<PFN_vkAcquireNextImageKHR>("vkAcquireNextImageKHR");
+	funcs.vkQueuePresentKHR        = getDeviceProcAddr<PFN_vkQueuePresentKHR    >("vkQueuePresentKHR");
+	funcs.vkCreateShaderModule     = getDeviceProcAddr<PFN_vkCreateShaderModule >("vkCreateShaderModule");
+	funcs.vkDestroyShaderModule    = getDeviceProcAddr<PFN_vkDestroyShaderModule>("vkDestroyShaderModule");
+	funcs.vkCreateDescriptorSetLayout = getDeviceProcAddr<PFN_vkCreateDescriptorSetLayout>("vkCreateDescriptorSetLayout");
+	funcs.vkDestroyDescriptorSetLayout = getDeviceProcAddr<PFN_vkDestroyDescriptorSetLayout>("vkDestroyDescriptorSetLayout");
+	funcs.vkCreateDescriptorPool   = getDeviceProcAddr<PFN_vkCreateDescriptorPool>("vkCreateDescriptorPool");
+	funcs.vkDestroyDescriptorPool  = getDeviceProcAddr<PFN_vkDestroyDescriptorPool>("vkDestroyDescriptorPool");
+	funcs.vkResetDescriptorPool    = getDeviceProcAddr<PFN_vkResetDescriptorPool>("vkResetDescriptorPool");
+	funcs.vkAllocateDescriptorSets = getDeviceProcAddr<PFN_vkAllocateDescriptorSets>("vkAllocateDescriptorSets");
+	funcs.vkUpdateDescriptorSets   = getDeviceProcAddr<PFN_vkUpdateDescriptorSets>("vkUpdateDescriptorSets");
+	funcs.vkFreeDescriptorSets     = getDeviceProcAddr<PFN_vkFreeDescriptorSets >("vkFreeDescriptorSets");
+	funcs.vkCreatePipelineCache    = getDeviceProcAddr<PFN_vkCreatePipelineCache>("vkCreatePipelineCache");
+	funcs.vkDestroyPipelineCache   = getDeviceProcAddr<PFN_vkDestroyPipelineCache>("vkDestroyPipelineCache");
+	funcs.vkCreatePipelineLayout   = getDeviceProcAddr<PFN_vkCreatePipelineLayout>("vkCreatePipelineLayout");
+	funcs.vkDestroyPipelineLayout  = getDeviceProcAddr<PFN_vkDestroyPipelineLayout>("vkDestroyPipelineLayout");
+	funcs.vkCreateGraphicsPipelines = getDeviceProcAddr<PFN_vkCreateGraphicsPipelines>("vkCreateGraphicsPipelines");
+	funcs.vkCreateComputePipelines = getDeviceProcAddr<PFN_vkCreateComputePipelines>("vkCreateComputePipelines");
+	funcs.vkDestroyPipeline        = getDeviceProcAddr<PFN_vkDestroyPipeline    >("vkDestroyPipeline");
+	funcs.vkCreateSemaphore        = getDeviceProcAddr<PFN_vkCreateSemaphore    >("vkCreateSemaphore");
+	funcs.vkDestroySemaphore       = getDeviceProcAddr<PFN_vkDestroySemaphore   >("vkDestroySemaphore");
+	funcs.vkCreateCommandPool      = getDeviceProcAddr<PFN_vkCreateCommandPool  >("vkCreateCommandPool");
+	funcs.vkDestroyCommandPool     = getDeviceProcAddr<PFN_vkDestroyCommandPool >("vkDestroyCommandPool");
+	funcs.vkAllocateCommandBuffers = getDeviceProcAddr<PFN_vkAllocateCommandBuffers>("vkAllocateCommandBuffers");
+	funcs.vkFreeCommandBuffers     = getDeviceProcAddr<PFN_vkFreeCommandBuffers >("vkFreeCommandBuffers");
+	funcs.vkBeginCommandBuffer     = getDeviceProcAddr<PFN_vkBeginCommandBuffer >("vkBeginCommandBuffer");
+	funcs.vkEndCommandBuffer       = getDeviceProcAddr<PFN_vkEndCommandBuffer   >("vkEndCommandBuffer");
+	funcs.vkResetCommandPool       = getDeviceProcAddr<PFN_vkResetCommandPool   >("vkResetCommandPool");
+	funcs.vkCmdPushConstants       = getDeviceProcAddr<PFN_vkCmdPushConstants   >("vkCmdPushConstants");
+	funcs.vkCmdBeginRenderPass     = getDeviceProcAddr<PFN_vkCmdBeginRenderPass >("vkCmdBeginRenderPass");
+	funcs.vkCmdEndRenderPass       = getDeviceProcAddr<PFN_vkCmdEndRenderPass   >("vkCmdEndRenderPass");
+	funcs.vkCmdExecuteCommands     = getDeviceProcAddr<PFN_vkCmdExecuteCommands >("vkCmdExecuteCommands");
+	funcs.vkCmdCopyBuffer          = getDeviceProcAddr<PFN_vkCmdCopyBuffer      >("vkCmdCopyBuffer");
+	funcs.vkCreateFence            = getDeviceProcAddr<PFN_vkCreateFence        >("vkCreateFence");
+	funcs.vkDestroyFence           = getDeviceProcAddr<PFN_vkDestroyFence       >("vkDestroyFence");
+	funcs.vkCmdBindPipeline        = getDeviceProcAddr<PFN_vkCmdBindPipeline    >("vkCmdBindPipeline");
+	funcs.vkCmdBindDescriptorSets  = getDeviceProcAddr<PFN_vkCmdBindDescriptorSets>("vkCmdBindDescriptorSets");
+	funcs.vkCmdBindIndexBuffer     = getDeviceProcAddr<PFN_vkCmdBindIndexBuffer >("vkCmdBindIndexBuffer");
+	funcs.vkCmdBindVertexBuffers   = getDeviceProcAddr<PFN_vkCmdBindVertexBuffers>("vkCmdBindVertexBuffers");
+	funcs.vkCmdDrawIndexedIndirect = getDeviceProcAddr<PFN_vkCmdDrawIndexedIndirect>("vkCmdDrawIndexedIndirect");
+	funcs.vkCmdDrawIndexed         = getDeviceProcAddr<PFN_vkCmdDrawIndexed     >("vkCmdDrawIndexed");
+	funcs.vkCmdDraw                = getDeviceProcAddr<PFN_vkCmdDraw            >("vkCmdDraw");
+	funcs.vkCmdDrawIndirect        = getDeviceProcAddr<PFN_vkCmdDrawIndirect    >("vkCmdDrawIndirect");
+	funcs.vkCmdDispatch            = getDeviceProcAddr<PFN_vkCmdDispatch        >("vkCmdDispatch");
+	funcs.vkCmdDispatchIndirect    = getDeviceProcAddr<PFN_vkCmdDispatchIndirect>("vkCmdDispatchIndirect");
+	funcs.vkCmdDispatchBase        = getDeviceProcAddr<PFN_vkCmdDispatchBase    >("vkCmdDispatchBase");
+	funcs.vkCmdPipelineBarrier     = getDeviceProcAddr<PFN_vkCmdPipelineBarrier >("vkCmdPipelineBarrier");
+	funcs.vkCmdSetDepthBias        = getDeviceProcAddr<PFN_vkCmdSetDepthBias    >("vkCmdSetDepthBias");
+	funcs.vkCmdSetLineWidth        = getDeviceProcAddr<PFN_vkCmdSetLineWidth    >("vkCmdSetLineWidth");
+	funcs.vkCmdSetLineStippleEXT   = getDeviceProcAddr<PFN_vkCmdSetLineStippleEXT>("vkCmdSetLineStippleEXT");
+	funcs.vkQueueSubmit            = getDeviceProcAddr<PFN_vkQueueSubmit        >("vkQueueSubmit");
+	funcs.vkWaitForFences          = getDeviceProcAddr<PFN_vkWaitForFences      >("vkWaitForFences");
+	funcs.vkResetFences            = getDeviceProcAddr<PFN_vkResetFences        >("vkResetFences");
+	funcs.vkQueueWaitIdle          = getDeviceProcAddr<PFN_vkQueueWaitIdle      >("vkQueueWaitIdle");
+	funcs.vkDeviceWaitIdle         = getDeviceProcAddr<PFN_vkDeviceWaitIdle     >("vkDeviceWaitIdle");
+	funcs.vkCmdResetQueryPool      = getDeviceProcAddr<PFN_vkCmdResetQueryPool  >("vkCmdResetQueryPool");
+	funcs.vkCmdWriteTimestamp      = getDeviceProcAddr<PFN_vkCmdWriteTimestamp  >("vkCmdWriteTimestamp");
+	funcs.vkGetCalibratedTimestampsEXT = getDeviceProcAddr<PFN_vkGetCalibratedTimestampsEXT>("vkGetCalibratedTimestampsEXT");
+	funcs.vkCreateQueryPool        = getDeviceProcAddr<PFN_vkCreateQueryPool    >("vkCreateQueryPool");
+	funcs.vkDestroyQueryPool       = getDeviceProcAddr<PFN_vkDestroyQueryPool   >("vkDestroyQueryPool");
+	funcs.vkGetQueryPoolResults    = getDeviceProcAddr<PFN_vkGetQueryPoolResults>("vkGetQueryPoolResults");
 }
 
 
@@ -615,7 +660,7 @@ size_t vk::int32ToString(int32_t value, char* buffer)
 
 // exceptions
 // author: PCJohn (peciva at fit.vut.cz)
-void vk::throwResultException(const char* funcName, Result result)
+void vk::throwResultException(Result result, const char* funcName)
 {
 	switch(result) {
 	case vk::Result::eSuccess: throw SuccessResult(funcName, result);

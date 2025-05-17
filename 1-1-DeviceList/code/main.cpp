@@ -16,18 +16,14 @@ int main(int, char**)
 		// Vulkan instance
 		vk::initInstance(
 			vk::InstanceCreateInfo{
-				.sType = vk::StructureType::eInstanceCreateInfo,
-				.pNext = nullptr,
-				.flags = 0,
+				.flags = {},
 				.pApplicationInfo =
 					&(const vk::ApplicationInfo&)vk::ApplicationInfo{
-						.sType = vk::StructureType::eApplicationInfo,
-						.pNext = nullptr,
 						.pApplicationName = "1-1-DeviceList",
 						.applicationVersion = 0,
 						.pEngineName = nullptr,
 						.engineVersion = 0,
-						.apiVersion = vk::ApiVersion1_0,
+						.apiVersion = vk::ApiVersion10,
 					},
 				.enabledLayerCount = 0,
 				.ppEnabledLayerNames = nullptr,
@@ -36,7 +32,7 @@ int main(int, char**)
 			});
 
 		// print device list
-		vk::Vector<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
+		vk::vector<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
 		cout << "Physical devices:" << endl;
 		for(size_t i=0; i<deviceList.size(); i++) {
 			vk::PhysicalDeviceProperties p = vk::getPhysicalDeviceProperties(deviceList[i]);

@@ -61,13 +61,9 @@ int main(int argc, char* argv[])
 		// Vulkan instance
 		vk::initInstance(
 			vk::InstanceCreateInfo{
-				.sType = vk::StructureType::eInstanceCreateInfo,
-				.pNext = nullptr,
-				.flags = 0,
+				.flags = {},
 				.pApplicationInfo =
 					&(const vk::ApplicationInfo&)vk::ApplicationInfo{
-						.sType = vk::StructureType::eApplicationInfo,
-						.pNext = nullptr,
 						.pApplicationName = "1-5-LogicalDevice",
 						.applicationVersion = 0,
 						.pEngineName = nullptr,
@@ -88,7 +84,7 @@ int main(int argc, char* argv[])
 		cout << "   vkQueueSubmit()        points to: " << getLibraryOfAddr(vk::getInstanceProcAddr<void*>("vkQueueSubmit")) << endl;
 
 		// print device list
-		vk::Vector<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
+		vk::vector<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
 		for(size_t i=0; i<deviceList.size(); i++) {
 
 			// get device properties
@@ -99,11 +95,11 @@ int main(int argc, char* argv[])
 			vk::initDevice(
 				pd,  // physicalDevice
 				vk::DeviceCreateInfo{  // pCreateInfo
-					.flags = 0,
+					.flags = {},
 					.queueCreateInfoCount = 1,  // at least one queue is mandatory
 					.pQueueCreateInfos = array<vk::DeviceQueueCreateInfo,1>{
 						vk::DeviceQueueCreateInfo{
-							.flags = 0,
+							.flags = {},
 							.queueFamilyIndex = 0,
 							.queueCount = 1,
 							.pQueuePriorities = &(const float&)1.f,

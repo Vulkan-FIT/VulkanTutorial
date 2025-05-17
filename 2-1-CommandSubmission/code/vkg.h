@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
+#include <new>
 #include <stdlib.h>
 #include <string.h>
 #include <utility>
@@ -27,7 +29,7 @@ public:
 	using HandleType = T;
 
 	Handle() noexcept  {}
-	Handle(nullptr_t) noexcept  : _handle(nullptr) {}
+	Handle(std::nullptr_t) noexcept  : _handle(nullptr) {}
 	Handle(T nativeHandle) noexcept  : _handle(nativeHandle) {}
 	Handle(const Handle& h) noexcept  : _handle(h._handle) {}
 	Handle(const UniqueHandle<Handle<T>>& u) noexcept  : _handle(u.get().handle()) {}
@@ -2595,6 +2597,25 @@ public:
 };
 
 
+template<typename BitType>
+constexpr Flags<BitType> operator&(BitType bit, const Flags<BitType>& flags) noexcept  { return flags.operator&(bit); }
+
+template<typename BitType>
+constexpr Flags<BitType> operator|(BitType bit, const Flags<BitType>& flags) noexcept  { return flags.operator|(bit); }
+
+template<typename BitType>
+constexpr Flags<BitType> operator^(BitType bit, const Flags<BitType>& flags) noexcept  { return flags.operator^(bit); }
+
+template<typename BitType>
+constexpr Flags<BitType> operator&(BitType lhs, BitType rhs) noexcept  { return Flags<BitType>(lhs) & rhs; }
+
+template <typename BitType>
+constexpr Flags<BitType> operator|(BitType lhs, BitType rhs) noexcept  { return Flags<BitType>(lhs) | rhs; }
+
+template <typename BitType>
+constexpr Flags<BitType> operator^(BitType lhs, BitType rhs) noexcept  { return Flags<BitType>(lhs) ^ rhs; }
+
+
 enum class FramebufferCreateFlagBits : uint32_t {
 	eImageless = 0x1,
 	eImagelessKHR = 0x1,
@@ -4207,8 +4228,8 @@ enum class VideoCodecOperationFlagBitsKHR : uint32_t {
 	eEncodeH265 = 0x20000,
 	eDecodeH264 = 0x1,
 	eDecodeH265 = 0x2,
-	eDecodeAv1 = 0x4,
-	eEncodeAv1 = 0x40000,
+	eDecodeAV1 = 0x4,
+	eEncodeAV1 = 0x40000,
 };
 using VideoCodecOperationFlagsKHR = Flags<VideoCodecOperationFlagBitsKHR>;
 
@@ -10871,6 +10892,8 @@ typedef struct DeviceCreateInfo {
 	uint32_t                           enabledExtensionCount;
 	const char* const*                 ppEnabledExtensionNames;
 	const PhysicalDeviceFeatures*      pEnabledFeatures;
+
+	constexpr DeviceCreateInfo& setPNext(const void* pNext_) noexcept  { pNext = pNext_; return *this; }
 } DeviceCreateInfo;
 
 typedef struct BufferViewCreateInfo {
@@ -11454,6 +11477,7 @@ using PFN_vkGetDeviceProcAddr = PFN_vkVoidFunction (VKAPI_PTR *)(Device::HandleT
 using PFN_vkGetDeviceQueue = void (VKAPI_PTR *)(Device::HandleType deviceHandle, uint32_t queueFamilyIndex, uint32_t queueIndex, Queue::HandleType* pQueueHandle);
 using PFN_vkCreateBuffer = Result (VKAPI_PTR *)(Device::HandleType deviceHandle, const BufferCreateInfo* pCreateInfo, const AllocationCallbacks* pAllocator, Buffer::HandleType* pBufferHandle);
 using PFN_vkDestroyBuffer = void (VKAPI_PTR *)(Device::HandleType deviceHandle, Buffer::HandleType bufferHandle, const AllocationCallbacks* pAllocator);
+using PFN_vkGetBufferDeviceAddress = vk::DeviceAddress (VKAPI_PTR *)(Device::HandleType deviceHandle, const vk::BufferDeviceAddressInfo* pInfo);
 using PFN_vkCreateBufferView = Result (VKAPI_PTR *)(Device::HandleType deviceHandle, const BufferViewCreateInfo* pCreateInfo, const AllocationCallbacks* pAllocator, BufferView::HandleType* pViewHandle);
 using PFN_vkDestroyBufferView = void (VKAPI_PTR *)(Device::HandleType deviceHandle, BufferView::HandleType bufferViewHandle, const AllocationCallbacks* pAllocator);
 using PFN_vkEnumerateDeviceLayerProperties = Result (VKAPI_PTR *)(PhysicalDevice::HandleType physicalDeviceHandle, uint32_t* pPropertyCount, LayerProperties* pProperties);
@@ -11536,6 +11560,7 @@ using PFN_vkCmdBindPipeline = void (VKAPI_PTR *)(CommandBuffer::HandleType comma
 using PFN_vkCmdSetViewport = void (VKAPI_PTR *)(CommandBuffer::HandleType commandBufferHandle, uint32_t firstViewport, uint32_t viewportCount, const Viewport* pViewports);
 using PFN_vkCmdSetScissor = void (VKAPI_PTR *)(CommandBuffer::HandleType commandBufferHandle, uint32_t firstScissor, uint32_t scissorCount, const Rect2D* pScissors);
 using PFN_vkCmdSetLineWidth = void (VKAPI_PTR *)(CommandBuffer::HandleType commandBufferHandle, float lineWidth);
+using PFN_vkCmdSetLineStippleEXT = void (VKAPI_PTR *)(CommandBuffer::HandleType commandBuffer, uint32_t lineStippleFactor, uint16_t lineStipplePattern);
 using PFN_vkCmdSetDepthBias = void (VKAPI_PTR *)(CommandBuffer::HandleType commandBufferHandle, float depthBiasConstantFactor, float depthBiasClamp, float depthBiasSlopeFactor);
 using PFN_vkCmdSetBlendConstants = void (VKAPI_PTR *)(CommandBuffer::HandleType commandBufferHandle, const float blendConstants[4]);
 using PFN_vkCmdSetDepthBounds = void (VKAPI_PTR *)(CommandBuffer::HandleType commandBufferHandle, float minDepthBounds, float maxDepthBounds);
@@ -11551,6 +11576,7 @@ using PFN_vkCmdDrawIndirect = void (VKAPI_PTR *)(CommandBuffer::HandleType comma
 using PFN_vkCmdDrawIndexedIndirect = void (VKAPI_PTR *)(CommandBuffer::HandleType commandBufferHandle, Buffer::HandleType bufferHandle, DeviceSize offset, uint32_t drawCount, uint32_t stride);
 using PFN_vkCmdDispatch = void (VKAPI_PTR *)(CommandBuffer::HandleType commandBufferHandle, uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ);
 using PFN_vkCmdDispatchIndirect = void (VKAPI_PTR *)(CommandBuffer::HandleType commandBufferHandle, Buffer::HandleType bufferHandle, DeviceSize offset);
+using PFN_vkCmdDispatchBase = void (VKAPI_PTR *)(CommandBuffer::HandleType commandBuffer, uint32_t baseGroupX, uint32_t baseGroupY, uint32_t baseGroupZ, uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ);
 using PFN_vkCmdCopyBuffer = void (VKAPI_PTR *)(CommandBuffer::HandleType commandBufferHandle, Buffer::HandleType srcBufferHandle, Buffer::HandleType dstBufferHandle, uint32_t regionCount, const BufferCopy* pRegions);
 using PFN_vkCmdCopyImage = void (VKAPI_PTR *)(CommandBuffer::HandleType commandBufferHandle, Image::HandleType srcImageHandle, ImageLayout srcImageLayout, Image::HandleType dstImageHandle, ImageLayout dstImageLayout, uint32_t regionCount, const ImageCopy* pRegions);
 using PFN_vkCmdBlitImage = void (VKAPI_PTR *)(CommandBuffer::HandleType commandBufferHandle, Image::HandleType srcImageHandle, ImageLayout srcImageLayout, Image::HandleType dstImageHandle, ImageLayout dstImageLayout, uint32_t regionCount, const ImageBlit* pRegions, Filter filter);
@@ -11570,6 +11596,7 @@ using PFN_vkCmdBeginQuery = void (VKAPI_PTR *)(CommandBuffer::HandleType command
 using PFN_vkCmdEndQuery = void (VKAPI_PTR *)(CommandBuffer::HandleType commandBufferHandle, QueryPool::HandleType queryPoolHandle, uint32_t query);
 using PFN_vkCmdResetQueryPool = void (VKAPI_PTR *)(CommandBuffer::HandleType commandBufferHandle, QueryPool::HandleType queryPoolHandle, uint32_t firstQuery, uint32_t queryCount);
 using PFN_vkCmdWriteTimestamp = void (VKAPI_PTR *)(CommandBuffer::HandleType commandBufferHandle, PipelineStageFlagBits pipelineStage, QueryPool::HandleType queryPoolHandle, uint32_t query);
+using PFN_vkGetCalibratedTimestampsEXT = Result (VKAPI_PTR *)(Device::HandleType deviceHandle, uint32_t timestampCount, const CalibratedTimestampInfoKHR* pTimestampInfos, uint64_t* pTimestamps, uint64_t* pMaxDeviation);
 using PFN_vkCmdCopyQueryPoolResults = void (VKAPI_PTR *)(CommandBuffer::HandleType commandBufferHandle, QueryPool::HandleType queryPoolHandle, uint32_t firstQuery, uint32_t queryCount, Buffer::HandleType dstBufferHandle, DeviceSize dstOffset, DeviceSize stride, QueryResultFlags flags);
 using PFN_vkCmdPushConstants = void (VKAPI_PTR *)(CommandBuffer::HandleType commandBufferHandle, PipelineLayout layout, ShaderStageFlags stageFlags, uint32_t offset, uint32_t size, const void* pValues);
 using PFN_vkCmdBeginRenderPass = void (VKAPI_PTR *)(CommandBuffer::HandleType commandBufferHandle, const RenderPassBeginInfo* pRenderPassBegin, SubpassContents contents);
@@ -11619,6 +11646,7 @@ struct Funcs {
 	PFN_vkGetDeviceQueue            vkGetDeviceQueue = nullptr;
 	PFN_vkCreateBuffer              vkCreateBuffer = nullptr;
 	PFN_vkDestroyBuffer             vkDestroyBuffer = nullptr;
+	PFN_vkGetBufferDeviceAddress    vkGetBufferDeviceAddress = nullptr;
 	PFN_vkCreateBufferView          vkCreateBufferView = nullptr;
 	PFN_vkDestroyBufferView         vkDestroyBufferView = nullptr;
 	PFN_vkEnumerateDeviceLayerProperties vkEnumerateDeviceLayerProperties = nullptr;
@@ -11672,6 +11700,11 @@ struct Funcs {
 	PFN_vkDestroyPipelineLayout     vkDestroyPipelineLayout = nullptr;
 	PFN_vkCreateSampler             vkCreateSampler = nullptr;
 	PFN_vkDestroySampler            vkDestroySampler = nullptr;
+	PFN_vkCreateFramebuffer         vkCreateFramebuffer = nullptr;
+	PFN_vkDestroyFramebuffer        vkDestroyFramebuffer = nullptr;
+	PFN_vkCreateRenderPass          vkCreateRenderPass = nullptr;
+	PFN_vkDestroyRenderPass         vkDestroyRenderPass = nullptr;
+	PFN_vkGetRenderAreaGranularity  vkGetRenderAreaGranularity = nullptr;
 	PFN_vkCreateDescriptorSetLayout vkCreateDescriptorSetLayout = nullptr;
 	PFN_vkDestroyDescriptorSetLayout vkDestroyDescriptorSetLayout = nullptr;
 	PFN_vkCreateDescriptorPool      vkCreateDescriptorPool = nullptr;
@@ -11680,11 +11713,9 @@ struct Funcs {
 	PFN_vkAllocateDescriptorSets    vkAllocateDescriptorSets = nullptr;
 	PFN_vkFreeDescriptorSets        vkFreeDescriptorSets = nullptr;
 	PFN_vkUpdateDescriptorSets      vkUpdateDescriptorSets = nullptr;
-	PFN_vkCreateFramebuffer         vkCreateFramebuffer = nullptr;
-	PFN_vkDestroyFramebuffer        vkDestroyFramebuffer = nullptr;
-	PFN_vkCreateRenderPass          vkCreateRenderPass = nullptr;
-	PFN_vkDestroyRenderPass         vkDestroyRenderPass = nullptr;
-	PFN_vkGetRenderAreaGranularity  vkGetRenderAreaGranularity = nullptr;
+	PFN_vkCreateDescriptorUpdateTemplate vkCreateDescriptorUpdateTemplate = nullptr;
+	PFN_vkDestroyDescriptorUpdateTemplate vkDestroyDescriptorUpdateTemplate = nullptr;
+	PFN_vkUpdateDescriptorSetWithTemplate vkUpdateDescriptorSetWithTemplate = nullptr;
 	PFN_vkCreateCommandPool         vkCreateCommandPool = nullptr;
 	PFN_vkDestroyCommandPool        vkDestroyCommandPool = nullptr;
 	PFN_vkResetCommandPool          vkResetCommandPool = nullptr;
@@ -11693,23 +11724,67 @@ struct Funcs {
 	PFN_vkBeginCommandBuffer        vkBeginCommandBuffer = nullptr;
 	PFN_vkEndCommandBuffer          vkEndCommandBuffer = nullptr;
 	PFN_vkResetCommandBuffer        vkResetCommandBuffer = nullptr;
-	PFN_vkCreateDescriptorUpdateTemplate vkCreateDescriptorUpdateTemplate = nullptr;
-	PFN_vkDestroyDescriptorUpdateTemplate vkDestroyDescriptorUpdateTemplate = nullptr;
-	PFN_vkUpdateDescriptorSetWithTemplate vkUpdateDescriptorSetWithTemplate = nullptr;
+	PFN_vkCmdPushConstants          vkCmdPushConstants = nullptr;
+	PFN_vkCmdBeginRenderPass        vkCmdBeginRenderPass = nullptr;
+	PFN_vkCmdNextSubpass            vkCmdNextSubpass = nullptr;
+	PFN_vkCmdEndRenderPass          vkCmdEndRenderPass = nullptr;
+	PFN_vkCmdExecuteCommands        vkCmdExecuteCommands = nullptr;
+	PFN_vkCmdCopyBuffer             vkCmdCopyBuffer = nullptr;
+	PFN_vkCmdBindPipeline           vkCmdBindPipeline = nullptr;
+	PFN_vkCmdBindDescriptorSets     vkCmdBindDescriptorSets = nullptr;
+	PFN_vkCmdBindIndexBuffer        vkCmdBindIndexBuffer = nullptr;
+	PFN_vkCmdBindVertexBuffers      vkCmdBindVertexBuffers = nullptr;
+	PFN_vkCmdDrawIndexedIndirect    vkCmdDrawIndexedIndirect = nullptr;
+	PFN_vkCmdDrawIndexed            vkCmdDrawIndexed = nullptr;
+	PFN_vkCmdDraw                   vkCmdDraw = nullptr;
+	PFN_vkCmdDrawIndirect           vkCmdDrawIndirect = nullptr;
+	PFN_vkCmdDispatch               vkCmdDispatch = nullptr;
+	PFN_vkCmdDispatchIndirect       vkCmdDispatchIndirect = nullptr;
+	PFN_vkCmdDispatchBase           vkCmdDispatchBase = nullptr;
+	PFN_vkCmdPipelineBarrier        vkCmdPipelineBarrier = nullptr;
+	PFN_vkCmdSetDepthBias           vkCmdSetDepthBias = nullptr;
+	PFN_vkCmdSetLineWidth           vkCmdSetLineWidth = nullptr;
+	PFN_vkCmdSetLineStippleEXT      vkCmdSetLineStippleEXT = nullptr;
+	PFN_vkCmdSetViewport            vkCmdSetViewport = nullptr;
+	PFN_vkCmdSetScissor             vkCmdSetScissor = nullptr;
+	PFN_vkCmdSetBlendConstants      vkCmdSetBlendConstants = nullptr;
+	PFN_vkCmdSetDepthBounds         vkCmdSetDepthBounds = nullptr;
+	PFN_vkCmdSetStencilCompareMask  vkCmdSetStencilCompareMask = nullptr;
+	PFN_vkCmdSetStencilWriteMask    vkCmdSetStencilWriteMask = nullptr;
+	PFN_vkCmdSetStencilReference    vkCmdSetStencilReference = nullptr;
+	PFN_vkCmdResetQueryPool         vkCmdResetQueryPool = nullptr;
+	PFN_vkCmdWriteTimestamp         vkCmdWriteTimestamp = nullptr;
+	PFN_vkGetCalibratedTimestampsEXT vkGetCalibratedTimestampsEXT = nullptr;
 	PFN_vkDestroySurfaceKHR         vkDestroySurfaceKHR = nullptr;
 	PFN_vkGetPhysicalDeviceSurfaceSupportKHR vkGetPhysicalDeviceSurfaceSupportKHR = nullptr;
 	PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR vkGetPhysicalDeviceSurfaceCapabilitiesKHR = nullptr;
 	PFN_vkGetPhysicalDeviceSurfaceFormatsKHR vkGetPhysicalDeviceSurfaceFormatsKHR = nullptr;
 	PFN_vkGetPhysicalDeviceSurfacePresentModesKHR vkGetPhysicalDeviceSurfacePresentModesKHR = nullptr;
-	PFN_vkCreateSwapchainKHR vkCreateSwapchainKHR = nullptr;
-	PFN_vkDestroySwapchainKHR vkDestroySwapchainKHR = nullptr;
-	PFN_vkGetSwapchainImagesKHR vkGetSwapchainImagesKHR = nullptr;
-	PFN_vkAcquireNextImageKHR vkAcquireNextImageKHR = nullptr;
-	PFN_vkQueuePresentKHR vkQueuePresentKHR = nullptr;
+	PFN_vkCreateSwapchainKHR        vkCreateSwapchainKHR = nullptr;
+	PFN_vkDestroySwapchainKHR       vkDestroySwapchainKHR = nullptr;
+	PFN_vkGetSwapchainImagesKHR     vkGetSwapchainImagesKHR = nullptr;
+	PFN_vkAcquireNextImageKHR       vkAcquireNextImageKHR = nullptr;
+	PFN_vkQueuePresentKHR           vkQueuePresentKHR = nullptr;
 	PFN_vkGetDeviceGroupPresentCapabilitiesKHR vkGetDeviceGroupPresentCapabilitiesKHR = nullptr;
 	PFN_vkGetDeviceGroupSurfacePresentModesKHR vkGetDeviceGroupSurfacePresentModesKHR = nullptr;
 	PFN_vkGetPhysicalDevicePresentRectanglesKHR vkGetPhysicalDevicePresentRectanglesKHR = nullptr;
-	PFN_vkAcquireNextImage2KHR vkAcquireNextImage2KHR = nullptr;
+	PFN_vkAcquireNextImage2KHR      vkAcquireNextImage2KHR = nullptr;
+	PFN_vkCmdCopyImage              vkCmdCopyImage = nullptr;
+	PFN_vkCmdBlitImage              vkCmdBlitImage = nullptr;
+	PFN_vkCmdCopyBufferToImage      vkCmdCopyBufferToImage = nullptr;
+	PFN_vkCmdCopyImageToBuffer      vkCmdCopyImageToBuffer = nullptr;
+	PFN_vkCmdUpdateBuffer           vkCmdUpdateBuffer = nullptr;
+	PFN_vkCmdFillBuffer             vkCmdFillBuffer = nullptr;
+	PFN_vkCmdClearColorImage        vkCmdClearColorImage = nullptr;
+	PFN_vkCmdClearDepthStencilImage vkCmdClearDepthStencilImage = nullptr;
+	PFN_vkCmdClearAttachments       vkCmdClearAttachments = nullptr;
+	PFN_vkCmdResolveImage           vkCmdResolveImage = nullptr;
+	PFN_vkCmdSetEvent               vkCmdSetEvent = nullptr;
+	PFN_vkCmdResetEvent             vkCmdResetEvent = nullptr;
+	PFN_vkCmdWaitEvents             vkCmdWaitEvents = nullptr;
+	PFN_vkCmdBeginQuery             vkCmdBeginQuery = nullptr;
+	PFN_vkCmdEndQuery               vkCmdEndQuery = nullptr;
+	PFN_vkCmdCopyQueryPoolResults   vkCmdCopyQueryPoolResults = nullptr;
 };
 extern Funcs funcs;
 
@@ -12688,9 +12763,9 @@ size_t int32ToString(int32_t value, char* bufferAtLeast12BytesLong);
 // exceptions
 // author: PCJohn (peciva at fit.vut.cz)
 void throwResultExceptionWithMessage(Result result, const char* message);
-void throwResultException(const char* funcName, Result result);
-inline void checkForSuccessValue(Result result, const char* funcName)  { if(result != vk::Result::eSuccess) throwResultException(funcName, result); }
-inline void checkSuccess(Result result, const char* funcName)  { if(int32_t(result) < 0) throwResultException(funcName, result); }
+void throwResultException(Result result, const char* funcName);
+inline void checkForSuccessValue(Result result, const char* funcName)  { if(result != vk::Result::eSuccess) throwResultException(result, funcName); }
+inline void checkSuccess(Result result, const char* funcName)  { if(int32_t(result) < 0) throwResultException(result, funcName); }
 
 class Error {
 protected:
@@ -12903,7 +12978,7 @@ vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2_throw(Phy
 {
 	// get num queue families
 	uint32_t n;
-	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd, &n, nullptr);
+	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd.handle(), &n, nullptr);
 	if(n == 0)
 		return {};
 
@@ -12923,7 +12998,7 @@ vector<QueueFamilyProperties2> getPhysicalDeviceQueueFamilyProperties2_throw(Phy
 	}
 
 	// enumerate physical devices
-	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd, &n, queueFamilyProperties.data());
+	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd.handle(), &n, queueFamilyProperties.data());
 	return queueFamilyProperties;
 }
 template<typename... ArgPack>
@@ -12931,7 +13006,7 @@ Result getPhysicalDeviceQueueFamilyProperties2_noThrow(PhysicalDevice pd, vector
 {
 	// get num queue families
 	uint32_t n;
-	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd, &n, nullptr);
+	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd.handle(), &n, nullptr);
 
 	// alloc and link pNext structures
 	detail::GetPhysicalDeviceQueueFamilyProperties2_struct s =
@@ -12951,7 +13026,7 @@ Result getPhysicalDeviceQueueFamilyProperties2_noThrow(PhysicalDevice pd, vector
 	}
 
 	// enumerate physical devices
-	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd, &n, queueFamilyProperties.data());
+	funcs.vkGetPhysicalDeviceQueueFamilyProperties2(pd.handle(), &n, queueFamilyProperties.data());
 	return Result::eSuccess;
 }
 template<typename... ArgPack>
@@ -12975,11 +13050,13 @@ inline Result getPhysicalDeviceQueueFamilyProperties2_noThrow(vector<QueueFamily
 
 inline Queue getDeviceQueue(uint32_t queueFamilyIndex, uint32_t queueIndex) noexcept  { Queue::HandleType h; funcs.vkGetDeviceQueue(detail::_device.handle(), queueFamilyIndex, queueIndex, &h); return h; }
 
-inline CommandPool createCommandPool_throw(const CommandPoolCreateInfo& createInfo)  { CommandPool::HandleType h; Result r = funcs.vkCreateCommandPool(detail::_device.handle(), &createInfo, nullptr, &h); checkForSuccessValue(r, "vkCreateCommandPool"); return h; }
+template<typename T> void processResult(Result r, T& handle, const char* functionName)  { if(r > Result::eSuccess) { destroy(handle); handle = nullptr; } if(r != Result::eSuccess) throwResultException(r, functionName); }
+
+inline CommandPool createCommandPool_throw(const CommandPoolCreateInfo& createInfo)  { CommandPool::HandleType h; Result r = funcs.vkCreateCommandPool(detail::_device.handle(), &createInfo, nullptr, &h); processResult(r, h, "vkCreateCommandPool"); return h; }
 inline Result createCommandPool_noThrow(const CommandPoolCreateInfo& createInfo, CommandPool& v) noexcept  { return funcs.vkCreateCommandPool(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<CommandPool::HandleType*>(&v)); }
 inline CommandPool createCommandPool(const CommandPoolCreateInfo& createInfo)  { return createCommandPool_throw(createInfo); }
-inline UniqueCommandPool createCommandPoolUnique_throw(const CommandPoolCreateInfo& createInfo)  { CommandPool::HandleType h; Result r = funcs.vkCreateCommandPool(detail::_device.handle(), &createInfo, nullptr, &h); if(r>Result::eSuccess) funcs.vkDestroyCommandPool(detail::_device.handle(), h, nullptr); checkForSuccessValue(r, "vkCreateCommandPool"); return UniqueCommandPool(h); }
-inline Result createCommandPoolUnique_noThrow(const CommandPoolCreateInfo& createInfo, UniqueCommandPool& u) noexcept  { CommandPool::HandleType h; Result r = funcs.vkCreateCommandPool(detail::_device.handle(), &createInfo, nullptr, &h); u.reset(h); return r; }
+inline UniqueCommandPool createCommandPoolUnique_throw(const CommandPoolCreateInfo& createInfo)  { return UniqueCommandPool(createCommandPool_throw(createInfo)); }
+inline Result createCommandPoolUnique_noThrow(const CommandPoolCreateInfo& createInfo, UniqueCommandPool& u) noexcept  { u.reset(); return funcs.vkCreateCommandPool(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<CommandPool::HandleType*>(&u)); }
 inline UniqueCommandPool createCommandPoolUnique(const CommandPoolCreateInfo& createInfo)  { return createCommandPoolUnique_throw(createInfo); }
 
 inline void destroyCommandPool(CommandPool commandPool) noexcept  { funcs.vkDestroyCommandPool(detail::_device.handle(), commandPool.handle(), nullptr); }
@@ -12993,7 +13070,7 @@ inline CommandBuffer allocateCommandBuffer_throw(const CommandBufferAllocateInfo
 inline Result allocateCommandBuffer_noThrow(const CommandBufferAllocateInfo& allocateInfo, CommandBuffer& commandBuffer) noexcept  { return funcs.vkAllocateCommandBuffers(detail::_device.handle(), &allocateInfo, reinterpret_cast<CommandBuffer::HandleType*>(&commandBuffer)); }
 inline CommandBuffer allocateCommandBuffer(const CommandBufferAllocateInfo& allocateInfo)  { return allocateCommandBuffer_throw(allocateInfo); }
 inline vector<CommandBuffer> allocateCommandBuffers_throw(const CommandBufferAllocateInfo& allocateInfo)  { vector<CommandBuffer> l; if(!l.alloc_noThrow(allocateInfo.commandBufferCount)) throw OutOfHostMemoryError("allocateCommandBuffers_throw(): Out of host memory."); Result r = funcs.vkAllocateCommandBuffers(detail::_device.handle(), &allocateInfo, reinterpret_cast<CommandBuffer::HandleType*>(l.data())); if(r > Result::eSuccess) funcs.vkFreeCommandBuffers(detail::_device.handle(), allocateInfo.commandPool.handle(), 1, reinterpret_cast<CommandBuffer::HandleType*>(l.data())); checkForSuccessValue(r, "vkAllocateCommandBuffers"); return l; }
-inline Result allocateCommandBuffers_noThrow(const CommandBufferAllocateInfo& allocateInfo, vector<CommandBuffer>& commandBufferList)  { if(!commandBufferList.alloc_noThrow(allocateInfo.commandBufferCount)) return vk::Result::eErrorOutOfHostMemory; return funcs.vkAllocateCommandBuffers(detail::_device.handle(), &allocateInfo, reinterpret_cast<CommandBuffer::HandleType*>(commandBufferList.data())); }
+inline Result allocateCommandBuffers_noThrow(const CommandBufferAllocateInfo& allocateInfo, vector<CommandBuffer>& commandBufferList) noexcept  { if(!commandBufferList.alloc_noThrow(allocateInfo.commandBufferCount)) return vk::Result::eErrorOutOfHostMemory; return funcs.vkAllocateCommandBuffers(detail::_device.handle(), &allocateInfo, reinterpret_cast<CommandBuffer::HandleType*>(commandBufferList.data())); }
 inline vector<CommandBuffer> allocateCommandBuffers(const CommandBufferAllocateInfo& allocateInfo)  { return allocateCommandBuffers_throw(allocateInfo); }
 
 inline void freeCommandBuffer(CommandPool commandPool, const CommandBuffer commandBuffer) noexcept  { funcs.vkFreeCommandBuffers(detail::_device.handle(), commandPool.handle(), 1, reinterpret_cast<const CommandBuffer::HandleType*>(&commandBuffer)); }
@@ -13009,11 +13086,11 @@ inline void resetCommandBuffer_throw(CommandBuffer commandBuffer, CommandBufferR
 inline Result resetCommandBuffer_noThrow(CommandBuffer commandBuffer, CommandBufferResetFlags flags) noexcept  { return funcs.vkResetCommandBuffer(commandBuffer.handle(), flags); }
 inline void resetCommandBuffer(CommandBuffer commandBuffer, CommandBufferResetFlags flags)  { resetCommandBuffer_throw(commandBuffer, flags); }
 
-inline Fence createFence_throw(const FenceCreateInfo& createInfo)  { Fence::HandleType h; Result r = funcs.vkCreateFence(detail::_device.handle(), &createInfo, nullptr, &h); checkForSuccessValue(r, "vkCreateFence"); return h; }
+inline Fence createFence_throw(const FenceCreateInfo& createInfo)  { Fence::HandleType h; Result r = funcs.vkCreateFence(detail::_device.handle(), &createInfo, nullptr, &h); processResult(r, h, "vkCreateFence"); return h; }
 inline Result createFence_noThrow(const FenceCreateInfo& createInfo, Fence& fence) noexcept  { return funcs.vkCreateFence(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<Fence::HandleType*>(&fence)); }
 inline Fence createFence(const FenceCreateInfo& createInfo)  { return createFence_throw(createInfo); }
-inline UniqueFence createFenceUnique_throw(const FenceCreateInfo& createInfo)  { Fence::HandleType h; Result r = funcs.vkCreateFence(detail::_device.handle(), &createInfo, nullptr, &h); if(r > Result::eSuccess) funcs.vkDestroyFence(detail::_device.handle(), h, nullptr); checkForSuccessValue(r, "vkCreateFence"); return UniqueFence(h); }
-inline Result createFence_noThrow(const FenceCreateInfo& createInfo, UniqueFence& fence) noexcept  { Fence::HandleType h; Result r = funcs.vkCreateFence(detail::_device.handle(), &createInfo, nullptr, &h); fence.reset(h); return r; }
+inline UniqueFence createFenceUnique_throw(const FenceCreateInfo& createInfo)  { return UniqueFence(createFence_throw(createInfo)); }
+inline Result createFence_noThrow(const FenceCreateInfo& createInfo, UniqueFence& fence) noexcept  { fence.reset(); return funcs.vkCreateFence(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<Fence::HandleType*>(&fence)); }
 inline UniqueFence createFenceUnique(const FenceCreateInfo& createInfo)  { return createFenceUnique_throw(createInfo); }
 
 inline void destroyFence(Fence fence) noexcept  { funcs.vkDestroyFence(detail::_device.handle(), fence.handle(), nullptr); }
@@ -13060,5 +13137,89 @@ inline void deviceWaitIdle(Device device)  { deviceWaitIdle(device); }
 inline void deviceWaitIdle_throw()  { deviceWaitIdle_throw(device()); }
 inline Result deviceWaitIdle_noThrow() noexcept { return deviceWaitIdle_noThrow(device()); }
 inline void deviceWaitIdle()  { deviceWaitIdle(device()); }
+
+inline ShaderModule createShaderModule_throw(const ShaderModuleCreateInfo& createInfo)  { ShaderModule::HandleType h; Result r = funcs.vkCreateShaderModule(detail::_device.handle(), &createInfo, nullptr, &h); processResult(r, h, "vkCreateShaderModule"); return h; }
+inline Result createShaderModule_noThrow(const ShaderModuleCreateInfo& createInfo, ShaderModule& shaderModule) noexcept  { return funcs.vkCreateShaderModule(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<ShaderModule::HandleType*>(&shaderModule)); }
+inline ShaderModule createShaderModule(const ShaderModuleCreateInfo& createInfo)  { return createShaderModule_throw(createInfo); }
+inline UniqueShaderModule createShaderModuleUnique_throw(const ShaderModuleCreateInfo& createInfo)  { return UniqueShaderModule(createShaderModule_throw(createInfo)); }
+inline Result createShaderModuleUnique_noThrow(const ShaderModuleCreateInfo& createInfo, UniqueShaderModule& shaderModule) noexcept  { shaderModule.reset(); return funcs.vkCreateShaderModule(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<ShaderModule::HandleType*>(&shaderModule)); }
+inline UniqueShaderModule createShaderModuleUnique(const ShaderModuleCreateInfo& createInfo)  { return createShaderModuleUnique_throw(createInfo); }
+
+inline void destroyShaderModule(ShaderModule shaderModule) noexcept  { funcs.vkDestroyShaderModule(detail::_device.handle(), shaderModule.handle(), nullptr); }
+inline void destroy(ShaderModule shaderModule) noexcept  { funcs.vkDestroyShaderModule(detail::_device.handle(), shaderModule.handle(), nullptr); }
+
+inline PipelineLayout createPipelineLayout_throw(const vk::PipelineLayoutCreateInfo& createInfo)  { PipelineLayout::HandleType h; Result r = funcs.vkCreatePipelineLayout(detail::_device.handle(), &createInfo, nullptr, &h); processResult(r, h, "vkCreatePipelineLayout"); return h; }
+inline Result createPipelineLayout_noThrow(const vk::PipelineLayoutCreateInfo& createInfo, PipelineLayout& pipelineLayout) noexcept  { return funcs.vkCreatePipelineLayout(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<PipelineLayout::HandleType*>(&pipelineLayout)); }
+inline PipelineLayout createPipelineLayout(const vk::PipelineLayoutCreateInfo& createInfo)  { return createPipelineLayout_throw(createInfo); }
+inline UniquePipelineLayout createPipelineLayoutUnique_throw(const vk::PipelineLayoutCreateInfo& createInfo)  { return UniquePipelineLayout(createPipelineLayout_throw(createInfo)); }
+inline Result createPipelineLayoutUnique_noThrow(const vk::PipelineLayoutCreateInfo& createInfo, UniquePipelineLayout& pipelineLayout) noexcept  { pipelineLayout.reset(); return funcs.vkCreatePipelineLayout(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<PipelineLayout::HandleType*>(&pipelineLayout)); }
+inline UniquePipelineLayout createPipelineLayoutUnique(const vk::PipelineLayoutCreateInfo& createInfo)  { return createPipelineLayoutUnique_throw(createInfo); }
+
+inline void destroyPipelineLayout(PipelineLayout pipelineLayout) noexcept  { funcs.vkDestroyPipelineLayout(detail::_device.handle(), pipelineLayout.handle(), nullptr); }
+inline void destroy(PipelineLayout pipelineLayout) noexcept  { funcs.vkDestroyPipelineLayout(detail::_device.handle(), pipelineLayout.handle(), nullptr); }
+
+inline Pipeline createComputePipeline_throw(PipelineCache pipelineCache, const ComputePipelineCreateInfo& createInfo)  { Pipeline::HandleType h; Result r = funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), 1, &createInfo, nullptr, &h); processResult(r, h, "vkCreateComputePipelines"); return h; }
+inline Result createComputePipeline_noThrow(PipelineCache pipelineCache, const ComputePipelineCreateInfo& createInfo, Pipeline& pipeline) noexcept  { return funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), 1, &createInfo, nullptr, reinterpret_cast<Pipeline::HandleType*>(&pipeline)); }
+inline Pipeline createComputePipeline(PipelineCache pipelineCache, const ComputePipelineCreateInfo& createInfo)  { return createComputePipeline_throw(pipelineCache, createInfo); }
+inline UniquePipeline createComputePipelineUnique_throw(PipelineCache pipelineCache, const ComputePipelineCreateInfo& createInfo)  { return UniquePipeline(createComputePipeline_throw(pipelineCache, createInfo)); }
+inline Result createComputePipelineUnique_noThrow(PipelineCache pipelineCache, const ComputePipelineCreateInfo& createInfo, UniquePipeline& pipeline) noexcept  { pipeline.reset(); return funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), 1, &createInfo, nullptr, reinterpret_cast<Pipeline::HandleType*>(&pipeline)); }
+inline UniquePipeline createComputePipelineUnique(PipelineCache pipelineCache, const ComputePipelineCreateInfo& createInfo)  { return createComputePipelineUnique_throw(pipelineCache, createInfo); }
+
+inline vector<Pipeline> createComputePipelines_throw(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos)  { vector<Pipeline> l; if(!l.alloc_noThrow(createInfoCount)) throw OutOfHostMemoryError("createComputePipelines_throw(): Out of host memory."); Result r = funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), createInfoCount, pCreateInfos, nullptr, reinterpret_cast<Pipeline::HandleType*>(l.data())); if(r != Result::eSuccess) { for(size_t i=0; i<createInfoCount; i++) funcs.vkDestroyPipeline(detail::_device.handle(), l[i].handle(), nullptr); throwResultException(r, "vkCreateComputePipelines"); } return l; }
+inline Result createComputePipelines_noThrow(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos, Pipeline* pPipelines) noexcept  { return funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), createInfoCount, pCreateInfos, nullptr, reinterpret_cast<Pipeline::HandleType*>(pPipelines)); }
+inline vector<Pipeline> createComputePipelines(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos)  { return createComputePipelines_throw(pipelineCache, createInfoCount, pCreateInfos); }
+inline vector<UniquePipeline> createComputePipelinesUnique_throw(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos)  { vector<UniquePipeline> l; if(!l.alloc_noThrow(createInfoCount)) throw OutOfHostMemoryError("createComputePipelinesUnique_throw(): Out of host memory."); Result r = funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), createInfoCount, pCreateInfos, nullptr, reinterpret_cast<Pipeline::HandleType*>(l.data())); if(r != Result::eSuccess) throwResultException(r, "vkCreateComputePipelines"); return l; }
+inline Result createComputePipelinesUnique_noThrow(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos, UniquePipeline* pPipelines) noexcept  { for(uint32_t i=0; i<createInfoCount; i++) pPipelines[i].reset(); return funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), createInfoCount, pCreateInfos, nullptr, reinterpret_cast<Pipeline::HandleType*>(pPipelines)); }
+inline vector<UniquePipeline> createComputePipelinesUnique(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos)  { return createComputePipelinesUnique_throw(pipelineCache, createInfoCount, pCreateInfos); }
+
+inline void destroyPipeline(Pipeline pipeline) noexcept  { funcs.vkDestroyPipeline(detail::_device.handle(), pipeline.handle(), nullptr); }
+inline void destroy(Pipeline pipeline) noexcept  { funcs.vkDestroyPipeline(detail::_device.handle(), pipeline.handle(), nullptr); }
+
+inline void cmdPushConstants(CommandBuffer commandBuffer, PipelineLayout layout, ShaderStageFlags stageFlags, uint32_t offset, uint32_t size, const void* pValues) noexcept  { funcs.vkCmdPushConstants(commandBuffer.handle(), layout, stageFlags, offset, size, pValues); }
+inline void cmdBeginRenderPass(CommandBuffer commandBuffer, const RenderPassBeginInfo& pRenderPassBegin, SubpassContents contents) noexcept  { funcs.vkCmdBeginRenderPass(commandBuffer.handle(), &pRenderPassBegin, contents); }
+inline void cmdNextSubpass(CommandBuffer commandBuffer, SubpassContents contents) noexcept  { funcs.vkCmdNextSubpass(commandBuffer.handle(), contents); }
+inline void cmdEndRenderPass(CommandBuffer commandBuffer) noexcept  { funcs.vkCmdEndRenderPass(commandBuffer.handle()); }
+inline void cmdExecuteCommands(CommandBuffer commandBuffer, uint32_t commandBufferCount, const CommandBuffer* pCommandBufferHandles) noexcept  { funcs.vkCmdExecuteCommands(commandBuffer.handle(), commandBufferCount, reinterpret_cast<const CommandBuffer::HandleType*>(pCommandBufferHandles)); }
+inline void cmdBindPipeline(CommandBuffer commandBuffer, PipelineBindPoint pipelineBindPoint, Pipeline pipeline) noexcept  { funcs.vkCmdBindPipeline(commandBuffer.handle(), pipelineBindPoint, pipeline.handle()); }
+inline void cmdSetViewport(CommandBuffer commandBuffer, uint32_t firstViewport, uint32_t viewportCount, const Viewport* pViewports) noexcept  { funcs.vkCmdSetViewport(commandBuffer.handle(), firstViewport, viewportCount, pViewports); }
+inline void cmdSetScissor(CommandBuffer commandBuffer, uint32_t firstScissor, uint32_t scissorCount, const Rect2D* pScissors) noexcept  { funcs.vkCmdSetScissor(commandBuffer.handle(), firstScissor, scissorCount, pScissors); }
+inline void cmdSetLineWidth(CommandBuffer commandBuffer, float lineWidth) noexcept  { funcs.vkCmdSetLineWidth(commandBuffer.handle(), lineWidth); }
+inline void cmdSetLineStippleEXT(CommandBuffer commandBuffer, uint32_t lineStippleFactor, uint16_t lineStipplePattern) noexcept  { funcs.vkCmdSetLineStippleEXT(commandBuffer.handle(), lineStippleFactor, lineStipplePattern); }
+inline void cmdSetDepthBias(CommandBuffer commandBuffer, float depthBiasConstantFactor, float depthBiasClamp, float depthBiasSlopeFactor) noexcept  { funcs.vkCmdSetDepthBias(commandBuffer.handle(), depthBiasConstantFactor, depthBiasClamp, depthBiasSlopeFactor); }
+inline void cmdSetBlendConstants(CommandBuffer commandBuffer, const float blendConstants[4]) noexcept  { funcs.vkCmdSetBlendConstants(commandBuffer.handle(), blendConstants); }
+inline void cmdSetDepthBounds(CommandBuffer commandBuffer, float minDepthBounds, float maxDepthBounds) noexcept  { funcs.vkCmdSetDepthBounds(commandBuffer.handle(), minDepthBounds, maxDepthBounds); }
+inline void cmdSetStencilCompareMask(CommandBuffer commandBuffer, StencilFaceFlags faceMask, uint32_t compareMask) noexcept  { funcs.vkCmdSetStencilCompareMask(commandBuffer.handle(), faceMask, compareMask); }
+inline void cmdSetStencilWriteMask(CommandBuffer commandBuffer, StencilFaceFlags faceMask, uint32_t writeMask) noexcept  { funcs.vkCmdSetStencilWriteMask(commandBuffer.handle(), faceMask, writeMask); }
+inline void cmdSetStencilReference(CommandBuffer commandBuffer, StencilFaceFlags faceMask, uint32_t reference) noexcept  { funcs.vkCmdSetStencilReference(commandBuffer.handle(), faceMask, reference); }
+inline void cmdBindDescriptorSets(CommandBuffer commandBuffer, PipelineBindPoint pipelineBindPoint, PipelineLayout layout, uint32_t firstSet, uint32_t descriptorSetCount, const DescriptorSet::HandleType* pDescriptorSetHandles, uint32_t dynamicOffsetCount, const uint32_t* pDynamicOffsets) noexcept  { funcs.vkCmdBindDescriptorSets(commandBuffer.handle(), pipelineBindPoint, layout, firstSet, descriptorSetCount, pDescriptorSetHandles, dynamicOffsetCount, pDynamicOffsets); }
+inline void cmdBindIndexBuffer(CommandBuffer commandBuffer, Buffer bufferHandle, DeviceSize offset, IndexType indexType) noexcept  { funcs.vkCmdBindIndexBuffer(commandBuffer.handle(), bufferHandle.handle(), offset, indexType); }
+inline void cmdBindVertexBuffers(CommandBuffer commandBuffer, uint32_t firstBinding, uint32_t bindingCount, const Buffer* pBufferHandles, const DeviceSize* pOffsets) noexcept  { funcs.vkCmdBindVertexBuffers(commandBuffer.handle(), firstBinding, bindingCount, reinterpret_cast<const Buffer::HandleType*>(pBufferHandles), pOffsets); }
+inline void cmdDraw(CommandBuffer commandBuffer, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) noexcept  { funcs.vkCmdDraw(commandBuffer.handle(), vertexCount, instanceCount, firstVertex, firstInstance); }
+inline void cmdDrawIndexed(CommandBuffer commandBuffer, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance) noexcept  { funcs.vkCmdDrawIndexed(commandBuffer.handle(), indexCount, instanceCount, firstIndex, vertexOffset, firstInstance); }
+inline void cmdDrawIndirect(CommandBuffer commandBuffer, Buffer bufferHandle, DeviceSize offset, uint32_t drawCount, uint32_t stride) noexcept  { funcs.vkCmdDrawIndirect(commandBuffer.handle(), bufferHandle.handle(), offset, drawCount, stride); }
+inline void cmdDrawIndexedIndirect(CommandBuffer commandBuffer, Buffer bufferHandle, DeviceSize offset, uint32_t drawCount, uint32_t stride) noexcept  { funcs.vkCmdDrawIndexedIndirect(commandBuffer.handle(), bufferHandle.handle(), offset, drawCount, stride); }
+inline void cmdDispatch(CommandBuffer commandBuffer, uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) noexcept  { funcs.vkCmdDispatch(commandBuffer.handle(), groupCountX, groupCountY, groupCountZ); }
+inline void cmdDispatchIndirect(CommandBuffer commandBuffer, Buffer bufferHandle, DeviceSize offset) noexcept  { funcs.vkCmdDispatchIndirect(commandBuffer.handle(), bufferHandle.handle(), offset); }
+inline void cmdDispatchBase(CommandBuffer commandBuffer, uint32_t baseGroupX, uint32_t baseGroupY, uint32_t baseGroupZ, uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) noexcept  { funcs.vkCmdDispatchBase(commandBuffer.handle(), baseGroupX, baseGroupY, baseGroupZ, groupCountX, groupCountY, groupCountZ); }
+inline void cmdCopyBuffer(CommandBuffer commandBuffer, Buffer srcBufferHandle, Buffer dstBufferHandle, uint32_t regionCount, const BufferCopy* pRegions) noexcept  { funcs.vkCmdCopyBuffer(commandBuffer.handle(), srcBufferHandle.handle(), dstBufferHandle.handle(), regionCount, pRegions); }
+inline void cmdCopyImage(CommandBuffer commandBuffer, Image srcImageHandle, ImageLayout srcImageLayout, Image dstImageHandle, ImageLayout dstImageLayout, uint32_t regionCount, const ImageCopy* pRegions) noexcept  { funcs.vkCmdCopyImage(commandBuffer.handle(), srcImageHandle.handle(), srcImageLayout, dstImageHandle.handle(), dstImageLayout, regionCount, pRegions); }
+inline void cmdBlitImage(CommandBuffer commandBuffer, Image srcImageHandle, ImageLayout srcImageLayout, Image dstImageHandle, ImageLayout dstImageLayout, uint32_t regionCount, const ImageBlit* pRegions, Filter filter) noexcept  { funcs.vkCmdBlitImage(commandBuffer.handle(), srcImageHandle.handle(), srcImageLayout, dstImageHandle.handle(), dstImageLayout, regionCount, pRegions, filter); }
+inline void cmdCopyBufferToImage(CommandBuffer commandBuffer, Buffer srcBufferHandle, Image dstImageHandle, ImageLayout dstImageLayout, uint32_t regionCount, const BufferImageCopy* pRegions) noexcept  { funcs.vkCmdCopyBufferToImage(commandBuffer.handle(), srcBufferHandle.handle(), dstImageHandle.handle(), dstImageLayout, regionCount, pRegions); }
+inline void cmdCopyImageToBuffer(CommandBuffer commandBuffer, Image srcImageHandle, ImageLayout srcImageLayout, Buffer dstBufferHandle, uint32_t regionCount, const BufferImageCopy* pRegions) noexcept  { funcs.vkCmdCopyImageToBuffer(commandBuffer.handle(), srcImageHandle.handle(), srcImageLayout, dstBufferHandle.handle(), regionCount, pRegions); }
+inline void cmdUpdateBuffer(CommandBuffer commandBuffer, Buffer dstBufferHandle, DeviceSize dstOffset, DeviceSize dataSize, const void* pData) noexcept  { funcs.vkCmdUpdateBuffer(commandBuffer.handle(), dstBufferHandle.handle(), dstOffset, dataSize, pData); }
+inline void cmdFillBuffer(CommandBuffer commandBuffer, Buffer dstBufferHandle, DeviceSize dstOffset, DeviceSize size, uint32_t data) noexcept  { funcs.vkCmdFillBuffer(commandBuffer.handle(), dstBufferHandle.handle(), dstOffset, size, data); }
+inline void cmdClearColorImage(CommandBuffer commandBuffer, Image imageHandle, ImageLayout imageLayout, const ClearColorValue* pColor, uint32_t rangeCount, const ImageSubresourceRange* pRanges) noexcept  { funcs.vkCmdClearColorImage(commandBuffer.handle(), imageHandle.handle(), imageLayout, pColor, rangeCount, pRanges); }
+inline void cmdClearDepthStencilImage(CommandBuffer commandBuffer, Image imageHandle, ImageLayout imageLayout, const ClearDepthStencilValue* pDepthStencil, uint32_t rangeCount, const ImageSubresourceRange* pRanges) noexcept  { funcs.vkCmdClearDepthStencilImage(commandBuffer.handle(), imageHandle.handle(), imageLayout, pDepthStencil, rangeCount, pRanges); }
+inline void cmdClearAttachments(CommandBuffer commandBuffer, uint32_t attachmentCount, const ClearAttachment* pAttachments, uint32_t rectCount, const ClearRect* pRects) noexcept  { funcs.vkCmdClearAttachments(commandBuffer.handle(), attachmentCount, pAttachments, rectCount, pRects); }
+inline void cmdResolveImage(CommandBuffer commandBuffer, Image srcImageHandle, ImageLayout srcImageLayout, Image dstImageHandle, ImageLayout dstImageLayout, uint32_t regionCount, const ImageResolve* pRegions) noexcept  { funcs.vkCmdResolveImage(commandBuffer.handle(), srcImageHandle.handle(), srcImageLayout, dstImageHandle.handle(), dstImageLayout, regionCount, pRegions); }
+inline void cmdSetEvent(CommandBuffer commandBuffer, Event eventHandle, PipelineStageFlags stageMask) noexcept  { funcs.vkCmdSetEvent(commandBuffer.handle(), eventHandle.handle(), stageMask); }
+inline void cmdResetEvent(CommandBuffer commandBuffer, Event eventHandle, PipelineStageFlags stageMask) noexcept  { funcs.vkCmdResetEvent(commandBuffer.handle(), eventHandle.handle(), stageMask); }
+inline void cmdWaitEvents(CommandBuffer commandBuffer, uint32_t eventCount, const Event* pEventHandles, PipelineStageFlags srcStageMask, PipelineStageFlags dstStageMask, uint32_t memoryBarrierCount, const MemoryBarrier* pMemoryBarriers, uint32_t bufferMemoryBarrierCount, const BufferMemoryBarrier* pBufferMemoryBarriers, uint32_t imageMemoryBarrierCount, const ImageMemoryBarrier* pImageMemoryBarriers) noexcept  { funcs.vkCmdWaitEvents(commandBuffer.handle(), eventCount, reinterpret_cast<const Event::HandleType*>(pEventHandles), srcStageMask, dstStageMask, memoryBarrierCount, pMemoryBarriers, bufferMemoryBarrierCount, pBufferMemoryBarriers, imageMemoryBarrierCount, pImageMemoryBarriers); }
+inline void cmdPipelineBarrier(CommandBuffer commandBuffer, PipelineStageFlags srcStageMask, PipelineStageFlags dstStageMask, DependencyFlags dependencyFlags, uint32_t memoryBarrierCount, const MemoryBarrier* pMemoryBarriers, uint32_t bufferMemoryBarrierCount, const BufferMemoryBarrier* pBufferMemoryBarriers, uint32_t imageMemoryBarrierCount, const ImageMemoryBarrier* pImageMemoryBarriers) noexcept  { funcs.vkCmdPipelineBarrier(commandBuffer.handle(), srcStageMask, dstStageMask, dependencyFlags, memoryBarrierCount, pMemoryBarriers, bufferMemoryBarrierCount, pBufferMemoryBarriers, imageMemoryBarrierCount, pImageMemoryBarriers); }
+inline void cmdBeginQuery(CommandBuffer commandBuffer, QueryPool queryPoolHandle, uint32_t query, QueryControlFlags flags) noexcept  { funcs.vkCmdBeginQuery(commandBuffer.handle(), queryPoolHandle.handle(), query, flags); }
+inline void cmdEndQuery(CommandBuffer commandBuffer, QueryPool queryPoolHandle, uint32_t query) noexcept  { funcs.vkCmdEndQuery(commandBuffer.handle(), queryPoolHandle.handle(), query); }
+inline void cmdResetQueryPool(CommandBuffer commandBuffer, QueryPool queryPoolHandle, uint32_t firstQuery, uint32_t queryCount) noexcept  { funcs.vkCmdResetQueryPool(commandBuffer.handle(), queryPoolHandle.handle(), firstQuery, queryCount); }
+inline void cmdWriteTimestamp(CommandBuffer commandBuffer, PipelineStageFlagBits pipelineStage, QueryPool queryPoolHandle, uint32_t query) noexcept  { funcs.vkCmdWriteTimestamp(commandBuffer.handle(), pipelineStage, queryPoolHandle.handle(), query); }
+inline void cmdCopyQueryPoolResults(CommandBuffer commandBuffer, QueryPool queryPoolHandle, uint32_t firstQuery, uint32_t queryCount, Buffer dstBufferHandle, DeviceSize dstOffset, DeviceSize stride, QueryResultFlags flags) noexcept  { funcs.vkCmdCopyQueryPoolResults(commandBuffer.handle(), queryPoolHandle.handle(), firstQuery, queryCount, dstBufferHandle.handle(), dstOffset, stride, flags); }
 
 }
