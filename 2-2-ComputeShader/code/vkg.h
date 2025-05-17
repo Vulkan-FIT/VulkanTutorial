@@ -11705,6 +11705,7 @@ struct Funcs {
 	PFN_vkResetCommandBuffer        vkResetCommandBuffer = nullptr;
 	PFN_vkCmdPushConstants          vkCmdPushConstants = nullptr;
 	PFN_vkCmdBeginRenderPass        vkCmdBeginRenderPass = nullptr;
+	PFN_vkCmdNextSubpass            vkCmdNextSubpass = nullptr;
 	PFN_vkCmdEndRenderPass          vkCmdEndRenderPass = nullptr;
 	PFN_vkCmdExecuteCommands        vkCmdExecuteCommands = nullptr;
 	PFN_vkCmdCopyBuffer             vkCmdCopyBuffer = nullptr;
@@ -11723,6 +11724,13 @@ struct Funcs {
 	PFN_vkCmdSetDepthBias           vkCmdSetDepthBias = nullptr;
 	PFN_vkCmdSetLineWidth           vkCmdSetLineWidth = nullptr;
 	PFN_vkCmdSetLineStippleEXT      vkCmdSetLineStippleEXT = nullptr;
+	PFN_vkCmdSetViewport            vkCmdSetViewport = nullptr;
+	PFN_vkCmdSetScissor             vkCmdSetScissor = nullptr;
+	PFN_vkCmdSetBlendConstants      vkCmdSetBlendConstants = nullptr;
+	PFN_vkCmdSetDepthBounds         vkCmdSetDepthBounds = nullptr;
+	PFN_vkCmdSetStencilCompareMask  vkCmdSetStencilCompareMask = nullptr;
+	PFN_vkCmdSetStencilWriteMask    vkCmdSetStencilWriteMask = nullptr;
+	PFN_vkCmdSetStencilReference    vkCmdSetStencilReference = nullptr;
 	PFN_vkCmdResetQueryPool         vkCmdResetQueryPool = nullptr;
 	PFN_vkCmdWriteTimestamp         vkCmdWriteTimestamp = nullptr;
 	PFN_vkGetCalibratedTimestampsEXT vkGetCalibratedTimestampsEXT = nullptr;
@@ -11731,15 +11739,31 @@ struct Funcs {
 	PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR vkGetPhysicalDeviceSurfaceCapabilitiesKHR = nullptr;
 	PFN_vkGetPhysicalDeviceSurfaceFormatsKHR vkGetPhysicalDeviceSurfaceFormatsKHR = nullptr;
 	PFN_vkGetPhysicalDeviceSurfacePresentModesKHR vkGetPhysicalDeviceSurfacePresentModesKHR = nullptr;
-	PFN_vkCreateSwapchainKHR vkCreateSwapchainKHR = nullptr;
-	PFN_vkDestroySwapchainKHR vkDestroySwapchainKHR = nullptr;
-	PFN_vkGetSwapchainImagesKHR vkGetSwapchainImagesKHR = nullptr;
-	PFN_vkAcquireNextImageKHR vkAcquireNextImageKHR = nullptr;
-	PFN_vkQueuePresentKHR vkQueuePresentKHR = nullptr;
+	PFN_vkCreateSwapchainKHR        vkCreateSwapchainKHR = nullptr;
+	PFN_vkDestroySwapchainKHR       vkDestroySwapchainKHR = nullptr;
+	PFN_vkGetSwapchainImagesKHR     vkGetSwapchainImagesKHR = nullptr;
+	PFN_vkAcquireNextImageKHR       vkAcquireNextImageKHR = nullptr;
+	PFN_vkQueuePresentKHR           vkQueuePresentKHR = nullptr;
 	PFN_vkGetDeviceGroupPresentCapabilitiesKHR vkGetDeviceGroupPresentCapabilitiesKHR = nullptr;
 	PFN_vkGetDeviceGroupSurfacePresentModesKHR vkGetDeviceGroupSurfacePresentModesKHR = nullptr;
 	PFN_vkGetPhysicalDevicePresentRectanglesKHR vkGetPhysicalDevicePresentRectanglesKHR = nullptr;
-	PFN_vkAcquireNextImage2KHR vkAcquireNextImage2KHR = nullptr;
+	PFN_vkAcquireNextImage2KHR      vkAcquireNextImage2KHR = nullptr;
+	PFN_vkCmdCopyImage              vkCmdCopyImage = nullptr;
+	PFN_vkCmdBlitImage              vkCmdBlitImage = nullptr;
+	PFN_vkCmdCopyBufferToImage      vkCmdCopyBufferToImage = nullptr;
+	PFN_vkCmdCopyImageToBuffer      vkCmdCopyImageToBuffer = nullptr;
+	PFN_vkCmdUpdateBuffer           vkCmdUpdateBuffer = nullptr;
+	PFN_vkCmdFillBuffer             vkCmdFillBuffer = nullptr;
+	PFN_vkCmdClearColorImage        vkCmdClearColorImage = nullptr;
+	PFN_vkCmdClearDepthStencilImage vkCmdClearDepthStencilImage = nullptr;
+	PFN_vkCmdClearAttachments       vkCmdClearAttachments = nullptr;
+	PFN_vkCmdResolveImage           vkCmdResolveImage = nullptr;
+	PFN_vkCmdSetEvent               vkCmdSetEvent = nullptr;
+	PFN_vkCmdResetEvent             vkCmdResetEvent = nullptr;
+	PFN_vkCmdWaitEvents             vkCmdWaitEvents = nullptr;
+	PFN_vkCmdBeginQuery             vkCmdBeginQuery = nullptr;
+	PFN_vkCmdEndQuery               vkCmdEndQuery = nullptr;
+	PFN_vkCmdCopyQueryPoolResults   vkCmdCopyQueryPoolResults = nullptr;
 };
 extern Funcs funcs;
 
@@ -13130,6 +13154,51 @@ inline vector<UniquePipeline> createComputePipelinesUnique(PipelineCache pipelin
 inline void destroyPipeline(Pipeline pipeline) noexcept  { funcs.vkDestroyPipeline(detail::_device.handle(), pipeline.handle(), nullptr); }
 inline void destroy(Pipeline pipeline) noexcept  { funcs.vkDestroyPipeline(detail::_device.handle(), pipeline.handle(), nullptr); }
 
+inline void cmdPushConstants(CommandBuffer commandBuffer, PipelineLayout layout, ShaderStageFlags stageFlags, uint32_t offset, uint32_t size, const void* pValues) noexcept  { funcs.vkCmdPushConstants(commandBuffer.handle(), layout, stageFlags, offset, size, pValues); }
+inline void cmdBeginRenderPass(CommandBuffer commandBuffer, const RenderPassBeginInfo& pRenderPassBegin, SubpassContents contents) noexcept  { funcs.vkCmdBeginRenderPass(commandBuffer.handle(), &pRenderPassBegin, contents); }
+inline void cmdNextSubpass(CommandBuffer commandBuffer, SubpassContents contents) noexcept  { funcs.vkCmdNextSubpass(commandBuffer.handle(), contents); }
+inline void cmdEndRenderPass(CommandBuffer commandBuffer) noexcept  { funcs.vkCmdEndRenderPass(commandBuffer.handle()); }
+inline void cmdExecuteCommands(CommandBuffer commandBuffer, uint32_t commandBufferCount, const CommandBuffer* pCommandBufferHandles) noexcept  { funcs.vkCmdExecuteCommands(commandBuffer.handle(), commandBufferCount, reinterpret_cast<const CommandBuffer::HandleType*>(pCommandBufferHandles)); }
 inline void cmdBindPipeline(CommandBuffer commandBuffer, PipelineBindPoint pipelineBindPoint, Pipeline pipeline) noexcept  { funcs.vkCmdBindPipeline(commandBuffer.handle(), pipelineBindPoint, pipeline.handle()); }
+inline void cmdSetViewport(CommandBuffer commandBuffer, uint32_t firstViewport, uint32_t viewportCount, const Viewport* pViewports) noexcept  { funcs.vkCmdSetViewport(commandBuffer.handle(), firstViewport, viewportCount, pViewports); }
+inline void cmdSetScissor(CommandBuffer commandBuffer, uint32_t firstScissor, uint32_t scissorCount, const Rect2D* pScissors) noexcept  { funcs.vkCmdSetScissor(commandBuffer.handle(), firstScissor, scissorCount, pScissors); }
+inline void cmdSetLineWidth(CommandBuffer commandBuffer, float lineWidth) noexcept  { funcs.vkCmdSetLineWidth(commandBuffer.handle(), lineWidth); }
+inline void cmdSetLineStippleEXT(CommandBuffer commandBuffer, uint32_t lineStippleFactor, uint16_t lineStipplePattern) noexcept  { funcs.vkCmdSetLineStippleEXT(commandBuffer.handle(), lineStippleFactor, lineStipplePattern); }
+inline void cmdSetDepthBias(CommandBuffer commandBuffer, float depthBiasConstantFactor, float depthBiasClamp, float depthBiasSlopeFactor) noexcept  { funcs.vkCmdSetDepthBias(commandBuffer.handle(), depthBiasConstantFactor, depthBiasClamp, depthBiasSlopeFactor); }
+inline void cmdSetBlendConstants(CommandBuffer commandBuffer, const float blendConstants[4]) noexcept  { funcs.vkCmdSetBlendConstants(commandBuffer.handle(), blendConstants); }
+inline void cmdSetDepthBounds(CommandBuffer commandBuffer, float minDepthBounds, float maxDepthBounds) noexcept  { funcs.vkCmdSetDepthBounds(commandBuffer.handle(), minDepthBounds, maxDepthBounds); }
+inline void cmdSetStencilCompareMask(CommandBuffer commandBuffer, StencilFaceFlags faceMask, uint32_t compareMask) noexcept  { funcs.vkCmdSetStencilCompareMask(commandBuffer.handle(), faceMask, compareMask); }
+inline void cmdSetStencilWriteMask(CommandBuffer commandBuffer, StencilFaceFlags faceMask, uint32_t writeMask) noexcept  { funcs.vkCmdSetStencilWriteMask(commandBuffer.handle(), faceMask, writeMask); }
+inline void cmdSetStencilReference(CommandBuffer commandBuffer, StencilFaceFlags faceMask, uint32_t reference) noexcept  { funcs.vkCmdSetStencilReference(commandBuffer.handle(), faceMask, reference); }
+inline void cmdBindDescriptorSets(CommandBuffer commandBuffer, PipelineBindPoint pipelineBindPoint, PipelineLayout layout, uint32_t firstSet, uint32_t descriptorSetCount, const DescriptorSet::HandleType* pDescriptorSetHandles, uint32_t dynamicOffsetCount, const uint32_t* pDynamicOffsets) noexcept  { funcs.vkCmdBindDescriptorSets(commandBuffer.handle(), pipelineBindPoint, layout, firstSet, descriptorSetCount, pDescriptorSetHandles, dynamicOffsetCount, pDynamicOffsets); }
+inline void cmdBindIndexBuffer(CommandBuffer commandBuffer, Buffer bufferHandle, DeviceSize offset, IndexType indexType) noexcept  { funcs.vkCmdBindIndexBuffer(commandBuffer.handle(), bufferHandle.handle(), offset, indexType); }
+inline void cmdBindVertexBuffers(CommandBuffer commandBuffer, uint32_t firstBinding, uint32_t bindingCount, const Buffer* pBufferHandles, const DeviceSize* pOffsets) noexcept  { funcs.vkCmdBindVertexBuffers(commandBuffer.handle(), firstBinding, bindingCount, reinterpret_cast<const Buffer::HandleType*>(pBufferHandles), pOffsets); }
+inline void cmdDraw(CommandBuffer commandBuffer, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) noexcept  { funcs.vkCmdDraw(commandBuffer.handle(), vertexCount, instanceCount, firstVertex, firstInstance); }
+inline void cmdDrawIndexed(CommandBuffer commandBuffer, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance) noexcept  { funcs.vkCmdDrawIndexed(commandBuffer.handle(), indexCount, instanceCount, firstIndex, vertexOffset, firstInstance); }
+inline void cmdDrawIndirect(CommandBuffer commandBuffer, Buffer bufferHandle, DeviceSize offset, uint32_t drawCount, uint32_t stride) noexcept  { funcs.vkCmdDrawIndirect(commandBuffer.handle(), bufferHandle.handle(), offset, drawCount, stride); }
+inline void cmdDrawIndexedIndirect(CommandBuffer commandBuffer, Buffer bufferHandle, DeviceSize offset, uint32_t drawCount, uint32_t stride) noexcept  { funcs.vkCmdDrawIndexedIndirect(commandBuffer.handle(), bufferHandle.handle(), offset, drawCount, stride); }
+inline void cmdDispatch(CommandBuffer commandBuffer, uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) noexcept  { funcs.vkCmdDispatch(commandBuffer.handle(), groupCountX, groupCountY, groupCountZ); }
+inline void cmdDispatchIndirect(CommandBuffer commandBuffer, Buffer bufferHandle, DeviceSize offset) noexcept  { funcs.vkCmdDispatchIndirect(commandBuffer.handle(), bufferHandle.handle(), offset); }
+inline void cmdDispatchBase(CommandBuffer commandBuffer, uint32_t baseGroupX, uint32_t baseGroupY, uint32_t baseGroupZ, uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) noexcept  { funcs.vkCmdDispatchBase(commandBuffer.handle(), baseGroupX, baseGroupY, baseGroupZ, groupCountX, groupCountY, groupCountZ); }
+inline void cmdCopyBuffer(CommandBuffer commandBuffer, Buffer srcBufferHandle, Buffer dstBufferHandle, uint32_t regionCount, const BufferCopy* pRegions) noexcept  { funcs.vkCmdCopyBuffer(commandBuffer.handle(), srcBufferHandle.handle(), dstBufferHandle.handle(), regionCount, pRegions); }
+inline void cmdCopyImage(CommandBuffer commandBuffer, Image srcImageHandle, ImageLayout srcImageLayout, Image dstImageHandle, ImageLayout dstImageLayout, uint32_t regionCount, const ImageCopy* pRegions) noexcept  { funcs.vkCmdCopyImage(commandBuffer.handle(), srcImageHandle.handle(), srcImageLayout, dstImageHandle.handle(), dstImageLayout, regionCount, pRegions); }
+inline void cmdBlitImage(CommandBuffer commandBuffer, Image srcImageHandle, ImageLayout srcImageLayout, Image dstImageHandle, ImageLayout dstImageLayout, uint32_t regionCount, const ImageBlit* pRegions, Filter filter) noexcept  { funcs.vkCmdBlitImage(commandBuffer.handle(), srcImageHandle.handle(), srcImageLayout, dstImageHandle.handle(), dstImageLayout, regionCount, pRegions, filter); }
+inline void cmdCopyBufferToImage(CommandBuffer commandBuffer, Buffer srcBufferHandle, Image dstImageHandle, ImageLayout dstImageLayout, uint32_t regionCount, const BufferImageCopy* pRegions) noexcept  { funcs.vkCmdCopyBufferToImage(commandBuffer.handle(), srcBufferHandle.handle(), dstImageHandle.handle(), dstImageLayout, regionCount, pRegions); }
+inline void cmdCopyImageToBuffer(CommandBuffer commandBuffer, Image srcImageHandle, ImageLayout srcImageLayout, Buffer dstBufferHandle, uint32_t regionCount, const BufferImageCopy* pRegions) noexcept  { funcs.vkCmdCopyImageToBuffer(commandBuffer.handle(), srcImageHandle.handle(), srcImageLayout, dstBufferHandle.handle(), regionCount, pRegions); }
+inline void cmdUpdateBuffer(CommandBuffer commandBuffer, Buffer dstBufferHandle, DeviceSize dstOffset, DeviceSize dataSize, const void* pData) noexcept  { funcs.vkCmdUpdateBuffer(commandBuffer.handle(), dstBufferHandle.handle(), dstOffset, dataSize, pData); }
+inline void cmdFillBuffer(CommandBuffer commandBuffer, Buffer dstBufferHandle, DeviceSize dstOffset, DeviceSize size, uint32_t data) noexcept  { funcs.vkCmdFillBuffer(commandBuffer.handle(), dstBufferHandle.handle(), dstOffset, size, data); }
+inline void cmdClearColorImage(CommandBuffer commandBuffer, Image imageHandle, ImageLayout imageLayout, const ClearColorValue* pColor, uint32_t rangeCount, const ImageSubresourceRange* pRanges) noexcept  { funcs.vkCmdClearColorImage(commandBuffer.handle(), imageHandle.handle(), imageLayout, pColor, rangeCount, pRanges); }
+inline void cmdClearDepthStencilImage(CommandBuffer commandBuffer, Image imageHandle, ImageLayout imageLayout, const ClearDepthStencilValue* pDepthStencil, uint32_t rangeCount, const ImageSubresourceRange* pRanges) noexcept  { funcs.vkCmdClearDepthStencilImage(commandBuffer.handle(), imageHandle.handle(), imageLayout, pDepthStencil, rangeCount, pRanges); }
+inline void cmdClearAttachments(CommandBuffer commandBuffer, uint32_t attachmentCount, const ClearAttachment* pAttachments, uint32_t rectCount, const ClearRect* pRects) noexcept  { funcs.vkCmdClearAttachments(commandBuffer.handle(), attachmentCount, pAttachments, rectCount, pRects); }
+inline void cmdResolveImage(CommandBuffer commandBuffer, Image srcImageHandle, ImageLayout srcImageLayout, Image dstImageHandle, ImageLayout dstImageLayout, uint32_t regionCount, const ImageResolve* pRegions) noexcept  { funcs.vkCmdResolveImage(commandBuffer.handle(), srcImageHandle.handle(), srcImageLayout, dstImageHandle.handle(), dstImageLayout, regionCount, pRegions); }
+inline void cmdSetEvent(CommandBuffer commandBuffer, Event eventHandle, PipelineStageFlags stageMask) noexcept  { funcs.vkCmdSetEvent(commandBuffer.handle(), eventHandle.handle(), stageMask); }
+inline void cmdResetEvent(CommandBuffer commandBuffer, Event eventHandle, PipelineStageFlags stageMask) noexcept  { funcs.vkCmdResetEvent(commandBuffer.handle(), eventHandle.handle(), stageMask); }
+inline void cmdWaitEvents(CommandBuffer commandBuffer, uint32_t eventCount, const Event* pEventHandles, PipelineStageFlags srcStageMask, PipelineStageFlags dstStageMask, uint32_t memoryBarrierCount, const MemoryBarrier* pMemoryBarriers, uint32_t bufferMemoryBarrierCount, const BufferMemoryBarrier* pBufferMemoryBarriers, uint32_t imageMemoryBarrierCount, const ImageMemoryBarrier* pImageMemoryBarriers) noexcept  { funcs.vkCmdWaitEvents(commandBuffer.handle(), eventCount, reinterpret_cast<const Event::HandleType*>(pEventHandles), srcStageMask, dstStageMask, memoryBarrierCount, pMemoryBarriers, bufferMemoryBarrierCount, pBufferMemoryBarriers, imageMemoryBarrierCount, pImageMemoryBarriers); }
+inline void cmdPipelineBarrier(CommandBuffer commandBuffer, PipelineStageFlags srcStageMask, PipelineStageFlags dstStageMask, DependencyFlags dependencyFlags, uint32_t memoryBarrierCount, const MemoryBarrier* pMemoryBarriers, uint32_t bufferMemoryBarrierCount, const BufferMemoryBarrier* pBufferMemoryBarriers, uint32_t imageMemoryBarrierCount, const ImageMemoryBarrier* pImageMemoryBarriers) noexcept  { funcs.vkCmdPipelineBarrier(commandBuffer.handle(), srcStageMask, dstStageMask, dependencyFlags, memoryBarrierCount, pMemoryBarriers, bufferMemoryBarrierCount, pBufferMemoryBarriers, imageMemoryBarrierCount, pImageMemoryBarriers); }
+inline void cmdBeginQuery(CommandBuffer commandBuffer, QueryPool queryPoolHandle, uint32_t query, QueryControlFlags flags) noexcept  { funcs.vkCmdBeginQuery(commandBuffer.handle(), queryPoolHandle.handle(), query, flags); }
+inline void cmdEndQuery(CommandBuffer commandBuffer, QueryPool queryPoolHandle, uint32_t query) noexcept  { funcs.vkCmdEndQuery(commandBuffer.handle(), queryPoolHandle.handle(), query); }
+inline void cmdResetQueryPool(CommandBuffer commandBuffer, QueryPool queryPoolHandle, uint32_t firstQuery, uint32_t queryCount) noexcept  { funcs.vkCmdResetQueryPool(commandBuffer.handle(), queryPoolHandle.handle(), firstQuery, queryCount); }
+inline void cmdWriteTimestamp(CommandBuffer commandBuffer, PipelineStageFlagBits pipelineStage, QueryPool queryPoolHandle, uint32_t query) noexcept  { funcs.vkCmdWriteTimestamp(commandBuffer.handle(), pipelineStage, queryPoolHandle.handle(), query); }
+inline void cmdCopyQueryPoolResults(CommandBuffer commandBuffer, QueryPool queryPoolHandle, uint32_t firstQuery, uint32_t queryCount, Buffer dstBufferHandle, DeviceSize dstOffset, DeviceSize stride, QueryResultFlags flags) noexcept  { funcs.vkCmdCopyQueryPoolResults(commandBuffer.handle(), queryPoolHandle.handle(), firstQuery, queryCount, dstBufferHandle.handle(), dstOffset, stride, flags); }
 
 }

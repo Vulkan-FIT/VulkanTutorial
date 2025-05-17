@@ -67,7 +67,12 @@ void main()
 
 	FMA10000
 
+	// condition that will never be true in reality
+	// (this avoids optimizer to consider the results of previous computations as unused
+	// and to optimize the final shader code by their removal)
 	if(x == 0.1) {
+		// write to artificially generated address
+		// (the write will never happen in reality)
 		OutputDataRef data = OutputDataRef(uint64_t(0));
 		data.outputFloat = y;
 	}

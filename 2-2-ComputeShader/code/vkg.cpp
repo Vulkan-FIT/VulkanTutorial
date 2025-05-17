@@ -362,7 +362,31 @@ void vk::initInstance(Instance instance) noexcept
 	funcs.vkGetDeviceGroupSurfacePresentModesKHR     = getInstanceProcAddr<PFN_vkGetDeviceGroupSurfacePresentModesKHR     >("vkGetDeviceGroupSurfacePresentModesKHR");
 	funcs.vkGetPhysicalDevicePresentRectanglesKHR    = getInstanceProcAddr<PFN_vkGetPhysicalDevicePresentRectanglesKHR    >("vkGetPhysicalDevicePresentRectanglesKHR");
 	funcs.vkAcquireNextImage2KHR                     = getInstanceProcAddr<PFN_vkAcquireNextImage2KHR                     >("vkAcquireNextImage2KHR");
-	//funcs.vkGetPhysicalDeviceCalibrateableTimeDomainsEXT = getInstanceProcAddr<PFN_vkGetPhysicalDeviceCalibrateableTimeDomainsEXT>("vkGetPhysicalDeviceCalibrateableTimeDomainsEXT");*/
+	funcs.vkCmdNextSubpass                           = getInstanceProcAddr<PFN_vkCmdNextSubpass                           >("vkCmdNextSubpass");
+	funcs.vkCmdSetViewport                           = getInstanceProcAddr<PFN_vkCmdSetViewport                           >("vkCmdSetViewport");
+	funcs.vkCmdSetScissor                            = getInstanceProcAddr<PFN_vkCmdSetScissor                            >("vkCmdSetScissor");
+	funcs.vkCmdSetBlendConstants                     = getInstanceProcAddr<PFN_vkCmdSetBlendConstants                     >("vkCmdSetBlendConstants");
+	funcs.vkCmdSetDepthBounds                        = getInstanceProcAddr<PFN_vkCmdSetDepthBounds                        >("vkCmdSetDepthBounds");
+	funcs.vkCmdSetStencilCompareMask                 = getInstanceProcAddr<PFN_vkCmdSetStencilCompareMask                 >("vkCmdSetStencilCompareMask");
+	funcs.vkCmdSetStencilWriteMask                   = getInstanceProcAddr<PFN_vkCmdSetStencilWriteMask                   >("vkCmdSetStencilWriteMask");
+	funcs.vkCmdSetStencilReference                   = getInstanceProcAddr<PFN_vkCmdSetStencilReference                   >("vkCmdSetStencilReference");
+	funcs.vkCmdCopyImage                             = getInstanceProcAddr<PFN_vkCmdCopyImage                             >("vkCmdCopyImage");
+	funcs.vkCmdBlitImage                             = getInstanceProcAddr<PFN_vkCmdBlitImage                             >("vkCmdBlitImage");
+	funcs.vkCmdCopyBufferToImage                     = getInstanceProcAddr<PFN_vkCmdCopyBufferToImage                     >("vkCmdCopyBufferToImage");
+	funcs.vkCmdCopyImageToBuffer                     = getInstanceProcAddr<PFN_vkCmdCopyImageToBuffer                     >("vkCmdCopyImageToBuffer");
+	funcs.vkCmdUpdateBuffer                          = getInstanceProcAddr<PFN_vkCmdUpdateBuffer                          >("vkCmdUpdateBuffer");
+	funcs.vkCmdFillBuffer                            = getInstanceProcAddr<PFN_vkCmdFillBuffer                            >("vkCmdFillBuffer");
+	funcs.vkCmdClearColorImage                       = getInstanceProcAddr<PFN_vkCmdClearColorImage                       >("vkCmdClearColorImage");
+	funcs.vkCmdClearDepthStencilImage                = getInstanceProcAddr<PFN_vkCmdClearDepthStencilImage                >("vkCmdClearDepthStencilImage");
+	funcs.vkCmdClearAttachments                      = getInstanceProcAddr<PFN_vkCmdClearAttachments                      >("vkCmdClearAttachments");
+	funcs.vkCmdResolveImage                          = getInstanceProcAddr<PFN_vkCmdResolveImage                          >("vkCmdResolveImage");
+	funcs.vkCmdSetEvent                              = getInstanceProcAddr<PFN_vkCmdSetEvent                              >("vkCmdSetEvent");
+	funcs.vkCmdResetEvent                            = getInstanceProcAddr<PFN_vkCmdResetEvent                            >("vkCmdResetEvent");
+	funcs.vkCmdWaitEvents                            = getInstanceProcAddr<PFN_vkCmdWaitEvents                            >("vkCmdWaitEvents");
+	funcs.vkCmdBeginQuery                            = getInstanceProcAddr<PFN_vkCmdBeginQuery                            >("vkCmdBeginQuery");
+	funcs.vkCmdEndQuery                              = getInstanceProcAddr<PFN_vkCmdEndQuery                              >("vkCmdEndQuery");
+	funcs.vkCmdCopyQueryPoolResults                  = getInstanceProcAddr<PFN_vkCmdCopyQueryPoolResults                  >("vkCmdCopyQueryPoolResults");
+	//funcs.vkGetPhysicalDeviceCalibrateableTimeDomainsEXT = getInstanceProcAddr<PFN_vkGetPhysicalDeviceCalibrateableTimeDomainsEXT>("vkGetPhysicalDeviceCalibrateableTimeDomainsEXT");
 }
 
 

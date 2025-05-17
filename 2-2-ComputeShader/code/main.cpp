@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <iostream>
 #include <tuple>
 #include <vector>
@@ -110,13 +111,13 @@ int main(int argc, char* argv[])
 				.enabledExtensionCount = 0,  // no enabled extensions
 				.ppEnabledExtensionNames = nullptr,
 				.pEnabledFeatures =
-					addressof((const vk::PhysicalDeviceFeatures&)vk::PhysicalDeviceFeatures{
+					&(const vk::PhysicalDeviceFeatures&)vk::PhysicalDeviceFeatures{
 						.shaderInt64 = true,
-					}),
+					},
 			}.setPNext(
-				addressof((const vk::PhysicalDeviceVulkan12Features&)vk::PhysicalDeviceVulkan12Features{
+				&(const vk::PhysicalDeviceVulkan12Features&)vk::PhysicalDeviceVulkan12Features{
 					.bufferDeviceAddress = true,
-				})
+				}
 			)
 		);
 
@@ -196,6 +197,11 @@ int main(int argc, char* argv[])
 		// bind pipeline
 		vk::cmdBindPipeline(commandBuffer, vk::PipelineBindPoint::eCompute, pipeline);
 
+		// dispatch computation
+		constexpr const uint32_t groupCountX = 1000;
+		constexpr const uint32_t groupCountY = 100;
+		vk::cmdDispatch(commandBuffer, groupCountX, groupCountY, 1);
+
 		// end command buffer
 		vk::endCommandBuffer(commandBuffer);
 
@@ -209,7 +215,8 @@ int main(int argc, char* argv[])
 			);
 
 		// submit work
-		cout << "Submiting work..." << endl;
+		cout << "Submiting work and waiting for it..." << endl;
+		chrono::time_point t1 = chrono::high_resolution_clock::now();
 		vk::queueSubmit(
 			queue,
 			vk::SubmitInfo{
@@ -225,18 +232,24 @@ int main(int argc, char* argv[])
 		);
 
 		// wait for the work
-		cout << "Waiting for the work..." << endl;
 		vk::Result r =
 			vk::waitForFence_noThrow(
 				renderingFinishedFence,
 				uint64_t(3e9)  // timeout (3s)
 			);
+		chrono::time_point t2 = chrono::high_resolution_clock::now();
 		if(r == vk::Result::eTimeout)
 			throw std::runtime_error("GPU timeout. Task is probably hanging.");
 		else
 			vk::checkForSuccessValue(r, "vkWaitForFences");
 
 		cout << "Done." << endl;
+
+		// print results
+		double delta = chrono::duration<double>(t2 - t1).count();
+		cout << "Computation time: " << delta * 1e3 << "ms." << endl;
+		constexpr uint64_t numInstructions = uint64_t(20000) * 128 * groupCountX * groupCountY;
+		cout << "Computing performance: " << double(numInstructions) / delta * 1e-9 << " GFLOPS." << endl;
 
 	// catch exceptions
 	} catch(vk::Error& e) {
