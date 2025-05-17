@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
+#include <new>
 #include <stdlib.h>
 #include <string.h>
 #include <utility>
@@ -27,7 +29,7 @@ public:
 	using HandleType = T;
 
 	Handle() noexcept  {}
-	Handle(nullptr_t) noexcept  : _handle(nullptr) {}
+	Handle(std::nullptr_t) noexcept  : _handle(nullptr) {}
 	Handle(T nativeHandle) noexcept  : _handle(nativeHandle) {}
 	Handle(const Handle& h) noexcept  : _handle(h._handle) {}
 	Handle(const UniqueHandle<Handle<T>>& u) noexcept  : _handle(u.get().handle()) {}
