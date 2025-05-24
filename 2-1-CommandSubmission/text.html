@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<title>2-1-CommandSubmission</title>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../common/vulkanStyle.css">
+<style media="screen" type="text/css">
+</style>
+</head>
+
+<body>
+
+<h1>Vulkan Tutorial</h1>
+
+<h3>2-1 - Command Submission</h3>
+
+<p>Logical device contains one or more queues that can be used to submit the work to be executed.
+This article presents two main topics: Selection of the device to use and the work submission.</p>
+
+<h3>Device selection</h3>
+
+<p>It is not uncommon that Vulkan lists two or more physical devices present in the system.
+The programmer might face the question: Which one should I use? If I take the first one,
+will I get the high performant one? Or, will I be unlucky and get slow integrated graphics
+or software-based CPU device?</p>
+
+<p>We will try to answer the question from the beginning. First, we will get the list of
+the physical devices in the system. Then, we filter out those
+that does not support all the functionalities we require.
+Those that satisfy our requirements are stored in compatibleDevices variable:</p>
+
+<pre>
+// get compatible devices
+vk::vector&lt;vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
+vector&lt;tuple&lt;vk::PhysicalDevice, uint32_t, vk::PhysicalDeviceProperties>> compatibleDevices;
+for(size_t i=0; i&lt;deviceList.size(); i++) {
+
+	// get queue family properties
+	vk::PhysicalDevice pd = deviceList[i];
+	vk::PhysicalDeviceProperties props = vk::getPhysicalDeviceProperties(pd);
+	vk::vector&lt;vk::QueueFamilyProperties> queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties(pd);
+	for(uint32_t i=0, c=uint32_t(queueFamilyList.size()); i&lt;c; i++) {
+
+		// test for graphics operations support
+		if(queueFamilyList[i].queueFlags &amp; vk::QueueFlagBits::eCompute)
+			compatibleDevices.emplace_back(pd, i, props);
+
+	}
+
+}
+
+// print compatible devices
+cout &lt;&lt; "Compatible devices:" &lt;&lt; endl;
+for(auto&amp; t : compatibleDevices)
+	cout &lt;&lt; "   " &lt;&lt; get&lt;2>(t).deviceName &lt;&lt; " (compute queue: " &lt;&lt; get&lt;1>(t)
+	     &lt;&lt; ", type: " &lt;&lt; to_cstr(get&lt;2>(t).deviceType) &lt;&lt; ")" &lt;&lt; endl;
+</pre>
+
+<p>We iterate over all physical devices and their queue families.
+We take only queue families and physical devices that support compute operations
+and store them in compatibleDevices vector.
+When we are finished, we print the compatible devices and their queues.</p>
+
+<p>The next step is the selection of the most suitable device.
+Often, we want the most performant device.
+But running a benchmark might not be the best solution because we also want our application to start quickly.
+So, we will use different approach. We will select the device based on its type.
+We will prefer discrete graphics over integrated, virtual GPU over CPU based and over all other types.
+We just assign the score to each device type and choose the device with the highest score:</p>
+
+<pre>
+// choose the best device
+auto bestDevice = compatibleDevices.begin();
+if(bestDevice == compatibleDevices.end())
+	throw runtime_error("No compatible devices.");
+constexpr const array deviceTypeScore = {
+	10, // vk::PhysicalDeviceType::eOther         - lowest score
+	40, // vk::PhysicalDeviceType::eIntegratedGpu - high score
+	50, // vk::PhysicalDeviceType::eDiscreteGpu   - highest score
+	30, // vk::PhysicalDeviceType::eVirtualGpu    - normal score
+	20, // vk::PhysicalDeviceType::eCpu           - low score
+	10, // unknown vk::PhysicalDeviceType
+};
+int bestScore = deviceTypeScore[clamp(int(get<2>(*bestDevice).deviceType), 0, int(deviceTypeScore.size())-1)];
+for(auto it=compatibleDevices.begin()+1; it!=compatibleDevices.end(); it++) {
+	int score = deviceTypeScore[clamp(int(get<2>(*it).deviceType), 0, int(deviceTypeScore.size())-1)];
+	if(score > bestScore) {
+		bestDevice = it;
+		bestScore = score;
+	}
+}
+cout << "Using device:\n"
+        "   " << get<2>(*bestDevice).deviceName << endl;
+uint32_t queueFamily = get<1>(*bestDevice);
+</pre>
+
+<p>Then, we create the device with the queue supporting compute operations:</p>
+
+<pre>
+// create device
+vk::initDevice(
+	<b>get<0>(*bestDevice),  // physicalDevice</b>
+	vk::DeviceCreateInfo{  // pCreateInfo
+		.flags = {},
+		.queueCreateInfoCount = 1,  // at least one queue is mandatory
+		.pQueueCreateInfos =
+			array{
+				vk::DeviceQueueCreateInfo{
+					.flags = {},
+					<b>.queueFamilyIndex = queueFamily,</b>
+					.queueCount = 1,
+					.pQueuePriorities = &(const float&)1.f,
+				}
+			}.data(),
+		.enabledLayerCount = 0,  // no enabled layers
+		.ppEnabledLayerNames = nullptr,
+		.enabledExtensionCount = 0,  // no enabled extensions
+		.ppEnabledExtensionNames = nullptr,
+		.pEnabledFeatures = nullptr,  // no enabled features
+	}
+);
+</pre>
+
+<p>We also need command pool and command buffer.
+The command buffer is used for recording the work to be done.
+After recording, it can be submitted to the device for execution.</p>
+
+<p>However, command buffers are not created directly.
+Instead, we create command pool and we allocate command buffers from it.
+Command pools allow the driver to amortize the cost of resource allocation across multiple command buffers
+and avoid the need for locks in multithreaded applications, because each thread might use different command pool.
+We create command pool and command buffer as follows:</p>
+
+<pre>
+// command pool
+vk::UniqueCommandPool commandPool =
+	vk::createCommandPoolUnique(
+		vk::CommandPoolCreateInfo{
+			.flags = {},
+			.queueFamilyIndex = queueFamily,
+		}
+	);
+
+// allocate command buffer
+vk::CommandBuffer commandBuffer =
+	vk::allocateCommandBuffer(
+		vk::CommandBufferAllocateInfo{
+			.commandPool = commandPool,
+			.level = vk::CommandBufferLevel::ePrimary,
+			.commandBufferCount = 1,
+		}
+	);
+</pre>
+
+<p>We can record command buffer. In this article, we just begin and end the recording:</p>
+
+<pre>
+// begin command buffer
+vk::beginCommandBuffer(
+	commandBuffer,
+	vk::CommandBufferBeginInfo{
+		.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
+		.pInheritanceInfo = nullptr,
+	}
+);
+
+// end command buffer
+vk::endCommandBuffer(commandBuffer);
+</pre>
+
+<p>Then, we create a fence and we can submit the command buffer for the execution:</p>
+
+<pre>
+// fence
+vk::UniqueFence renderingFinishedFence =
+	vk::createFenceUnique(
+		vk::FenceCreateInfo{
+			.flags = {}
+		}
+	);
+
+// submit work
+cout << "Submiting work..." << endl;
+vk::queueSubmit(
+	queue,
+	vk::SubmitInfo{
+		.waitSemaphoreCount = 0,
+		.pWaitSemaphores = nullptr,
+		.pWaitDstStageMask = nullptr,
+		.commandBufferCount = 1,
+		.pCommandBuffers = &commandBuffer,
+		.signalSemaphoreCount = 0,
+		.pSignalSemaphores = nullptr,
+	},
+	renderingFinishedFence
+);
+</pre>
+
+<p>Fences are a synchronization primitive that can be used to wait for the device to finish submitted work.
+Fences have two states - signaled and unsignaled.
+When we specify the fence during queue submit operation, it must be unsignalled.
+Once the device finishes all the work of the particular submit operation, it signals the fence.
+If our application is waiting on the fence, its work is resumed:</p>
+
+<pre>
+// wait for the work
+cout << "Waiting for the work..." << endl;
+vk::Result r =
+	vk::waitForFence_noThrow(
+		renderingFinishedFence,
+		uint64_t(3e9)  // timeout (3s)
+	);
+if(r == vk::Result::eTimeout)
+	throw std::runtime_error("GPU timeout. Task is probably hanging.");
+else
+	vk::checkForSuccessValue(r, "vkWaitForFences");
+
+cout << "Done." << endl;
+</pre>
+
+<p>As we can see, we wait for the fence with timeout of three seconds.
+We call noThrow variant, because we do not want to throw in the case of error.
+Intead, we handle vk::Result::eTimeout by ourselves and
+let vk::checkForSuccessValue() check for us if the result is vk::Result::eSuccess.
+If not, it will throw. This is understandable on all vk::Result error codes.
+But what about vk::Result success codes that are different from vk::Result::eSuccess?
+We are throwing even on them for two reasons. First, Vulkan function vkWaitForFences()
+is not expected to return any other success values than we already handled.
+And for the second, even if some future extension or Vulkan version appends a new success value,
+such success value does not mean we have got our job done like with vk::Result::eSuccess.
+We are not happy with such strange situation and we throw.</p>
+
+</body>
+</html>
