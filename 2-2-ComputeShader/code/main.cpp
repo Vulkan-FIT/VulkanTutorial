@@ -138,7 +138,7 @@ int main(int argc, char* argv[])
 		vk::UniquePipelineLayout pipelineLayout =
 			vk::createPipelineLayoutUnique(
 				vk::PipelineLayoutCreateInfo{
-					.flags{},
+					.flags = {},
 					.setLayoutCount = 0,
 					.pSetLayouts = nullptr,
 					.pushConstantRangeCount = 0,
@@ -151,10 +151,10 @@ int main(int argc, char* argv[])
 			vk::createComputePipelineUnique(
 				nullptr,
 				vk::ComputePipelineCreateInfo{
-					.flags{},
+					.flags = {},
 					.stage =
 						vk::PipelineShaderStageCreateInfo{
-							.flags{},
+							.flags = {},
 							.stage = vk::ShaderStageFlagBits::eCompute,
 							.module = shaderModule,
 							.pName = "main",

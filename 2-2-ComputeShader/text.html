@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<title>2-2-ComputeShader</title>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../common/vulkanStyle.css">
+<style media="screen" type="text/css">
+</style>
+</head>
+
+<body>
+
+<h1>Vulkan Tutorial</h1>
+
+<h3>2-2 - Compute Shader</h3>
+
+<p>In this article, we will try to measure the performance of a Vulkan device
+in GFLOPS (Giga FLoating-point Operations Per Second).
+We will create simple compute shader that will contain stream of 10'000 instructions,
+we will execute the shader many times on particular device,
+we will measure the execution time and print the measured performance.</p>
+
+<p>The new objects we will describe are shaders and pipelines.
+A shader contains stream of instructions.
+Pipelines control how graphics or compute work is executed on the device.
+A pipeline include one or more shaders and state controlling any non-programmable stages of the pipeline.</p>
+
+
+<h3>Shader code</h3>
+
+<p>We will use simple equation in our shader:</p>
+<pre>
+x = x * y + z;
+</pre>
+
+<p>This equation uses two math operations: multiplication and addition.
+Interestingly, many computing devices provide single instruction,
+usually called FMA (Fused Multiply Addition) that encodes these two operations.</p>
+
+<p>Now, we need to repeat the equation 10'000 times.
+We will use macros for it:</p>
+
+<pre>
+#define FMA10 \
+	x = x*y+z; \
+	x = x*y+z; \
+	x = x*y+z; \
+	x = x*y+z; \
+	x = x*y+z; \
+	x = x*y+z; \
+	x = x*y+z; \
+	x = x*y+z; \
+	x = x*y+z; \
+	x = x*y+z
+
+#define FMA100 \
+	FMA10; \
+	FMA10; \
+	FMA10; \
+	FMA10; \
+	FMA10; \
+	FMA10; \
+	FMA10; \
+	FMA10; \
+	FMA10; \
+	FMA10
+</pre>
+
+<p>Now, FMA10 macro provides 10 FMA instructions and FMA100 provides 100 FMA instructions.
+In the similar way, we create FMA1000 and FMA10000 macros.
+Finally, we provide the main() function:</p>
+
+<pre>
+void main()
+{
+	// initial values of x, y and z
+	float x = gl_GlobalInvocationID.x;
+	float y = gl_GlobalInvocationID.y;
+	float z = gl_GlobalInvocationID.z;
+
+	FMA10000;
+
+	// condition that will never be true in reality
+	// (this avoids optimizer to consider the results of previous computations as unused
+	// and to optimize the final shader code by their removal)
+	if(x == 0.1) {
+		// write to artificially generated address
+		// (the write will never happen in reality)
+		OutputDataRef data = OutputDataRef(uint64_t(0));
+		data.outputFloat = y;
+	}
+}
+</pre>
+
+<p>First, we assign initial values to x, y and z values.
+Compute shaders usually run many invocations in parallel.
+gl_GlobalInvocationID is uvec3 that contains index of shader invocation
+in x, y and z dimension. We convert it to float and use for our x, y and z variables.</p>
+
+<p>After the computation of 10'000 FMA instructions, there is one danger.
+If we do not use the results of our computation, some optimizer might jump in
+and remove all our computation as needless. This would spoil our measurements
+as we really want these 10'000 FMA instructions even if we do not use the results.
+So, we compare final x value with 0.1 and write y to address 0.
+Obviously, x will never be 0.1 so we will never write anything to address 0.
+But the outcome is that our 10'000 FMA instructions is not optimized out.</p>
+
+<p>The last piece of the shader code is its header:</p>
+
+<pre>
+#version 460
+#extension GL_EXT_buffer_reference : require
+#extension GL_ARB_gpu_shader_int64 : require
+
+layout(local_size_x=32, local_size_y=4, local_size_z=1) in;
+
+
+layout(buffer_reference) restrict writeonly buffer OutputDataRef {
+	float outputFloat;
+};
+</pre>
+
+<p>It is written in GLSL language version 4.6 and it uses
+GL_EXT_buffer_reference and GL_ARB_gpu_shader_int64 extensions.
+Both are necessary for our fictive write to address zero.</p>
+
+<p>Layout with local_size_x, y and z defines the size of local workgroup.
+Local workgroup is composed of 32x4x1 shader invocations.
+So, there is 128 invocations in total in local workgroup.
+More on this later, when we will deal with vkCmdDispatch() command.</p>
+
+<p>Layout(buffer_reference) specifies OutputDataRef type to be buffer reference.
+We need the type to arrange our fictive write to address zero.</p>
+
+
+<h3>GLSL to SPIR-V translation</h3>
+
+<p>Vulkan consumes Shader code in SPIR-V intermediate language.
+So, we need to translate our GLSL shader code into SPIR-V.
+We will use glslangValidator tool for this purpose.
+We need to modify CMakeLists.txt file slightly.
+Modified parts are in bold:</p>
+
+<pre>
+# executable
+<b>include(vkgMacros.cmake)
+vkg_add_shaders("${APP_SHADERS}" APP_SHADER_DEPS)</b>
+add_executable(${APP_NAME} ${APP_SOURCES} ${APP_INCLUDES} <b>${APP_SHADER_DEPS}</b>)
+
+# target
+set_property(TARGET ${APP_NAME} PROPERTY CXX_STANDARD 20)
+<b>target_include_directories(${APP_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})</b>
+</pre>
+
+<p>The macro vkg_add_shaders() will process all shaders and generate their SPIR-V counterparts.
+APP_SHADER_DEPS variable will contain dependencies that we need to append to our executable.
+Finally, we need to append include directory to CMake's binary dir
+because that is where the SPIR-V shaders are generated and we need to include them from our source code.
+
+
+<h3>Shader module</h3>
+
+<p>A shader module is collection of shader code. It includes one or more functions with one or more entry points.
+We will first include SPIR-V shader binary code in the beginning of our main.cpp file:</p>
+
+<pre>
+// shader code as SPIR-V binary
+static const uint32_t performanceSpirv[] = {
+#include "performance.comp.spv"
+};
+</pre>
+
+<p>Then, we create the shader module inside our main() function:</p>
+
+<pre>
+// shader module
+vk::UniqueShaderModule shaderModule =
+	vk::createShaderModuleUnique(
+		vk::ShaderModuleCreateInfo{
+			.flags = {},
+			.codeSize = sizeof(performanceSpirv),
+			.pCode = performanceSpirv,
+		}
+	);
+</pre>
+
+
+<h3>Pipeline</h3>
+
+<p>A pipeline controls how graphics or compute work is executed on the device.
+Before we create pipeline, we need pipeline layout:</p>
+
+<pre>
+// pipeline layout
+vk::UniquePipelineLayout pipelineLayout =
+	vk::createPipelineLayoutUnique(
+		vk::PipelineLayoutCreateInfo{
+			.flags = {},
+			.setLayoutCount = 0,
+			.pSetLayouts = nullptr,
+			.pushConstantRangeCount = 0,
+			.pPushConstantRanges = nullptr,
+		}
+	);
+</pre>
+
+<p>Pipeline layout describes the set of resources and push constants used by a pipeline.
+Set of resources is described by the collection of descriptor set layouts.
+For now, we are not using any of these. So, we will not go into detail on these.</p>
+
+<p>The compute pipeline is created as follows:</p>
+
+<pre>
+// pipeline
+vk::UniquePipeline pipeline =
+	vk::createComputePipelineUnique(
+		nullptr,
+		vk::ComputePipelineCreateInfo{
+			.flags = {},
+			.stage =
+				vk::PipelineShaderStageCreateInfo{
+					.flags = {},
+					.stage = vk::ShaderStageFlagBits::eCompute,
+					.module = shaderModule,
+					.pName = "main",
+					.pSpecializationInfo = nullptr,
+				},
+			.layout = pipelineLayout,
+			.basePipelineHandle = nullptr,
+			.basePipelineIndex = -1,
+		}
+	);
+</pre>
+
+<p>Particular shader used by the pipeline is specified in vk::PipelineShaderStageCreateInfo structure.
+In stage member, we specify that it is compute shader.
+In module member, we pass shaderModule created few moments before.
+And in pName member, we specify the name of entry function that will be called when the execution of the shader starts.
+
+
+<h3>Dispatch and workgroups</h3>
+
+<p>Now, we need to record the work into our command buffer.
+We will do it by the following code when recording command buffer:</p>
+
+<pre>
+// bind pipeline
+vk::cmdBindPipeline(commandBuffer, vk::PipelineBindPoint::eCompute, pipeline);
+
+// dispatch computation
+constexpr const uint32_t groupCountX = 1000;
+constexpr const uint32_t groupCountY = 100;
+constexpr const uint32_t groupCountZ = 1;
+vk::cmdDispatch(commandBuffer, groupCountX, groupCountY, groupCountZ);
+</pre>
+
+<p>First, we bind our pipeline. It is bound to the compute binding point.
+So, all the following compute commands in this command buffer will use this pipeline
+until another pipeline is bound to the compute binding point or until command buffer recording ends.</p>
+
+<p>The next call is vk::cmdDispatch(). It records the work for the compute pipeline currently bound.
+The work is not executed yet, it is just recorded.
+And what is recorded is the number of workgroups in X, Y and Z dimension.
+We record 1000 workgroups in X dimension, 100 in Y dimension and 1 in Z dimension.
+In total, it is 1000x100x1 = 100'000 workgroups.
+These workgroups are called local workgroups, while all 100'000 workgroups together will form one global workgroup
+because it was provoked by single dispatch call.</p>
+
+<p>A local workgroup is composed of compute shader invocations.
+Their number is specified on the beginning of our compute shader as
+<code>layout(local_size_x=32, local_size_y=4, local_size_z=1) in;</code>.
+So, it is 32 x 4 x 1 of them. In total, 128 compute shader invocations.
+If we multiply it by 100'000 local workgroups that we recorded into command buffer,
+it is 12'800'000 compute shader invocations.</p>
+
+<p>One more note: There are some limits on number of local workgroups
+inside single global workgroup.
+There are also limits on number of shader invocations inside local workgroup.
+More details in collapsable section just for those interested.</p>
+
+<details><summary>Limits on local workgroups and shader invocations</summary>
+
+<p>Number of local workgroups inside single global workgroup has the following limitations:
+<ul><li>Number of workgroups in X dimension must be less than or equal to VkPhysicalDeviceLimits::maxComputeWorkGroupCount[0].</li>
+<li>Number of workgroups in Y dimension must be less than or equal to VkPhysicalDeviceLimits::maxComputeWorkGroupCount[1].</li>
+<li>Number of workgroups in Z dimension must be less than or equal to VkPhysicalDeviceLimits::maxComputeWorkGroupCount[2].</li>
+</ul></p>
+
+<p>Minimal value of VkPhysicalDeviceLimits::maxComputeWorkGroupCount is (65535, 65535, 65535) as required by Vulkan specification.</p>
+
+<p>Number of compute shader invocations inside a local workgroup has the following limitations:
+<ul><li>Number of invocations in X dimension must be less than or equal to VkPhysicalDeviceLimits::maxComputeWorkGroupSize[0].</li>
+<li>Number of invocations in Y dimension must be less than or equal to VkPhysicalDeviceLimits::maxComputeWorkGroupSize[1].</li>
+<li>Number of invocations in Z dimension must be less than or equal to VkPhysicalDeviceLimits::maxComputeWorkGroupSize[2].</li>
+<li>Total number of invocations must be less than or equal to VkPhysicalDeviceLimits::maxComputeWorkGroupInvocations.</li>
+</ul></p>
+
+<p>Minimal value of VkPhysicalDeviceLimits::maxComputeWorkGroupSize is (128, 128, 64) as required by Vulkan specification.</p>
+
+<p>Minimal value of VkPhysicalDeviceLimits::maxComputeWorkGroupInvocations is 128 as required by Vulkan specification.</p>
+
+</details>
+
+
+<h3>Submission and print results</h3>
+
+<p>Now, we will submit the work.
+To measure the execution time, we first get the current time (code in bold):</p>
+
+<pre>
+// submit work
+cout << "Submiting work and waiting for it..." << endl;
+<b>chrono::time_point t1 = chrono::high_resolution_clock::now();</b>
+vk::queueSubmit(
+	queue,
+	vk::SubmitInfo{
+		.waitSemaphoreCount = 0,
+		.pWaitSemaphores = nullptr,
+		.pWaitDstStageMask = nullptr,
+		.commandBufferCount = 1,
+		.pCommandBuffers = &commandBuffer,
+		.signalSemaphoreCount = 0,
+		.pSignalSemaphores = nullptr,
+	},
+	renderingFinishedFence
+);
+</pre>
+
+<p>Then, we wait for fence. When the submitted work execution is completed,
+the fence is signalled, and we take the current time again (in bold):</p>
+
+<pre>
+// wait for the work
+vk::Result r =
+	vk::waitForFence_noThrow(
+		renderingFinishedFence,
+		uint64_t(3e9)  // timeout (3s)
+	);
+<b>chrono::time_point t2 = chrono::high_resolution_clock::now();</b>
+if(r == vk::Result::eTimeout)
+	throw std::runtime_error("GPU timeout. Task is probably hanging.");
+else
+	vk::checkForSuccessValue(r, "vkWaitForFences");
+</pre>
+
+<p>Now, we can print the computation time and performance:</p>
+
+<pre>
+// print results
+double delta = chrono::duration<double>(t2 - t1).count();
+cout << "Computation time: " << delta * 1e3 << "ms." << endl;
+constexpr uint64_t numInstructions = uint64_t(20000) * 128 * groupCountX * groupCountY * groupCountZ;
+cout << "Computing performance: " << double(numInstructions) / delta * 1e-9 << " GFLOPS." << endl;
+</pre>
+
+<p>Computing performance is a little more complicated.
+We executed one global workgroup composed of groupCountX * groupCountY * groupCountZ local workgroups.
+It is 1'000 in X dimension, 100 in Y dimension and 1 in Z dimension. In total, 100'000 local groups.
+Each local workgroup is composed of compute shader invocations.
+Their number is specified on the beginning of the compute shader as
+<code>layout(local_size_x=32, local_size_y=4, local_size_z=1) in;</code>.
+So, it is 32x4x1 of them. 128 in total.
+When combined with number of local workgroups, we have 128 x 100'000 = 12'800'000 shader invocations.
+Finally, each compute shader invocation executes 10'000 multiplications and 10'000 additions.
+It is 20'000 floating operations.
+So, the whole computation is composed of 20'000 x 12'800'000 = 256'000'000'000 floating point operations.
+We can write 256 giga operations.
+Now, if we divide it by execution time, we get the performance in GFLOPS
+GFLOPS (Giga FLoating-point Operations Per Second).
+If, for example, the execution took 10 milliseconds, we divide it by 0.01 (in seconds) and receive 25'600 GFLOPS,
+or 25.6 TFLOPS. Such number would mean quite good graphics card for the time of writing of this article in 2025.</p>
+
+</body>
+</html>

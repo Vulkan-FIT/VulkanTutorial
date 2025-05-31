@@ -20,52 +20,53 @@ layout(buffer_reference) restrict writeonly buffer OutputDataRef {
 	x = x*y+z; \
 	x = x*y+z; \
 	x = x*y+z; \
-	x = x*y+z;
+	x = x*y+z
 
 #define FMA100 \
-	FMA10 \
-	FMA10 \
-	FMA10 \
-	FMA10 \
-	FMA10 \
-	FMA10 \
-	FMA10 \
-	FMA10 \
-	FMA10 \
+	FMA10; \
+	FMA10; \
+	FMA10; \
+	FMA10; \
+	FMA10; \
+	FMA10; \
+	FMA10; \
+	FMA10; \
+	FMA10; \
 	FMA10
 
 #define FMA1000 \
-	FMA100 \
-	FMA100 \
-	FMA100 \
-	FMA100 \
-	FMA100 \
-	FMA100 \
-	FMA100 \
-	FMA100 \
-	FMA100 \
+	FMA100; \
+	FMA100; \
+	FMA100; \
+	FMA100; \
+	FMA100; \
+	FMA100; \
+	FMA100; \
+	FMA100; \
+	FMA100; \
 	FMA100
 
 #define FMA10000 \
-	FMA1000 \
-	FMA1000 \
-	FMA1000 \
-	FMA1000 \
-	FMA1000 \
-	FMA1000 \
-	FMA1000 \
-	FMA1000 \
-	FMA1000 \
+	FMA1000; \
+	FMA1000; \
+	FMA1000; \
+	FMA1000; \
+	FMA1000; \
+	FMA1000; \
+	FMA1000; \
+	FMA1000; \
+	FMA1000; \
 	FMA1000
 
 
 void main()
 {
+	// initial values of x, y and z
 	float x = gl_GlobalInvocationID.x;
 	float y = gl_GlobalInvocationID.y;
 	float z = gl_GlobalInvocationID.z;
 
-	FMA10000
+	FMA10000;
 
 	// condition that will never be true in reality
 	// (this avoids optimizer to consider the results of previous computations as unused
