@@ -5,7 +5,6 @@
 #include <new>
 #include <stdlib.h>
 #include <string.h>
-#include <utility>
 
 
 namespace vk {
@@ -209,11 +208,11 @@ constexpr uint32_t apiVersionPatch(uint32_t version)  { return version & 0xfff; 
 
 // Flags class
 // author: PCJohn (peciva at fit.vut.cz)
-template <typename BitType>
+template <typename BitType, typename UnderlyingType>
 class Flags {
 public:
 
-	using ValueType = uint32_t;//typename std::underlying_type<BitType>::type;
+	using ValueType = UnderlyingType;
 
 protected:
 	ValueType _value;
@@ -222,30 +221,30 @@ public:
 	// constructors
 	constexpr Flags() noexcept  : _value(0) {}
 	constexpr Flags(BitType bit) noexcept  : _value(static_cast<ValueType>(bit)) {}
-	constexpr Flags(const Flags<BitType>& other) noexcept = default;
+	constexpr Flags(const Flags<BitType, UnderlyingType>& other) noexcept = default;
 	constexpr explicit Flags(ValueType flags) noexcept  : _value(flags) {}
 
 	// relational operators
-	constexpr bool operator< (const Flags<BitType>& rhs) const noexcept  { return _value <  rhs._value; }
-	constexpr bool operator<=(const Flags<BitType>& rhs) const noexcept  { return _value <= rhs._value; }
-	constexpr bool operator> (const Flags<BitType>& rhs) const noexcept  { return _value >  rhs._value; }
-	constexpr bool operator>=(const Flags<BitType>& rhs) const noexcept  { return _value >= rhs._value; }
-	constexpr bool operator==(const Flags<BitType>& rhs) const noexcept  { return _value == rhs._value; }
-	constexpr bool operator!=(const Flags<BitType>& rhs) const noexcept  { return _value != rhs._value; }
+	constexpr bool operator< (const Flags<BitType, UnderlyingType>& rhs) const noexcept  { return _value <  rhs._value; }
+	constexpr bool operator<=(const Flags<BitType, UnderlyingType>& rhs) const noexcept  { return _value <= rhs._value; }
+	constexpr bool operator> (const Flags<BitType, UnderlyingType>& rhs) const noexcept  { return _value >  rhs._value; }
+	constexpr bool operator>=(const Flags<BitType, UnderlyingType>& rhs) const noexcept  { return _value >= rhs._value; }
+	constexpr bool operator==(const Flags<BitType, UnderlyingType>& rhs) const noexcept  { return _value == rhs._value; }
+	constexpr bool operator!=(const Flags<BitType, UnderlyingType>& rhs) const noexcept  { return _value != rhs._value; }
 
 	// logical operator
 	constexpr bool operator!() const noexcept  { return !_value; }
 
 	// bitwise operators
-	constexpr Flags<BitType> operator&(const Flags<BitType>& rhs) const noexcept  { return Flags<BitType>(_value & rhs._value); }
-	constexpr Flags<BitType> operator|(const Flags<BitType>& rhs) const noexcept  { return Flags<BitType>(_value | rhs._value); }
-	constexpr Flags<BitType> operator^(const Flags<BitType>& rhs) const noexcept  { return Flags<BitType>(_value ^ rhs._value); }
+	constexpr Flags<BitType, UnderlyingType> operator&(const Flags<BitType, UnderlyingType>& rhs) const noexcept  { return Flags<BitType, UnderlyingType>(_value & rhs._value); }
+	constexpr Flags<BitType, UnderlyingType> operator|(const Flags<BitType, UnderlyingType>& rhs) const noexcept  { return Flags<BitType, UnderlyingType>(_value | rhs._value); }
+	constexpr Flags<BitType, UnderlyingType> operator^(const Flags<BitType, UnderlyingType>& rhs) const noexcept  { return Flags<BitType, UnderlyingType>(_value ^ rhs._value); }
 
 	// assignment operators
-	constexpr Flags<BitType>& operator= (const Flags<BitType>& rhs) noexcept = default;
-	constexpr Flags<BitType>& operator|=(const Flags<BitType>& rhs) noexcept  { _value |= rhs._value; return *this; }
-	constexpr Flags<BitType>& operator&=(const Flags<BitType>& rhs) noexcept  { _value &= rhs._value; return *this; }
-	constexpr Flags<BitType>& operator^=(const Flags<BitType>& rhs) noexcept  { _value ^= rhs._value; return *this; }
+	constexpr Flags<BitType, UnderlyingType>& operator= (const Flags<BitType, UnderlyingType>& rhs) noexcept = default;
+	constexpr Flags<BitType, UnderlyingType>& operator|=(const Flags<BitType, UnderlyingType>& rhs) noexcept  { _value |= rhs._value; return *this; }
+	constexpr Flags<BitType, UnderlyingType>& operator&=(const Flags<BitType, UnderlyingType>& rhs) noexcept  { _value &= rhs._value; return *this; }
+	constexpr Flags<BitType, UnderlyingType>& operator^=(const Flags<BitType, UnderlyingType>& rhs) noexcept  { _value ^= rhs._value; return *this; }
 
 	// cast operators
 	explicit constexpr operator bool() const noexcept  { return !!_value; }
@@ -254,23 +253,23 @@ public:
 };
 
 
-template<typename BitType>
-constexpr Flags<BitType> operator&(BitType bit, const Flags<BitType>& flags) noexcept  { return flags.operator&(bit); }
+template<typename BitType, typename UnderlyingType>
+constexpr Flags<BitType, UnderlyingType> operator&(BitType bit, const Flags<BitType, UnderlyingType>& flags) noexcept  { return flags.operator&(bit); }
 
-template<typename BitType>
-constexpr Flags<BitType> operator|(BitType bit, const Flags<BitType>& flags) noexcept  { return flags.operator|(bit); }
+template<typename BitType, typename UnderlyingType>
+constexpr Flags<BitType, UnderlyingType> operator|(BitType bit, const Flags<BitType, UnderlyingType>& flags) noexcept  { return flags.operator|(bit); }
 
-template<typename BitType>
-constexpr Flags<BitType> operator^(BitType bit, const Flags<BitType>& flags) noexcept  { return flags.operator^(bit); }
+template<typename BitType, typename UnderlyingType>
+constexpr Flags<BitType, UnderlyingType> operator^(BitType bit, const Flags<BitType, UnderlyingType>& flags) noexcept  { return flags.operator^(bit); }
 
-template<typename BitType>
-constexpr Flags<BitType> operator&(BitType lhs, BitType rhs) noexcept  { return Flags<BitType>(lhs) & rhs; }
+template<typename BitType, typename UnderlyingType>
+constexpr Flags<BitType, UnderlyingType> operator&(BitType lhs, BitType rhs) noexcept  { return Flags<BitType, UnderlyingType>(lhs) & rhs; }
 
-template<typename BitType>
-constexpr Flags<BitType> operator|(BitType lhs, BitType rhs) noexcept  { return Flags<BitType>(lhs) | rhs; }
+template<typename BitType, typename UnderlyingType>
+constexpr Flags<BitType, UnderlyingType> operator|(BitType lhs, BitType rhs) noexcept  { return Flags<BitType, UnderlyingType>(lhs) | rhs; }
 
-template<typename BitType>
-constexpr Flags<BitType> operator^(BitType lhs, BitType rhs) noexcept  { return Flags<BitType>(lhs) ^ rhs; }
+template<typename BitType, typename UnderlyingType>
+constexpr Flags<BitType, UnderlyingType> operator^(BitType lhs, BitType rhs) noexcept  { return Flags<BitType, UnderlyingType>(lhs) ^ rhs; }
 
 
 // enums
@@ -2619,16 +2618,16 @@ enum class FramebufferCreateFlagBits : uint32_t {
 	eImageless = 0x1,
 	eImagelessKHR = 0x1,
 };
-using FramebufferCreateFlags = Flags<FramebufferCreateFlagBits>;
+using FramebufferCreateFlags = Flags<FramebufferCreateFlagBits, uint32_t>;
 
 enum class QueryPoolCreateFlagBits : uint32_t {
 };
-using QueryPoolCreateFlags = Flags<QueryPoolCreateFlagBits>;
+using QueryPoolCreateFlags = Flags<QueryPoolCreateFlagBits, uint32_t>;
 
 enum class RenderPassCreateFlagBits : uint32_t {
 	eTransformQCOM = 0x2,
 };
-using RenderPassCreateFlags = Flags<RenderPassCreateFlagBits>;
+using RenderPassCreateFlags = Flags<RenderPassCreateFlagBits, uint32_t>;
 
 enum class SamplerCreateFlagBits : uint32_t {
 	eSubsampledEXT = 0x1,
@@ -2637,18 +2636,18 @@ enum class SamplerCreateFlagBits : uint32_t {
 	eNonSeamlessCubeMapEXT = 0x4,
 	eImageProcessingQCOM = 0x10,
 };
-using SamplerCreateFlags = Flags<SamplerCreateFlagBits>;
+using SamplerCreateFlags = Flags<SamplerCreateFlagBits, uint32_t>;
 
 enum class PipelineLayoutCreateFlagBits : uint32_t {
 	eIndependentSetsEXT = 0x2,
 };
-using PipelineLayoutCreateFlags = Flags<PipelineLayoutCreateFlagBits>;
+using PipelineLayoutCreateFlags = Flags<PipelineLayoutCreateFlagBits, uint32_t>;
 
 enum class PipelineCacheCreateFlagBits : uint32_t {
 	eExternallySynchronized = 0x1,
 	eExternallySynchronizedEXT = 0x1,
 };
-using PipelineCacheCreateFlags = Flags<PipelineCacheCreateFlagBits>;
+using PipelineCacheCreateFlags = Flags<PipelineCacheCreateFlagBits, uint32_t>;
 
 enum class PipelineDepthStencilStateCreateFlagBits : uint32_t {
 	eRasterizationOrderAttachmentDepthAccessARM = 0x1,
@@ -2656,41 +2655,41 @@ enum class PipelineDepthStencilStateCreateFlagBits : uint32_t {
 	eRasterizationOrderAttachmentDepthAccessEXT = 0x1,
 	eRasterizationOrderAttachmentStencilAccessEXT = 0x2,
 };
-using PipelineDepthStencilStateCreateFlags = Flags<PipelineDepthStencilStateCreateFlagBits>;
+using PipelineDepthStencilStateCreateFlags = Flags<PipelineDepthStencilStateCreateFlagBits, uint32_t>;
 
 enum class PipelineDynamicStateCreateFlagBits : uint32_t {
 };
-using PipelineDynamicStateCreateFlags = Flags<PipelineDynamicStateCreateFlagBits>;
+using PipelineDynamicStateCreateFlags = Flags<PipelineDynamicStateCreateFlagBits, uint32_t>;
 
 enum class PipelineColorBlendStateCreateFlagBits : uint32_t {
 	eRasterizationOrderAttachmentAccessARM = 0x1,
 	eRasterizationOrderAttachmentAccessEXT = 0x1,
 };
-using PipelineColorBlendStateCreateFlags = Flags<PipelineColorBlendStateCreateFlagBits>;
+using PipelineColorBlendStateCreateFlags = Flags<PipelineColorBlendStateCreateFlagBits, uint32_t>;
 
 enum class PipelineMultisampleStateCreateFlagBits : uint32_t {
 };
-using PipelineMultisampleStateCreateFlags = Flags<PipelineMultisampleStateCreateFlagBits>;
+using PipelineMultisampleStateCreateFlags = Flags<PipelineMultisampleStateCreateFlagBits, uint32_t>;
 
 enum class PipelineRasterizationStateCreateFlagBits : uint32_t {
 };
-using PipelineRasterizationStateCreateFlags = Flags<PipelineRasterizationStateCreateFlagBits>;
+using PipelineRasterizationStateCreateFlags = Flags<PipelineRasterizationStateCreateFlagBits, uint32_t>;
 
 enum class PipelineViewportStateCreateFlagBits : uint32_t {
 };
-using PipelineViewportStateCreateFlags = Flags<PipelineViewportStateCreateFlagBits>;
+using PipelineViewportStateCreateFlags = Flags<PipelineViewportStateCreateFlagBits, uint32_t>;
 
 enum class PipelineTessellationStateCreateFlagBits : uint32_t {
 };
-using PipelineTessellationStateCreateFlags = Flags<PipelineTessellationStateCreateFlagBits>;
+using PipelineTessellationStateCreateFlags = Flags<PipelineTessellationStateCreateFlagBits, uint32_t>;
 
 enum class PipelineInputAssemblyStateCreateFlagBits : uint32_t {
 };
-using PipelineInputAssemblyStateCreateFlags = Flags<PipelineInputAssemblyStateCreateFlagBits>;
+using PipelineInputAssemblyStateCreateFlags = Flags<PipelineInputAssemblyStateCreateFlagBits, uint32_t>;
 
 enum class PipelineVertexInputStateCreateFlagBits : uint32_t {
 };
-using PipelineVertexInputStateCreateFlags = Flags<PipelineVertexInputStateCreateFlagBits>;
+using PipelineVertexInputStateCreateFlags = Flags<PipelineVertexInputStateCreateFlagBits, uint32_t>;
 
 enum class PipelineShaderStageCreateFlagBits : uint32_t {
 	eAllowVaryingSubgroupSize = 0x1,
@@ -2698,7 +2697,7 @@ enum class PipelineShaderStageCreateFlagBits : uint32_t {
 	eAllowVaryingSubgroupSizeEXT = 0x1,
 	eRequireFullSubgroupsEXT = 0x2,
 };
-using PipelineShaderStageCreateFlags = Flags<PipelineShaderStageCreateFlagBits>;
+using PipelineShaderStageCreateFlags = Flags<PipelineShaderStageCreateFlagBits, uint32_t>;
 
 enum class DescriptorSetLayoutCreateFlagBits : uint32_t {
 	eUpdateAfterBindPool = 0x2,
@@ -2712,25 +2711,25 @@ enum class DescriptorSetLayoutCreateFlagBits : uint32_t {
 	eHostOnlyPoolEXT = 0x4,
 	ePerStageNV = 0x40,
 };
-using DescriptorSetLayoutCreateFlags = Flags<DescriptorSetLayoutCreateFlagBits>;
+using DescriptorSetLayoutCreateFlags = Flags<DescriptorSetLayoutCreateFlagBits, uint32_t>;
 
 enum class BufferViewCreateFlagBits : uint32_t {
 };
-using BufferViewCreateFlags = Flags<BufferViewCreateFlagBits>;
+using BufferViewCreateFlags = Flags<BufferViewCreateFlagBits, uint32_t>;
 
 enum class InstanceCreateFlagBits : uint32_t {
 	eEnumeratePortabilityKHR = 0x1,
 };
-using InstanceCreateFlags = Flags<InstanceCreateFlagBits>;
+using InstanceCreateFlags = Flags<InstanceCreateFlagBits, uint32_t>;
 
 enum class DeviceCreateFlagBits : uint32_t {
 };
-using DeviceCreateFlags = Flags<DeviceCreateFlagBits>;
+using DeviceCreateFlags = Flags<DeviceCreateFlagBits, uint32_t>;
 
 enum class DeviceQueueCreateFlagBits : uint32_t {
 	eProtected = 0x1,
 };
-using DeviceQueueCreateFlags = Flags<DeviceQueueCreateFlagBits>;
+using DeviceQueueCreateFlags = Flags<DeviceQueueCreateFlagBits, uint32_t>;
 
 enum class QueueFlagBits : uint32_t {
 	eGraphics = 0x1,
@@ -2742,7 +2741,7 @@ enum class QueueFlagBits : uint32_t {
 	eVideoEncodeKHR = 0x40,
 	eOpticalFlowNV = 0x100,
 };
-using QueueFlags = Flags<QueueFlagBits>;
+using QueueFlags = Flags<QueueFlagBits, uint32_t>;
 
 enum class MemoryPropertyFlagBits : uint32_t {
 	eDeviceLocal = 0x1,
@@ -2755,14 +2754,14 @@ enum class MemoryPropertyFlagBits : uint32_t {
 	eDeviceUncachedAMD = 0x80,
 	eRdmaCapableNV = 0x100,
 };
-using MemoryPropertyFlags = Flags<MemoryPropertyFlagBits>;
+using MemoryPropertyFlags = Flags<MemoryPropertyFlagBits, uint32_t>;
 
 enum class MemoryHeapFlagBits : uint32_t {
 	eDeviceLocal = 0x1,
 	eMultiInstance = 0x2,
 	eMultiInstanceKHR = 0x2,
 };
-using MemoryHeapFlags = Flags<MemoryHeapFlagBits>;
+using MemoryHeapFlags = Flags<MemoryHeapFlagBits, uint32_t>;
 
 enum class AccessFlagBits : uint32_t {
 	eIndirectCommandRead = 0x1,
@@ -2801,7 +2800,7 @@ enum class AccessFlagBits : uint32_t {
 	eCommandPreprocessReadEXT = 0x20000,
 	eCommandPreprocessWriteEXT = 0x40000,
 };
-using AccessFlags = Flags<AccessFlagBits>;
+using AccessFlags = Flags<AccessFlagBits, uint32_t>;
 
 enum class BufferUsageFlagBits : uint32_t {
 	eTransferSrc = 0x1,
@@ -2836,7 +2835,7 @@ enum class BufferUsageFlagBits : uint32_t {
 	eExecutionGraphScratchAMDX = 0x2000000,
 #endif // VK_ENABLE_BETA_EXTENSIONS
 };
-using BufferUsageFlags = Flags<BufferUsageFlagBits>;
+using BufferUsageFlags = Flags<BufferUsageFlagBits, uint32_t>;
 
 enum class BufferCreateFlagBits : uint32_t {
 	eSparseBinding = 0x1,
@@ -2849,7 +2848,7 @@ enum class BufferCreateFlagBits : uint32_t {
 	eDescriptorBufferCaptureReplayEXT = 0x20,
 	eVideoProfileIndependentKHR = 0x40,
 };
-using BufferCreateFlags = Flags<BufferCreateFlagBits>;
+using BufferCreateFlags = Flags<BufferCreateFlagBits, uint32_t>;
 
 enum class ShaderStageFlagBits : uint32_t {
 	eVertex = 0x1,
@@ -2879,7 +2878,7 @@ enum class ShaderStageFlagBits : uint32_t {
 	eSubpassShadingHUAWEI = 0x4000,
 	eClusterCullingHUAWEI = 0x80000,
 };
-using ShaderStageFlags = Flags<ShaderStageFlagBits>;
+using ShaderStageFlags = Flags<ShaderStageFlagBits, uint32_t>;
 
 enum class ImageUsageFlagBits : uint32_t {
 	eTransferSrc = 0x1,
@@ -2908,7 +2907,7 @@ enum class ImageUsageFlagBits : uint32_t {
 	eVideoEncodeQuantizationDeltaMapKHR = 0x2000000,
 	eVideoEncodeEmphasisMapKHR = 0x4000000,
 };
-using ImageUsageFlags = Flags<ImageUsageFlagBits>;
+using ImageUsageFlags = Flags<ImageUsageFlagBits, uint32_t>;
 
 enum class ImageCreateFlagBits : uint32_t {
 	eSparseBinding = 0x1,
@@ -2938,14 +2937,14 @@ enum class ImageCreateFlagBits : uint32_t {
 	eFragmentDensityMapOffsetQCOM = 0x8000,
 	eVideoProfileIndependentKHR = 0x100000,
 };
-using ImageCreateFlags = Flags<ImageCreateFlagBits>;
+using ImageCreateFlags = Flags<ImageCreateFlagBits, uint32_t>;
 
 enum class ImageViewCreateFlagBits : uint32_t {
 	eFragmentDensityMapDynamicEXT = 0x1,
 	eDescriptorBufferCaptureReplayEXT = 0x4,
 	eFragmentDensityMapDeferredEXT = 0x2,
 };
-using ImageViewCreateFlags = Flags<ImageViewCreateFlagBits>;
+using ImageViewCreateFlags = Flags<ImageViewCreateFlagBits, uint32_t>;
 
 enum class PipelineCreateFlagBits : uint32_t {
 	eDisableOptimization = 0x1,
@@ -2990,7 +2989,7 @@ enum class PipelineCreateFlagBits : uint32_t {
 	eRayTracingDisplacementMicromapNV = 0x10000000,
 #endif // VK_ENABLE_BETA_EXTENSIONS
 };
-using PipelineCreateFlags = Flags<PipelineCreateFlagBits>;
+using PipelineCreateFlags = Flags<PipelineCreateFlagBits, uint32_t>;
 
 enum class ColorComponentFlagBits : uint32_t {
 	eR = 0x1,
@@ -2998,16 +2997,16 @@ enum class ColorComponentFlagBits : uint32_t {
 	eB = 0x4,
 	eA = 0x8,
 };
-using ColorComponentFlags = Flags<ColorComponentFlagBits>;
+using ColorComponentFlags = Flags<ColorComponentFlagBits, uint32_t>;
 
 enum class FenceCreateFlagBits : uint32_t {
 	eSignaled = 0x1,
 };
-using FenceCreateFlags = Flags<FenceCreateFlagBits>;
+using FenceCreateFlags = Flags<FenceCreateFlagBits, uint32_t>;
 
 enum class SemaphoreCreateFlagBits : uint32_t {
 };
-using SemaphoreCreateFlags = Flags<SemaphoreCreateFlagBits>;
+using SemaphoreCreateFlags = Flags<SemaphoreCreateFlagBits, uint32_t>;
 
 enum class FormatFeatureFlagBits : uint32_t {
 	eSampledImage = 0x1,
@@ -3053,12 +3052,12 @@ enum class FormatFeatureFlagBits : uint32_t {
 	eVideoEncodeInputKHR = 0x8000000,
 	eVideoEncodeDpbKHR = 0x10000000,
 };
-using FormatFeatureFlags = Flags<FormatFeatureFlagBits>;
+using FormatFeatureFlags = Flags<FormatFeatureFlagBits, uint32_t>;
 
 enum class QueryControlFlagBits : uint32_t {
 	ePrecise = 0x1,
 };
-using QueryControlFlags = Flags<QueryControlFlagBits>;
+using QueryControlFlags = Flags<QueryControlFlagBits, uint32_t>;
 
 enum class QueryResultFlagBits : uint32_t {
 	e64 = 0x1,
@@ -3067,41 +3066,41 @@ enum class QueryResultFlagBits : uint32_t {
 	ePartial = 0x8,
 	eWithStatusKHR = 0x10,
 };
-using QueryResultFlags = Flags<QueryResultFlagBits>;
+using QueryResultFlags = Flags<QueryResultFlagBits, uint32_t>;
 
 enum class ShaderModuleCreateFlagBits : uint32_t {
 };
-using ShaderModuleCreateFlags = Flags<ShaderModuleCreateFlagBits>;
+using ShaderModuleCreateFlags = Flags<ShaderModuleCreateFlagBits, uint32_t>;
 
 enum class EventCreateFlagBits : uint32_t {
 	eDeviceOnly = 0x1,
 	eDeviceOnlyKHR = 0x1,
 };
-using EventCreateFlags = Flags<EventCreateFlagBits>;
+using EventCreateFlags = Flags<EventCreateFlagBits, uint32_t>;
 
 enum class CommandPoolCreateFlagBits : uint32_t {
 	eTransient = 0x1,
 	eResetCommandBuffer = 0x2,
 	eProtected = 0x4,
 };
-using CommandPoolCreateFlags = Flags<CommandPoolCreateFlagBits>;
+using CommandPoolCreateFlags = Flags<CommandPoolCreateFlagBits, uint32_t>;
 
 enum class CommandPoolResetFlagBits : uint32_t {
 	eReleaseResources = 0x1,
 };
-using CommandPoolResetFlags = Flags<CommandPoolResetFlagBits>;
+using CommandPoolResetFlags = Flags<CommandPoolResetFlagBits, uint32_t>;
 
 enum class CommandBufferResetFlagBits : uint32_t {
 	eReleaseResources = 0x1,
 };
-using CommandBufferResetFlags = Flags<CommandBufferResetFlagBits>;
+using CommandBufferResetFlags = Flags<CommandBufferResetFlagBits, uint32_t>;
 
 enum class CommandBufferUsageFlagBits : uint32_t {
 	eOneTimeSubmit = 0x1,
 	eRenderPassContinue = 0x2,
 	eSimultaneousUse = 0x4,
 };
-using CommandBufferUsageFlags = Flags<CommandBufferUsageFlagBits>;
+using CommandBufferUsageFlags = Flags<CommandBufferUsageFlagBits, uint32_t>;
 
 enum class QueryPipelineStatisticFlagBits : uint32_t {
 	eInputAssemblyVertices = 0x1,
@@ -3119,17 +3118,17 @@ enum class QueryPipelineStatisticFlagBits : uint32_t {
 	eMeshShaderInvocationsEXT = 0x1000,
 	eClusterCullingShaderInvocationsHUAWEI = 0x2000,
 };
-using QueryPipelineStatisticFlags = Flags<QueryPipelineStatisticFlagBits>;
+using QueryPipelineStatisticFlags = Flags<QueryPipelineStatisticFlagBits, uint32_t>;
 
 enum class MemoryMapFlagBits : uint32_t {
 	ePlacedEXT = 0x1,
 };
-using MemoryMapFlags = Flags<MemoryMapFlagBits>;
+using MemoryMapFlags = Flags<MemoryMapFlagBits, uint32_t>;
 
 enum class MemoryUnmapFlagBits : uint32_t {
 	eReserveEXT = 0x1,
 };
-using MemoryUnmapFlags = Flags<MemoryUnmapFlagBits>;
+using MemoryUnmapFlags = Flags<MemoryUnmapFlagBits, uint32_t>;
 
 enum class ImageAspectFlagBits : uint32_t {
 	eColor = 0x1,
@@ -3149,19 +3148,19 @@ enum class ImageAspectFlagBits : uint32_t {
 	eMemoryPlane3EXT = 0x400,
 	eNoneKHR = 0,
 };
-using ImageAspectFlags = Flags<ImageAspectFlagBits>;
+using ImageAspectFlags = Flags<ImageAspectFlagBits, uint32_t>;
 
 enum class SparseMemoryBindFlagBits : uint32_t {
 	eMetadata = 0x1,
 };
-using SparseMemoryBindFlags = Flags<SparseMemoryBindFlagBits>;
+using SparseMemoryBindFlags = Flags<SparseMemoryBindFlagBits, uint32_t>;
 
 enum class SparseImageFormatFlagBits : uint32_t {
 	eSingleMiptail = 0x1,
 	eAlignedMipSize = 0x2,
 	eNonstandardBlockSize = 0x4,
 };
-using SparseImageFormatFlags = Flags<SparseImageFormatFlagBits>;
+using SparseImageFormatFlags = Flags<SparseImageFormatFlagBits, uint32_t>;
 
 enum class SubpassDescriptionFlagBits : uint32_t {
 	ePerViewAttributesNVX = 0x1,
@@ -3176,7 +3175,7 @@ enum class SubpassDescriptionFlagBits : uint32_t {
 	eRasterizationOrderAttachmentStencilAccessEXT = 0x40,
 	eEnableLegacyDitheringEXT = 0x80,
 };
-using SubpassDescriptionFlags = Flags<SubpassDescriptionFlagBits>;
+using SubpassDescriptionFlags = Flags<SubpassDescriptionFlagBits, uint32_t>;
 
 enum class PipelineStageFlagBits : uint32_t {
 	eTopOfPipe = 0x1,
@@ -3214,7 +3213,7 @@ enum class PipelineStageFlagBits : uint32_t {
 	eMeshShaderEXT = 0x100000,
 	eCommandPreprocessEXT = 0x20000,
 };
-using PipelineStageFlags = Flags<PipelineStageFlagBits>;
+using PipelineStageFlags = Flags<PipelineStageFlagBits, uint32_t>;
 
 enum class SampleCountFlagBits : uint32_t {
 	e1 = 0x1,
@@ -3225,19 +3224,19 @@ enum class SampleCountFlagBits : uint32_t {
 	e32 = 0x20,
 	e64 = 0x40,
 };
-using SampleCountFlags = Flags<SampleCountFlagBits>;
+using SampleCountFlags = Flags<SampleCountFlagBits, uint32_t>;
 
 enum class AttachmentDescriptionFlagBits : uint32_t {
 	eMayAlias = 0x1,
 };
-using AttachmentDescriptionFlags = Flags<AttachmentDescriptionFlagBits>;
+using AttachmentDescriptionFlags = Flags<AttachmentDescriptionFlagBits, uint32_t>;
 
 enum class StencilFaceFlagBits : uint32_t {
 	eFront = 0x1,
 	eBack = 0x2,
 	eFrontAndBack = 0x00000003,
 };
-using StencilFaceFlags = Flags<StencilFaceFlagBits>;
+using StencilFaceFlags = Flags<StencilFaceFlagBits, uint32_t>;
 
 enum class CullModeFlagBits : uint32_t {
 	eNone = 0,
@@ -3245,7 +3244,7 @@ enum class CullModeFlagBits : uint32_t {
 	eBack = 0x2,
 	eFrontAndBack = 0x00000003,
 };
-using CullModeFlags = Flags<CullModeFlagBits>;
+using CullModeFlags = Flags<CullModeFlagBits, uint32_t>;
 
 enum class DescriptorPoolCreateFlagBits : uint32_t {
 	eFreeDescriptorSet = 0x1,
@@ -3256,12 +3255,12 @@ enum class DescriptorPoolCreateFlagBits : uint32_t {
 	eAllowOverallocationSetsNV = 0x8,
 	eAllowOverallocationPoolsNV = 0x10,
 };
-using DescriptorPoolCreateFlags = Flags<DescriptorPoolCreateFlagBits>;
+using DescriptorPoolCreateFlags = Flags<DescriptorPoolCreateFlagBits, uint32_t>;
 
 enum class DescriptorPoolResetFlagBits : uint32_t {
 
 };
-using DescriptorPoolResetFlags = Flags<DescriptorPoolResetFlagBits>;
+using DescriptorPoolResetFlags = Flags<DescriptorPoolResetFlagBits, uint32_t>;
 
 enum class DependencyFlagBits : uint32_t {
 	eByRegion = 0x1,
@@ -3271,7 +3270,7 @@ enum class DependencyFlagBits : uint32_t {
 	eDeviceGroupKHR = 0x4,
 	eFeedbackLoopEXT = 0x8,
 };
-using DependencyFlags = Flags<DependencyFlagBits>;
+using DependencyFlags = Flags<DependencyFlagBits, uint32_t>;
 
 enum class SubgroupFeatureFlagBits : uint32_t {
 	eBasic = 0x1,
@@ -3288,19 +3287,19 @@ enum class SubgroupFeatureFlagBits : uint32_t {
 	eRotateKHR = 0x200,
 	eRotateClusteredKHR = 0x400,
 };
-using SubgroupFeatureFlags = Flags<SubgroupFeatureFlagBits>;
+using SubgroupFeatureFlags = Flags<SubgroupFeatureFlagBits, uint32_t>;
 
 enum class IndirectCommandsLayoutUsageFlagBitsNV : uint32_t {
 	eExplicitPreprocess = 0x1,
 	eIndexedSequences = 0x2,
 	eUnorderedSequences = 0x4,
 };
-using IndirectCommandsLayoutUsageFlagsNV = Flags<IndirectCommandsLayoutUsageFlagBitsNV>;
+using IndirectCommandsLayoutUsageFlagsNV = Flags<IndirectCommandsLayoutUsageFlagBitsNV, uint32_t>;
 
 enum class IndirectStateFlagBitsNV : uint32_t {
 	eFlagFrontface = 0x1,
 };
-using IndirectStateFlagsNV = Flags<IndirectStateFlagBitsNV>;
+using IndirectStateFlagsNV = Flags<IndirectStateFlagBitsNV, uint32_t>;
 
 enum class GeometryFlagBitsKHR : uint32_t {
 	eOpaque = 0x1,
@@ -3308,7 +3307,7 @@ enum class GeometryFlagBitsKHR : uint32_t {
 	eOpaqueNV = 0x1,
 	eNoDuplicateAnyHitInvocationNV = 0x2,
 };
-using GeometryFlagsKHR = Flags<GeometryFlagBitsKHR>;
+using GeometryFlagsKHR = Flags<GeometryFlagBitsKHR, uint32_t>;
 
 enum class GeometryInstanceFlagBitsKHR : uint32_t {
 	eTriangleFacingCullDisable = 0x1,
@@ -3323,7 +3322,7 @@ enum class GeometryInstanceFlagBitsKHR : uint32_t {
 	eForceOpacityMicromap2StateEXT = 0x10,
 	eDisableOpacityMicromapsEXT = 0x20,
 };
-using GeometryInstanceFlagsKHR = Flags<GeometryInstanceFlagBitsKHR>;
+using GeometryInstanceFlagsKHR = Flags<GeometryInstanceFlagBitsKHR, uint32_t>;
 
 enum class BuildAccelerationStructureFlagBitsKHR : uint32_t {
 	eAllowUpdate = 0x1,
@@ -3345,22 +3344,22 @@ enum class BuildAccelerationStructureFlagBitsKHR : uint32_t {
 	eAllowDisplacementMicromapUpdateNV = 0x200,
 #endif // VK_ENABLE_BETA_EXTENSIONS
 };
-using BuildAccelerationStructureFlagsKHR = Flags<BuildAccelerationStructureFlagBitsKHR>;
+using BuildAccelerationStructureFlagsKHR = Flags<BuildAccelerationStructureFlagBitsKHR, uint32_t>;
 
 enum class PrivateDataSlotCreateFlagBits : uint32_t {
 };
-using PrivateDataSlotCreateFlags = Flags<PrivateDataSlotCreateFlagBits>;
+using PrivateDataSlotCreateFlags = Flags<PrivateDataSlotCreateFlagBits, uint32_t>;
 
 enum class AccelerationStructureCreateFlagBitsKHR : uint32_t {
 	eDeviceAddressCaptureReplay = 0x1,
 	eDescriptorBufferCaptureReplayEXT = 0x8,
 	eMotionNV = 0x4,
 };
-using AccelerationStructureCreateFlagsKHR = Flags<AccelerationStructureCreateFlagBitsKHR>;
+using AccelerationStructureCreateFlagsKHR = Flags<AccelerationStructureCreateFlagBitsKHR, uint32_t>;
 
 enum class DescriptorUpdateTemplateCreateFlagBits : uint32_t {
 };
-using DescriptorUpdateTemplateCreateFlags = Flags<DescriptorUpdateTemplateCreateFlagBits>;
+using DescriptorUpdateTemplateCreateFlags = Flags<DescriptorUpdateTemplateCreateFlagBits, uint32_t>;
 
 enum class PipelineCreationFeedbackFlagBits : uint32_t {
 	eValid = 0x1,
@@ -3370,31 +3369,31 @@ enum class PipelineCreationFeedbackFlagBits : uint32_t {
 	eApplicationPipelineCacheHitEXT = 0x2,
 	eBasePipelineAccelerationEXT = 0x4,
 };
-using PipelineCreationFeedbackFlags = Flags<PipelineCreationFeedbackFlagBits>;
+using PipelineCreationFeedbackFlags = Flags<PipelineCreationFeedbackFlagBits, uint32_t>;
 
 enum class PerformanceCounterDescriptionFlagBitsKHR : uint32_t {
 	ePerformanceImpacting = 0x1,
 	eConcurrentlyImpacted = 0x2,
 };
-using PerformanceCounterDescriptionFlagsKHR = Flags<PerformanceCounterDescriptionFlagBitsKHR>;
+using PerformanceCounterDescriptionFlagsKHR = Flags<PerformanceCounterDescriptionFlagBitsKHR, uint32_t>;
 
 enum class AcquireProfilingLockFlagBitsKHR : uint32_t {
 };
-using AcquireProfilingLockFlagsKHR = Flags<AcquireProfilingLockFlagBitsKHR>;
+using AcquireProfilingLockFlagsKHR = Flags<AcquireProfilingLockFlagBitsKHR, uint32_t>;
 
 enum class SemaphoreWaitFlagBits : uint32_t {
 	eAny = 0x1,
 	eAnyKHR = 0x1,
 };
-using SemaphoreWaitFlags = Flags<SemaphoreWaitFlagBits>;
+using SemaphoreWaitFlags = Flags<SemaphoreWaitFlagBits, uint32_t>;
 
 enum class PipelineCompilerControlFlagBitsAMD : uint32_t {
 };
-using PipelineCompilerControlFlagsAMD = Flags<PipelineCompilerControlFlagBitsAMD>;
+using PipelineCompilerControlFlagsAMD = Flags<PipelineCompilerControlFlagBitsAMD, uint32_t>;
 
 enum class ShaderCorePropertiesFlagBitsAMD : uint32_t {
 };
-using ShaderCorePropertiesFlagsAMD = Flags<ShaderCorePropertiesFlagBitsAMD>;
+using ShaderCorePropertiesFlagsAMD = Flags<ShaderCorePropertiesFlagBitsAMD, uint32_t>;
 
 enum class DeviceDiagnosticsConfigFlagBitsNV : uint32_t {
 	eEnableShaderDebugInfo = 0x1,
@@ -3402,7 +3401,7 @@ enum class DeviceDiagnosticsConfigFlagBitsNV : uint32_t {
 	eEnableAutomaticCheckpoints = 0x4,
 	eEnableShaderErrorReporting = 0x8,
 };
-using DeviceDiagnosticsConfigFlagsNV = Flags<DeviceDiagnosticsConfigFlagBitsNV>;
+using DeviceDiagnosticsConfigFlagsNV = Flags<DeviceDiagnosticsConfigFlagBitsNV, uint32_t>;
 
 enum class AccessFlagBits2 : uint64_t {
 	eNone = 0,
@@ -3475,7 +3474,7 @@ enum class AccessFlagBits2 : uint64_t {
 	eOpticalFlowReadNV = 0x00000000ULL,
 	eOpticalFlowWriteNV = 0x00000000ULL,
 };
-using AccessFlags2 = Flags<AccessFlagBits2>;
+using AccessFlags2 = Flags<AccessFlagBits2, uint64_t>;
 using AccessFlags2KHR = AccessFlags2;
 
 enum class PipelineStageFlagBits2 : uint64_t {
@@ -3556,16 +3555,16 @@ enum class PipelineStageFlagBits2 : uint64_t {
 	eClusterCullingShaderHUAWEI = 0x00000000ULL,
 	eOpticalFlowNV = 0x20000000ULL,
 };
-using PipelineStageFlags2 = Flags<PipelineStageFlagBits2>;
+using PipelineStageFlags2 = Flags<PipelineStageFlagBits2, uint64_t>;
 using PipelineStageFlags2KHR = PipelineStageFlags2;
 
 enum class AccelerationStructureMotionInfoFlagBitsNV : uint32_t {
 };
-using AccelerationStructureMotionInfoFlagsNV = Flags<AccelerationStructureMotionInfoFlagBitsNV>;
+using AccelerationStructureMotionInfoFlagsNV = Flags<AccelerationStructureMotionInfoFlagBitsNV, uint32_t>;
 
 enum class AccelerationStructureMotionInstanceFlagBitsNV : uint32_t {
 };
-using AccelerationStructureMotionInstanceFlagsNV = Flags<AccelerationStructureMotionInstanceFlagBitsNV>;
+using AccelerationStructureMotionInstanceFlagsNV = Flags<AccelerationStructureMotionInstanceFlagBitsNV, uint32_t>;
 
 enum class FormatFeatureFlagBits2 : uint64_t {
 	eSampledImage = 0x1ULL,
@@ -3642,7 +3641,7 @@ enum class FormatFeatureFlagBits2 : uint64_t {
 	eVideoEncodeQuantizationDeltaMapKHR = 0x00000000ULL,
 	eVideoEncodeEmphasisMapKHR = 0x00000000ULL,
 };
-using FormatFeatureFlags2 = Flags<FormatFeatureFlagBits2>;
+using FormatFeatureFlags2 = Flags<FormatFeatureFlagBits2, uint64_t>;
 using FormatFeatureFlags2KHR = FormatFeatureFlags2;
 
 enum class RenderingFlagBits : uint32_t {
@@ -3656,11 +3655,11 @@ enum class RenderingFlagBits : uint32_t {
 	eEnableLegacyDitheringEXT = 0x8,
 	eContentsInlineKHR = 0x10,
 };
-using RenderingFlags = Flags<RenderingFlagBits>;
+using RenderingFlags = Flags<RenderingFlagBits, uint32_t>;
 
 enum class DirectDriverLoadingFlagBitsLUNARG : uint32_t {
 };
-using DirectDriverLoadingFlagsLUNARG = Flags<DirectDriverLoadingFlagBitsLUNARG>;
+using DirectDriverLoadingFlagsLUNARG = Flags<DirectDriverLoadingFlagBitsLUNARG, uint32_t>;
 
 enum class PipelineCreateFlagBits2 : uint64_t {
 	eDisableOptimization = 0x1ULL,
@@ -3710,7 +3709,7 @@ enum class PipelineCreateFlagBits2 : uint64_t {
 	eExecutionGraphAMDX = 0x00000000ULL,
 #endif // VK_ENABLE_BETA_EXTENSIONS
 };
-using PipelineCreateFlags2 = Flags<PipelineCreateFlagBits2>;
+using PipelineCreateFlags2 = Flags<PipelineCreateFlagBits2, uint64_t>;
 using PipelineCreateFlags2KHR = PipelineCreateFlags2;
 
 enum class BufferUsageFlagBits2 : uint64_t {
@@ -3755,7 +3754,7 @@ enum class BufferUsageFlagBits2 : uint64_t {
 	eExecutionGraphScratchAMDX = 0x2000000ULL,
 #endif // VK_ENABLE_BETA_EXTENSIONS
 };
-using BufferUsageFlags2 = Flags<BufferUsageFlagBits2>;
+using BufferUsageFlags2 = Flags<BufferUsageFlagBits2, uint64_t>;
 using BufferUsageFlags2KHR = BufferUsageFlags2;
 
 enum class CompositeAlphaFlagBitsKHR : uint32_t {
@@ -3764,7 +3763,7 @@ enum class CompositeAlphaFlagBitsKHR : uint32_t {
 	ePostMultiplied = 0x4,
 	eInherit = 0x8,
 };
-using CompositeAlphaFlagsKHR = Flags<CompositeAlphaFlagBitsKHR>;
+using CompositeAlphaFlagsKHR = Flags<CompositeAlphaFlagBitsKHR, uint32_t>;
 
 enum class DisplayPlaneAlphaFlagBitsKHR : uint32_t {
 	eOpaque = 0x1,
@@ -3772,7 +3771,7 @@ enum class DisplayPlaneAlphaFlagBitsKHR : uint32_t {
 	ePerPixel = 0x4,
 	ePerPixelPremultiplied = 0x8,
 };
-using DisplayPlaneAlphaFlagsKHR = Flags<DisplayPlaneAlphaFlagBitsKHR>;
+using DisplayPlaneAlphaFlagsKHR = Flags<DisplayPlaneAlphaFlagBitsKHR, uint32_t>;
 
 enum class SurfaceTransformFlagBitsKHR : uint32_t {
 	eIdentity = 0x1,
@@ -3785,7 +3784,7 @@ enum class SurfaceTransformFlagBitsKHR : uint32_t {
 	eHorizontalMirrorRotate270 = 0x80,
 	eInherit = 0x100,
 };
-using SurfaceTransformFlagsKHR = Flags<SurfaceTransformFlagBitsKHR>;
+using SurfaceTransformFlagsKHR = Flags<SurfaceTransformFlagBitsKHR, uint32_t>;
 
 enum class SwapchainCreateFlagBitsKHR : uint32_t {
 	eSplitInstanceBindRegions = 0x1,
@@ -3793,96 +3792,96 @@ enum class SwapchainCreateFlagBitsKHR : uint32_t {
 	eMutableFormat = 0x4,
 	eDeferredMemoryAllocationEXT = 0x8,
 };
-using SwapchainCreateFlagsKHR = Flags<SwapchainCreateFlagBitsKHR>;
+using SwapchainCreateFlagsKHR = Flags<SwapchainCreateFlagBitsKHR, uint32_t>;
 
 enum class DisplayModeCreateFlagBitsKHR : uint32_t {
 };
-using DisplayModeCreateFlagsKHR = Flags<DisplayModeCreateFlagBitsKHR>;
+using DisplayModeCreateFlagsKHR = Flags<DisplayModeCreateFlagBitsKHR, uint32_t>;
 
 enum class DisplaySurfaceCreateFlagBitsKHR : uint32_t {
 };
-using DisplaySurfaceCreateFlagsKHR = Flags<DisplaySurfaceCreateFlagBitsKHR>;
+using DisplaySurfaceCreateFlagsKHR = Flags<DisplaySurfaceCreateFlagBitsKHR, uint32_t>;
 
 #if defined(VK_USE_PLATFORM_ANDROID_KHR)
 enum class AndroidSurfaceCreateFlagBitsKHR : uint32_t {
 };
-using AndroidSurfaceCreateFlagsKHR = Flags<AndroidSurfaceCreateFlagBitsKHR>;
+using AndroidSurfaceCreateFlagsKHR = Flags<AndroidSurfaceCreateFlagBitsKHR, uint32_t>;
 #endif // VK_USE_PLATFORM_ANDROID_KHR
 
 #if defined(VK_USE_PLATFORM_VI_NN)
 enum class ViSurfaceCreateFlagBitsNN : uint32_t {
 };
-using ViSurfaceCreateFlagsNN = Flags<ViSurfaceCreateFlagBitsNN>;
+using ViSurfaceCreateFlagsNN = Flags<ViSurfaceCreateFlagBitsNN, uint32_t>;
 #endif // VK_USE_PLATFORM_VI_NN
 
 #if defined(VK_USE_PLATFORM_WAYLAND_KHR)
 enum class WaylandSurfaceCreateFlagBitsKHR : uint32_t {
 };
-using WaylandSurfaceCreateFlagsKHR = Flags<WaylandSurfaceCreateFlagBitsKHR>;
+using WaylandSurfaceCreateFlagsKHR = Flags<WaylandSurfaceCreateFlagBitsKHR, uint32_t>;
 #endif // VK_USE_PLATFORM_WAYLAND_KHR
 
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
 enum class Win32SurfaceCreateFlagBitsKHR : uint32_t {
 };
-using Win32SurfaceCreateFlagsKHR = Flags<Win32SurfaceCreateFlagBitsKHR>;
+using Win32SurfaceCreateFlagsKHR = Flags<Win32SurfaceCreateFlagBitsKHR, uint32_t>;
 #endif // VK_USE_PLATFORM_WIN32_KHR
 
 #if defined(VK_USE_PLATFORM_XLIB_KHR)
 enum class XlibSurfaceCreateFlagBitsKHR : uint32_t {
 };
-using XlibSurfaceCreateFlagsKHR = Flags<XlibSurfaceCreateFlagBitsKHR>;
+using XlibSurfaceCreateFlagsKHR = Flags<XlibSurfaceCreateFlagBitsKHR, uint32_t>;
 #endif // VK_USE_PLATFORM_XLIB_KHR
 
 #if defined(VK_USE_PLATFORM_XCB_KHR)
 enum class XcbSurfaceCreateFlagBitsKHR : uint32_t {
 };
-using XcbSurfaceCreateFlagsKHR = Flags<XcbSurfaceCreateFlagBitsKHR>;
+using XcbSurfaceCreateFlagsKHR = Flags<XcbSurfaceCreateFlagBitsKHR, uint32_t>;
 #endif // VK_USE_PLATFORM_XCB_KHR
 
 #if defined(VK_USE_PLATFORM_DIRECTFB_EXT)
 enum class DirectFBSurfaceCreateFlagBitsEXT : uint32_t {
 };
-using DirectFBSurfaceCreateFlagsEXT = Flags<DirectFBSurfaceCreateFlagBitsEXT>;
+using DirectFBSurfaceCreateFlagsEXT = Flags<DirectFBSurfaceCreateFlagBitsEXT, uint32_t>;
 #endif // VK_USE_PLATFORM_DIRECTFB_EXT
 
 #if defined(VK_USE_PLATFORM_IOS_MVK)
 enum class IOSSurfaceCreateFlagBitsMVK : uint32_t {
 };
-using IOSSurfaceCreateFlagsMVK = Flags<IOSSurfaceCreateFlagBitsMVK>;
+using IOSSurfaceCreateFlagsMVK = Flags<IOSSurfaceCreateFlagBitsMVK, uint32_t>;
 #endif // VK_USE_PLATFORM_IOS_MVK
 
 #if defined(VK_USE_PLATFORM_MACOS_MVK)
 enum class MacOSSurfaceCreateFlagBitsMVK : uint32_t {
 };
-using MacOSSurfaceCreateFlagsMVK = Flags<MacOSSurfaceCreateFlagBitsMVK>;
+using MacOSSurfaceCreateFlagsMVK = Flags<MacOSSurfaceCreateFlagBitsMVK, uint32_t>;
 #endif // VK_USE_PLATFORM_MACOS_MVK
 
 #if defined(VK_USE_PLATFORM_METAL_EXT)
 enum class MetalSurfaceCreateFlagBitsEXT : uint32_t {
 };
-using MetalSurfaceCreateFlagsEXT = Flags<MetalSurfaceCreateFlagBitsEXT>;
+using MetalSurfaceCreateFlagsEXT = Flags<MetalSurfaceCreateFlagBitsEXT, uint32_t>;
 #endif // VK_USE_PLATFORM_METAL_EXT
 
 #if defined(VK_USE_PLATFORM_FUCHSIA)
 enum class ImagePipeSurfaceCreateFlagBitsFUCHSIA : uint32_t {
 };
-using ImagePipeSurfaceCreateFlagsFUCHSIA = Flags<ImagePipeSurfaceCreateFlagBitsFUCHSIA>;
+using ImagePipeSurfaceCreateFlagsFUCHSIA = Flags<ImagePipeSurfaceCreateFlagBitsFUCHSIA, uint32_t>;
 #endif // VK_USE_PLATFORM_FUCHSIA
 
 #if defined(VK_USE_PLATFORM_GGP)
 enum class StreamDescriptorSurfaceCreateFlagBitsGGP : uint32_t {
 };
-using StreamDescriptorSurfaceCreateFlagsGGP = Flags<StreamDescriptorSurfaceCreateFlagBitsGGP>;
+using StreamDescriptorSurfaceCreateFlagsGGP = Flags<StreamDescriptorSurfaceCreateFlagBitsGGP, uint32_t>;
 #endif // VK_USE_PLATFORM_GGP
 
 enum class HeadlessSurfaceCreateFlagBitsEXT : uint32_t {
 };
-using HeadlessSurfaceCreateFlagsEXT = Flags<HeadlessSurfaceCreateFlagBitsEXT>;
+using HeadlessSurfaceCreateFlagsEXT = Flags<HeadlessSurfaceCreateFlagBitsEXT, uint32_t>;
 
 #if defined(VK_USE_PLATFORM_SCREEN_QNX)
 enum class ScreenSurfaceCreateFlagBitsQNX : uint32_t {
 };
-using ScreenSurfaceCreateFlagsQNX = Flags<ScreenSurfaceCreateFlagBitsQNX>;
+using ScreenSurfaceCreateFlagsQNX = Flags<ScreenSurfaceCreateFlagBitsQNX, uint32_t>;
 #endif // VK_USE_PLATFORM_SCREEN_QNX
 
 enum class PeerMemoryFeatureFlagBits : uint32_t {
@@ -3895,7 +3894,7 @@ enum class PeerMemoryFeatureFlagBits : uint32_t {
 	eGenericSrcKHR = 0x4,
 	eGenericDstKHR = 0x8,
 };
-using PeerMemoryFeatureFlags = Flags<PeerMemoryFeatureFlagBits>;
+using PeerMemoryFeatureFlags = Flags<PeerMemoryFeatureFlagBits, uint32_t>;
 using PeerMemoryFeatureFlagsKHR = PeerMemoryFeatureFlags;
 
 enum class MemoryAllocateFlagBits : uint32_t {
@@ -3906,7 +3905,7 @@ enum class MemoryAllocateFlagBits : uint32_t {
 	eDeviceAddressKHR = 0x2,
 	eDeviceAddressCaptureReplayKHR = 0x4,
 };
-using MemoryAllocateFlags = Flags<MemoryAllocateFlagBits>;
+using MemoryAllocateFlags = Flags<MemoryAllocateFlagBits, uint32_t>;
 using MemoryAllocateFlagsKHR = MemoryAllocateFlags;
 
 enum class DeviceGroupPresentModeFlagBitsKHR : uint32_t {
@@ -3915,7 +3914,7 @@ enum class DeviceGroupPresentModeFlagBitsKHR : uint32_t {
 	eSum = 0x4,
 	eLocalMultiDevice = 0x8,
 };
-using DeviceGroupPresentModeFlagsKHR = Flags<DeviceGroupPresentModeFlagBitsKHR>;
+using DeviceGroupPresentModeFlagsKHR = Flags<DeviceGroupPresentModeFlagBitsKHR, uint32_t>;
 
 enum class DebugReportFlagBitsEXT : uint32_t {
 	eInformation = 0x1,
@@ -3924,11 +3923,11 @@ enum class DebugReportFlagBitsEXT : uint32_t {
 	eError = 0x8,
 	eDebug = 0x10,
 };
-using DebugReportFlagsEXT = Flags<DebugReportFlagBitsEXT>;
+using DebugReportFlagsEXT = Flags<DebugReportFlagBitsEXT, uint32_t>;
 
 enum class CommandPoolTrimFlagBits : uint32_t {
 };
-using CommandPoolTrimFlags = Flags<CommandPoolTrimFlagBits>;
+using CommandPoolTrimFlags = Flags<CommandPoolTrimFlagBits, uint32_t>;
 using CommandPoolTrimFlagsKHR = CommandPoolTrimFlags;
 
 enum class ExternalMemoryHandleTypeFlagBits : uint32_t {
@@ -3960,7 +3959,7 @@ enum class ExternalMemoryHandleTypeFlagBits : uint32_t {
 	eScreenBufferQNX = 0x4000,
 #endif // VK_USE_PLATFORM_SCREEN_QNX
 };
-using ExternalMemoryHandleTypeFlags = Flags<ExternalMemoryHandleTypeFlagBits>;
+using ExternalMemoryHandleTypeFlags = Flags<ExternalMemoryHandleTypeFlagBits, uint32_t>;
 using ExternalMemoryHandleTypeFlagsKHR = ExternalMemoryHandleTypeFlags;
 
 enum class ExternalMemoryFeatureFlagBits : uint32_t {
@@ -3971,7 +3970,7 @@ enum class ExternalMemoryFeatureFlagBits : uint32_t {
 	eExportableKHR = 0x2,
 	eImportableKHR = 0x4,
 };
-using ExternalMemoryFeatureFlags = Flags<ExternalMemoryFeatureFlagBits>;
+using ExternalMemoryFeatureFlags = Flags<ExternalMemoryFeatureFlagBits, uint32_t>;
 using ExternalMemoryFeatureFlagsKHR = ExternalMemoryFeatureFlags;
 
 enum class ExternalSemaphoreHandleTypeFlagBits : uint32_t {
@@ -3990,7 +3989,7 @@ enum class ExternalSemaphoreHandleTypeFlagBits : uint32_t {
 	eZirconEventFUCHSIA = 0x80,
 #endif // VK_USE_PLATFORM_FUCHSIA
 };
-using ExternalSemaphoreHandleTypeFlags = Flags<ExternalSemaphoreHandleTypeFlagBits>;
+using ExternalSemaphoreHandleTypeFlags = Flags<ExternalSemaphoreHandleTypeFlagBits, uint32_t>;
 using ExternalSemaphoreHandleTypeFlagsKHR = ExternalSemaphoreHandleTypeFlags;
 
 enum class ExternalSemaphoreFeatureFlagBits : uint32_t {
@@ -3999,14 +3998,14 @@ enum class ExternalSemaphoreFeatureFlagBits : uint32_t {
 	eExportableKHR = 0x1,
 	eImportableKHR = 0x2,
 };
-using ExternalSemaphoreFeatureFlags = Flags<ExternalSemaphoreFeatureFlagBits>;
+using ExternalSemaphoreFeatureFlags = Flags<ExternalSemaphoreFeatureFlagBits, uint32_t>;
 using ExternalSemaphoreFeatureFlagsKHR = ExternalSemaphoreFeatureFlags;
 
 enum class SemaphoreImportFlagBits : uint32_t {
 	eTemporary = 0x1,
 	eTemporaryKHR = 0x1,
 };
-using SemaphoreImportFlags = Flags<SemaphoreImportFlagBits>;
+using SemaphoreImportFlags = Flags<SemaphoreImportFlagBits, uint32_t>;
 using SemaphoreImportFlagsKHR = SemaphoreImportFlags;
 
 enum class ExternalFenceHandleTypeFlagBits : uint32_t {
@@ -4019,7 +4018,7 @@ enum class ExternalFenceHandleTypeFlagBits : uint32_t {
 	eOpaqueWin32KmtKHR = 0x4,
 	eSyncFdKHR = 0x8,
 };
-using ExternalFenceHandleTypeFlags = Flags<ExternalFenceHandleTypeFlagBits>;
+using ExternalFenceHandleTypeFlags = Flags<ExternalFenceHandleTypeFlagBits, uint32_t>;
 using ExternalFenceHandleTypeFlagsKHR = ExternalFenceHandleTypeFlags;
 
 enum class ExternalFenceFeatureFlagBits : uint32_t {
@@ -4028,20 +4027,20 @@ enum class ExternalFenceFeatureFlagBits : uint32_t {
 	eExportableKHR = 0x1,
 	eImportableKHR = 0x2,
 };
-using ExternalFenceFeatureFlags = Flags<ExternalFenceFeatureFlagBits>;
+using ExternalFenceFeatureFlags = Flags<ExternalFenceFeatureFlagBits, uint32_t>;
 using ExternalFenceFeatureFlagsKHR = ExternalFenceFeatureFlags;
 
 enum class FenceImportFlagBits : uint32_t {
 	eTemporary = 0x1,
 	eTemporaryKHR = 0x1,
 };
-using FenceImportFlags = Flags<FenceImportFlagBits>;
+using FenceImportFlags = Flags<FenceImportFlagBits, uint32_t>;
 using FenceImportFlagsKHR = FenceImportFlags;
 
 enum class SurfaceCounterFlagBitsEXT : uint32_t {
 	eVblank = 0x1,
 };
-using SurfaceCounterFlagsEXT = Flags<SurfaceCounterFlagBitsEXT>;
+using SurfaceCounterFlagsEXT = Flags<SurfaceCounterFlagBitsEXT, uint32_t>;
 
 enum class DebugUtilsMessageTypeFlagBitsEXT : uint32_t {
 	eGeneral = 0x1,
@@ -4049,23 +4048,23 @@ enum class DebugUtilsMessageTypeFlagBitsEXT : uint32_t {
 	ePerformance = 0x4,
 	eDeviceAddressBinding = 0x8,
 };
-using DebugUtilsMessageTypeFlagsEXT = Flags<DebugUtilsMessageTypeFlagBitsEXT>;
+using DebugUtilsMessageTypeFlagsEXT = Flags<DebugUtilsMessageTypeFlagBitsEXT, uint32_t>;
 
 enum class DebugUtilsMessengerCreateFlagBitsEXT : uint32_t {
 };
-using DebugUtilsMessengerCreateFlagsEXT = Flags<DebugUtilsMessengerCreateFlagBitsEXT>;
+using DebugUtilsMessengerCreateFlagsEXT = Flags<DebugUtilsMessengerCreateFlagBitsEXT, uint32_t>;
 
 enum class DebugUtilsMessengerCallbackDataFlagBitsEXT : uint32_t {
 };
-using DebugUtilsMessengerCallbackDataFlagsEXT = Flags<DebugUtilsMessengerCallbackDataFlagBitsEXT>;
+using DebugUtilsMessengerCallbackDataFlagsEXT = Flags<DebugUtilsMessengerCallbackDataFlagBitsEXT, uint32_t>;
 
 enum class DeviceMemoryReportFlagBitsEXT : uint32_t {
 };
-using DeviceMemoryReportFlagsEXT = Flags<DeviceMemoryReportFlagBitsEXT>;
+using DeviceMemoryReportFlagsEXT = Flags<DeviceMemoryReportFlagBitsEXT, uint32_t>;
 
 enum class PipelineRasterizationConservativeStateCreateFlagBitsEXT : uint32_t {
 };
-using PipelineRasterizationConservativeStateCreateFlagsEXT = Flags<PipelineRasterizationConservativeStateCreateFlagBitsEXT>;
+using PipelineRasterizationConservativeStateCreateFlagsEXT = Flags<PipelineRasterizationConservativeStateCreateFlagBitsEXT, uint32_t>;
 
 enum class DescriptorBindingFlagBits : uint32_t {
 	eUpdateAfterBind = 0x1,
@@ -4077,13 +4076,13 @@ enum class DescriptorBindingFlagBits : uint32_t {
 	ePartiallyBoundEXT = 0x4,
 	eVariableDescriptorCountEXT = 0x8,
 };
-using DescriptorBindingFlags = Flags<DescriptorBindingFlagBits>;
+using DescriptorBindingFlags = Flags<DescriptorBindingFlagBits, uint32_t>;
 using DescriptorBindingFlagsEXT = DescriptorBindingFlags;
 
 enum class ConditionalRenderingFlagBitsEXT : uint32_t {
 	eInverted = 0x1,
 };
-using ConditionalRenderingFlagsEXT = Flags<ConditionalRenderingFlagBitsEXT>;
+using ConditionalRenderingFlagsEXT = Flags<ConditionalRenderingFlagBitsEXT, uint32_t>;
 
 enum class ResolveModeFlagBits : uint32_t {
 	eNone = 0,
@@ -4100,16 +4099,16 @@ enum class ResolveModeFlagBits : uint32_t {
 	eExternalFormatDownsampleANDROID = 0x10,
 #endif // VK_USE_PLATFORM_ANDROID_KHR
 };
-using ResolveModeFlags = Flags<ResolveModeFlagBits>;
+using ResolveModeFlags = Flags<ResolveModeFlagBits, uint32_t>;
 using ResolveModeFlagsKHR = ResolveModeFlags;
 
 enum class PipelineRasterizationStateStreamCreateFlagBitsEXT : uint32_t {
 };
-using PipelineRasterizationStateStreamCreateFlagsEXT = Flags<PipelineRasterizationStateStreamCreateFlagBitsEXT>;
+using PipelineRasterizationStateStreamCreateFlagsEXT = Flags<PipelineRasterizationStateStreamCreateFlagBitsEXT, uint32_t>;
 
 enum class PipelineRasterizationDepthClipStateCreateFlagBitsEXT : uint32_t {
 };
-using PipelineRasterizationDepthClipStateCreateFlagsEXT = Flags<PipelineRasterizationDepthClipStateCreateFlagBitsEXT>;
+using PipelineRasterizationDepthClipStateCreateFlagsEXT = Flags<PipelineRasterizationDepthClipStateCreateFlagBitsEXT, uint32_t>;
 
 enum class ToolPurposeFlagBits : uint32_t {
 	eValidation = 0x1,
@@ -4125,27 +4124,27 @@ enum class ToolPurposeFlagBits : uint32_t {
 	eDebugReportingEXT = 0x20,
 	eDebugMarkersEXT = 0x40,
 };
-using ToolPurposeFlags = Flags<ToolPurposeFlagBits>;
+using ToolPurposeFlags = Flags<ToolPurposeFlagBits, uint32_t>;
 using ToolPurposeFlagsEXT = ToolPurposeFlags;
 
 enum class SubmitFlagBits : uint32_t {
 	eProtected = 0x1,
 	eProtectedKHR = 0x1,
 };
-using SubmitFlags = Flags<SubmitFlagBits>;
+using SubmitFlags = Flags<SubmitFlagBits, uint32_t>;
 using SubmitFlagsKHR = SubmitFlags;
 
 #if defined(VK_USE_PLATFORM_FUCHSIA)
 enum class ImageFormatConstraintsFlagBitsFUCHSIA : uint32_t {
 };
-using ImageFormatConstraintsFlagsFUCHSIA = Flags<ImageFormatConstraintsFlagBitsFUCHSIA>;
+using ImageFormatConstraintsFlagsFUCHSIA = Flags<ImageFormatConstraintsFlagBitsFUCHSIA, uint32_t>;
 #endif // VK_USE_PLATFORM_FUCHSIA
 
 enum class HostImageCopyFlagBits : uint32_t {
 	eMemcpy = 0x1,
 	eMemcpyEXT = 0x1,
 };
-using HostImageCopyFlags = Flags<HostImageCopyFlagBits>;
+using HostImageCopyFlags = Flags<HostImageCopyFlagBits, uint32_t>;
 using HostImageCopyFlagsEXT = HostImageCopyFlags;
 
 #if defined(VK_USE_PLATFORM_FUCHSIA)
@@ -4156,7 +4155,7 @@ enum class ImageConstraintsInfoFlagBitsFUCHSIA : uint32_t {
 	eCpuWriteOften = 0x8,
 	eProtectedOptional = 0x10,
 };
-using ImageConstraintsInfoFlagsFUCHSIA = Flags<ImageConstraintsInfoFlagBitsFUCHSIA>;
+using ImageConstraintsInfoFlagsFUCHSIA = Flags<ImageConstraintsInfoFlagBitsFUCHSIA, uint32_t>;
 #endif // VK_USE_PLATFORM_FUCHSIA
 
 enum class GraphicsPipelineLibraryFlagBitsEXT : uint32_t {
@@ -4165,7 +4164,7 @@ enum class GraphicsPipelineLibraryFlagBitsEXT : uint32_t {
 	eFragmentShader = 0x4,
 	eFragmentOutputInterface = 0x8,
 };
-using GraphicsPipelineLibraryFlagsEXT = Flags<GraphicsPipelineLibraryFlagBitsEXT>;
+using GraphicsPipelineLibraryFlagsEXT = Flags<GraphicsPipelineLibraryFlagBitsEXT, uint32_t>;
 
 enum class ImageCompressionFlagBitsEXT : uint32_t {
 	eDefault = 0,
@@ -4173,7 +4172,7 @@ enum class ImageCompressionFlagBitsEXT : uint32_t {
 	eFixedRateExplicit = 0x2,
 	eDisabled = 0x4,
 };
-using ImageCompressionFlagsEXT = Flags<ImageCompressionFlagBitsEXT>;
+using ImageCompressionFlagsEXT = Flags<ImageCompressionFlagBitsEXT, uint32_t>;
 
 enum class ImageCompressionFixedRateFlagBitsEXT : uint32_t {
 	eNone = 0,
@@ -4202,7 +4201,7 @@ enum class ImageCompressionFixedRateFlagBitsEXT : uint32_t {
 	e23bpc = 0x400000,
 	e24bpc = 0x800000,
 };
-using ImageCompressionFixedRateFlagsEXT = Flags<ImageCompressionFixedRateFlagBitsEXT>;
+using ImageCompressionFixedRateFlagsEXT = Flags<ImageCompressionFixedRateFlagBitsEXT, uint32_t>;
 
 #if defined(VK_USE_PLATFORM_METAL_EXT)
 enum class ExportMetalObjectTypeFlagBitsEXT : uint32_t {
@@ -4213,13 +4212,13 @@ enum class ExportMetalObjectTypeFlagBitsEXT : uint32_t {
 	eMetalIosurface = 0x10,
 	eMetalSharedEvent = 0x20,
 };
-using ExportMetalObjectTypeFlagsEXT = Flags<ExportMetalObjectTypeFlagBitsEXT>;
+using ExportMetalObjectTypeFlagsEXT = Flags<ExportMetalObjectTypeFlagBitsEXT, uint32_t>;
 #endif // VK_USE_PLATFORM_METAL_EXT
 
 enum class DeviceAddressBindingFlagBitsEXT : uint32_t {
 	eInternalObject = 0x1,
 };
-using DeviceAddressBindingFlagsEXT = Flags<DeviceAddressBindingFlagBitsEXT>;
+using DeviceAddressBindingFlagsEXT = Flags<DeviceAddressBindingFlagBitsEXT, uint32_t>;
 
 enum class VideoCodecOperationFlagBitsKHR : uint32_t {
 	eNone = 0,
@@ -4230,13 +4229,13 @@ enum class VideoCodecOperationFlagBitsKHR : uint32_t {
 	eDecodeAV1 = 0x4,
 	eEncodeAV1 = 0x40000,
 };
-using VideoCodecOperationFlagsKHR = Flags<VideoCodecOperationFlagBitsKHR>;
+using VideoCodecOperationFlagsKHR = Flags<VideoCodecOperationFlagBitsKHR, uint32_t>;
 
 enum class VideoCapabilityFlagBitsKHR : uint32_t {
 	eProtectedContent = 0x1,
 	eSeparateReferenceImages = 0x2,
 };
-using VideoCapabilityFlagsKHR = Flags<VideoCapabilityFlagBitsKHR>;
+using VideoCapabilityFlagsKHR = Flags<VideoCapabilityFlagBitsKHR, uint32_t>;
 
 enum class VideoSessionCreateFlagBitsKHR : uint32_t {
 	eProtectedContent = 0x1,
@@ -4245,27 +4244,27 @@ enum class VideoSessionCreateFlagBitsKHR : uint32_t {
 	eAllowEncodeQuantizationDeltaMap = 0x8,
 	eAllowEncodeEmphasisMap = 0x10,
 };
-using VideoSessionCreateFlagsKHR = Flags<VideoSessionCreateFlagBitsKHR>;
+using VideoSessionCreateFlagsKHR = Flags<VideoSessionCreateFlagBitsKHR, uint32_t>;
 
 enum class VideoSessionParametersCreateFlagBitsKHR : uint32_t {
 	eQuantizationMapCompatible = 0x1,
 };
-using VideoSessionParametersCreateFlagsKHR = Flags<VideoSessionParametersCreateFlagBitsKHR>;
+using VideoSessionParametersCreateFlagsKHR = Flags<VideoSessionParametersCreateFlagBitsKHR, uint32_t>;
 
 enum class VideoBeginCodingFlagBitsKHR : uint32_t {
 };
-using VideoBeginCodingFlagsKHR = Flags<VideoBeginCodingFlagBitsKHR>;
+using VideoBeginCodingFlagsKHR = Flags<VideoBeginCodingFlagBitsKHR, uint32_t>;
 
 enum class VideoEndCodingFlagBitsKHR : uint32_t {
 };
-using VideoEndCodingFlagsKHR = Flags<VideoEndCodingFlagBitsKHR>;
+using VideoEndCodingFlagsKHR = Flags<VideoEndCodingFlagBitsKHR, uint32_t>;
 
 enum class VideoCodingControlFlagBitsKHR : uint32_t {
 	eReset = 0x1,
 	eEncodeRateControl = 0x2,
 	eEncodeQualityLevel = 0x4,
 };
-using VideoCodingControlFlagsKHR = Flags<VideoCodingControlFlagBitsKHR>;
+using VideoCodingControlFlagsKHR = Flags<VideoCodingControlFlagBitsKHR, uint32_t>;
 
 enum class VideoDecodeUsageFlagBitsKHR : uint32_t {
 	eDefault = 0,
@@ -4273,30 +4272,30 @@ enum class VideoDecodeUsageFlagBitsKHR : uint32_t {
 	eOffline = 0x2,
 	eStreaming = 0x4,
 };
-using VideoDecodeUsageFlagsKHR = Flags<VideoDecodeUsageFlagBitsKHR>;
+using VideoDecodeUsageFlagsKHR = Flags<VideoDecodeUsageFlagBitsKHR, uint32_t>;
 
 enum class VideoDecodeCapabilityFlagBitsKHR : uint32_t {
 	eDpbAndOutputCoincide = 0x1,
 	eDpbAndOutputDistinct = 0x2,
 };
-using VideoDecodeCapabilityFlagsKHR = Flags<VideoDecodeCapabilityFlagBitsKHR>;
+using VideoDecodeCapabilityFlagsKHR = Flags<VideoDecodeCapabilityFlagBitsKHR, uint32_t>;
 
 enum class VideoDecodeFlagBitsKHR : uint32_t {
 };
-using VideoDecodeFlagsKHR = Flags<VideoDecodeFlagBitsKHR>;
+using VideoDecodeFlagsKHR = Flags<VideoDecodeFlagBitsKHR, uint32_t>;
 
 enum class VideoDecodeH264PictureLayoutFlagBitsKHR : uint32_t {
 	eProgressive = 0,
 	eInterlacedInterleavedLines = 0x1,
 	eInterlacedSeparatePlanes = 0x2,
 };
-using VideoDecodeH264PictureLayoutFlagsKHR = Flags<VideoDecodeH264PictureLayoutFlagBitsKHR>;
+using VideoDecodeH264PictureLayoutFlagsKHR = Flags<VideoDecodeH264PictureLayoutFlagBitsKHR, uint32_t>;
 
 enum class VideoEncodeFlagBitsKHR : uint32_t {
 	eWithQuantizationDeltaMap = 0x1,
 	eWithEmphasisMap = 0x2,
 };
-using VideoEncodeFlagsKHR = Flags<VideoEncodeFlagBitsKHR>;
+using VideoEncodeFlagsKHR = Flags<VideoEncodeFlagBitsKHR, uint32_t>;
 
 enum class VideoEncodeUsageFlagBitsKHR : uint32_t {
 	eDefault = 0,
@@ -4305,7 +4304,7 @@ enum class VideoEncodeUsageFlagBitsKHR : uint32_t {
 	eRecording = 0x4,
 	eConferencing = 0x8,
 };
-using VideoEncodeUsageFlagsKHR = Flags<VideoEncodeUsageFlagBitsKHR>;
+using VideoEncodeUsageFlagsKHR = Flags<VideoEncodeUsageFlagBitsKHR, uint32_t>;
 
 enum class VideoEncodeContentFlagBitsKHR : uint32_t {
 	eDefault = 0,
@@ -4313,7 +4312,7 @@ enum class VideoEncodeContentFlagBitsKHR : uint32_t {
 	eDesktop = 0x2,
 	eRendered = 0x4,
 };
-using VideoEncodeContentFlagsKHR = Flags<VideoEncodeContentFlagBitsKHR>;
+using VideoEncodeContentFlagsKHR = Flags<VideoEncodeContentFlagBitsKHR, uint32_t>;
 
 enum class VideoEncodeCapabilityFlagBitsKHR : uint32_t {
 	ePrecedingExternallyEncodedBytes = 0x1,
@@ -4321,18 +4320,18 @@ enum class VideoEncodeCapabilityFlagBitsKHR : uint32_t {
 	eQuantizationDeltaMap = 0x4,
 	eEmphasisMap = 0x8,
 };
-using VideoEncodeCapabilityFlagsKHR = Flags<VideoEncodeCapabilityFlagBitsKHR>;
+using VideoEncodeCapabilityFlagsKHR = Flags<VideoEncodeCapabilityFlagBitsKHR, uint32_t>;
 
 enum class VideoEncodeFeedbackFlagBitsKHR : uint32_t {
 	eBitstreamBufferOffset = 0x1,
 	eBitstreamBytesWritten = 0x2,
 	eBitstreamHasOverrides = 0x4,
 };
-using VideoEncodeFeedbackFlagsKHR = Flags<VideoEncodeFeedbackFlagBitsKHR>;
+using VideoEncodeFeedbackFlagsKHR = Flags<VideoEncodeFeedbackFlagBitsKHR, uint32_t>;
 
 enum class VideoEncodeRateControlFlagBitsKHR : uint32_t {
 };
-using VideoEncodeRateControlFlagsKHR = Flags<VideoEncodeRateControlFlagBitsKHR>;
+using VideoEncodeRateControlFlagsKHR = Flags<VideoEncodeRateControlFlagBitsKHR, uint32_t>;
 
 enum class VideoEncodeRateControlModeFlagBitsKHR : uint32_t {
 	eDefault = 0,
@@ -4340,7 +4339,7 @@ enum class VideoEncodeRateControlModeFlagBitsKHR : uint32_t {
 	eCbr = 0x2,
 	eVbr = 0x4,
 };
-using VideoEncodeRateControlModeFlagsKHR = Flags<VideoEncodeRateControlModeFlagBitsKHR>;
+using VideoEncodeRateControlModeFlagsKHR = Flags<VideoEncodeRateControlModeFlagBitsKHR, uint32_t>;
 
 enum class VideoChromaSubsamplingFlagBitsKHR : uint32_t {
 	eInvalid = 0,
@@ -4349,7 +4348,7 @@ enum class VideoChromaSubsamplingFlagBitsKHR : uint32_t {
 	e422 = 0x4,
 	e444 = 0x8,
 };
-using VideoChromaSubsamplingFlagsKHR = Flags<VideoChromaSubsamplingFlagBitsKHR>;
+using VideoChromaSubsamplingFlagsKHR = Flags<VideoChromaSubsamplingFlagBitsKHR, uint32_t>;
 
 enum class VideoComponentBitDepthFlagBitsKHR : uint32_t {
 	eInvalid = 0,
@@ -4357,7 +4356,7 @@ enum class VideoComponentBitDepthFlagBitsKHR : uint32_t {
 	e10 = 0x4,
 	e12 = 0x10,
 };
-using VideoComponentBitDepthFlagsKHR = Flags<VideoComponentBitDepthFlagBitsKHR>;
+using VideoComponentBitDepthFlagsKHR = Flags<VideoComponentBitDepthFlagBitsKHR, uint32_t>;
 
 enum class VideoEncodeH264CapabilityFlagBitsKHR : uint32_t {
 	eHrdCompliance = 0x1,
@@ -4371,7 +4370,7 @@ enum class VideoEncodeH264CapabilityFlagBitsKHR : uint32_t {
 	eGeneratePrefixNalu = 0x100,
 	eMbQpDiffWraparound = 0x200,
 };
-using VideoEncodeH264CapabilityFlagsKHR = Flags<VideoEncodeH264CapabilityFlagBitsKHR>;
+using VideoEncodeH264CapabilityFlagsKHR = Flags<VideoEncodeH264CapabilityFlagBitsKHR, uint32_t>;
 
 enum class VideoEncodeH264StdFlagBitsKHR : uint32_t {
 	eSeparateColorPlaneFlagSet = 0x1,
@@ -4395,7 +4394,7 @@ enum class VideoEncodeH264StdFlagBitsKHR : uint32_t {
 	eSliceQpDelta = 0x80000,
 	eDifferentSliceQpDelta = 0x100000,
 };
-using VideoEncodeH264StdFlagsKHR = Flags<VideoEncodeH264StdFlagBitsKHR>;
+using VideoEncodeH264StdFlagsKHR = Flags<VideoEncodeH264StdFlagBitsKHR, uint32_t>;
 
 enum class VideoEncodeH264RateControlFlagBitsKHR : uint32_t {
 	eAttemptHrdCompliance = 0x1,
@@ -4404,7 +4403,7 @@ enum class VideoEncodeH264RateControlFlagBitsKHR : uint32_t {
 	eReferencePatternDyadic = 0x8,
 	eTemporalLayerPatternDyadic = 0x10,
 };
-using VideoEncodeH264RateControlFlagsKHR = Flags<VideoEncodeH264RateControlFlagBitsKHR>;
+using VideoEncodeH264RateControlFlagsKHR = Flags<VideoEncodeH264RateControlFlagBitsKHR, uint32_t>;
 
 enum class VideoEncodeH265CapabilityFlagBitsKHR : uint32_t {
 	eHrdCompliance = 0x1,
@@ -4419,7 +4418,7 @@ enum class VideoEncodeH265CapabilityFlagBitsKHR : uint32_t {
 	eMultipleSliceSegmentsPerTile = 0x200,
 	eCuQpDiffWraparound = 0x400,
 };
-using VideoEncodeH265CapabilityFlagsKHR = Flags<VideoEncodeH265CapabilityFlagBitsKHR>;
+using VideoEncodeH265CapabilityFlagsKHR = Flags<VideoEncodeH265CapabilityFlagBitsKHR, uint32_t>;
 
 enum class VideoEncodeH265StdFlagBitsKHR : uint32_t {
 	eSeparateColorPlaneFlagSet = 0x1,
@@ -4444,7 +4443,7 @@ enum class VideoEncodeH265StdFlagBitsKHR : uint32_t {
 	eSliceQpDelta = 0x80000,
 	eDifferentSliceQpDelta = 0x100000,
 };
-using VideoEncodeH265StdFlagsKHR = Flags<VideoEncodeH265StdFlagBitsKHR>;
+using VideoEncodeH265StdFlagsKHR = Flags<VideoEncodeH265StdFlagBitsKHR, uint32_t>;
 
 enum class VideoEncodeH265RateControlFlagBitsKHR : uint32_t {
 	eAttemptHrdCompliance = 0x1,
@@ -4453,14 +4452,14 @@ enum class VideoEncodeH265RateControlFlagBitsKHR : uint32_t {
 	eReferencePatternDyadic = 0x8,
 	eTemporalSubLayerPatternDyadic = 0x10,
 };
-using VideoEncodeH265RateControlFlagsKHR = Flags<VideoEncodeH265RateControlFlagBitsKHR>;
+using VideoEncodeH265RateControlFlagsKHR = Flags<VideoEncodeH265RateControlFlagBitsKHR, uint32_t>;
 
 enum class VideoEncodeH265CtbSizeFlagBitsKHR : uint32_t {
 	e16 = 0x1,
 	e32 = 0x2,
 	e64 = 0x4,
 };
-using VideoEncodeH265CtbSizeFlagsKHR = Flags<VideoEncodeH265CtbSizeFlagBitsKHR>;
+using VideoEncodeH265CtbSizeFlagsKHR = Flags<VideoEncodeH265CtbSizeFlagBitsKHR, uint32_t>;
 
 enum class VideoEncodeH265TransformBlockSizeFlagBitsKHR : uint32_t {
 	e4 = 0x1,
@@ -4468,7 +4467,7 @@ enum class VideoEncodeH265TransformBlockSizeFlagBitsKHR : uint32_t {
 	e16 = 0x4,
 	e32 = 0x8,
 };
-using VideoEncodeH265TransformBlockSizeFlagsKHR = Flags<VideoEncodeH265TransformBlockSizeFlagBitsKHR>;
+using VideoEncodeH265TransformBlockSizeFlagsKHR = Flags<VideoEncodeH265TransformBlockSizeFlagBitsKHR, uint32_t>;
 
 enum class VideoEncodeAV1CapabilityFlagBitsKHR : uint32_t {
 	ePerRateControlGroupMinMaxQIndex = 0x1,
@@ -4477,7 +4476,7 @@ enum class VideoEncodeAV1CapabilityFlagBitsKHR : uint32_t {
 	eFrameSizeOverride = 0x8,
 	eMotionVectorScaling = 0x10,
 };
-using VideoEncodeAV1CapabilityFlagsKHR = Flags<VideoEncodeAV1CapabilityFlagBitsKHR>;
+using VideoEncodeAV1CapabilityFlagsKHR = Flags<VideoEncodeAV1CapabilityFlagBitsKHR, uint32_t>;
 
 enum class VideoEncodeAV1StdFlagBitsKHR : uint32_t {
 	eUniformTileSpacingFlagSet = 0x1,
@@ -4485,7 +4484,7 @@ enum class VideoEncodeAV1StdFlagBitsKHR : uint32_t {
 	ePrimaryRefFrame = 0x4,
 	eDeltaQ = 0x8,
 };
-using VideoEncodeAV1StdFlagsKHR = Flags<VideoEncodeAV1StdFlagBitsKHR>;
+using VideoEncodeAV1StdFlagsKHR = Flags<VideoEncodeAV1StdFlagBitsKHR, uint32_t>;
 
 enum class VideoEncodeAV1RateControlFlagBitsKHR : uint32_t {
 	eRegularGop = 0x1,
@@ -4493,13 +4492,13 @@ enum class VideoEncodeAV1RateControlFlagBitsKHR : uint32_t {
 	eReferencePatternFlat = 0x4,
 	eReferencePatternDyadic = 0x8,
 };
-using VideoEncodeAV1RateControlFlagsKHR = Flags<VideoEncodeAV1RateControlFlagBitsKHR>;
+using VideoEncodeAV1RateControlFlagsKHR = Flags<VideoEncodeAV1RateControlFlagBitsKHR, uint32_t>;
 
 enum class VideoEncodeAV1SuperblockSizeFlagBitsKHR : uint32_t {
 	e64 = 0x1,
 	e128 = 0x2,
 };
-using VideoEncodeAV1SuperblockSizeFlagsKHR = Flags<VideoEncodeAV1SuperblockSizeFlagBitsKHR>;
+using VideoEncodeAV1SuperblockSizeFlagsKHR = Flags<VideoEncodeAV1SuperblockSizeFlagBitsKHR, uint32_t>;
 
 enum class TimeDomainKHR {
 	eDevice = 0,
@@ -4836,7 +4835,7 @@ enum class DebugUtilsMessageSeverityFlagBitsEXT : uint32_t {
 	eWarning = 0x100,
 	eError = 0x1000,
 };
-using DebugUtilsMessageSeverityFlagsEXT = Flags<DebugUtilsMessageSeverityFlagBitsEXT>;
+using DebugUtilsMessageSeverityFlagsEXT = Flags<DebugUtilsMessageSeverityFlagBitsEXT, uint32_t>;
 
 
 
@@ -7329,7 +7328,7 @@ enum class IndirectCommandsInputModeFlagBitsEXT : uint32_t {
 	eVulkanIndexBuffer = 0x1,
 	eDxgiIndexBuffer = 0x2,
 };
-using IndirectCommandsInputModeFlagsEXT = Flags<IndirectCommandsInputModeFlagBitsEXT>;
+using IndirectCommandsInputModeFlagsEXT = Flags<IndirectCommandsInputModeFlagBitsEXT, uint32_t>;
 
 struct PhysicalDeviceDeviceGeneratedCommandsPropertiesEXT {
 	vk::StructureType sType = StructureType::ePhysicalDeviceDeviceGeneratedCommandsPropertiesEXT;
@@ -7440,7 +7439,7 @@ enum class IndirectCommandsLayoutUsageFlagBitsEXT : uint32_t {
 	eExplicitPreprocess = 0x1,
 	eUnorderedSequences = 0x2,
 };
-using IndirectCommandsLayoutUsageFlagsEXT = Flags<IndirectCommandsLayoutUsageFlagBitsEXT>;
+using IndirectCommandsLayoutUsageFlagsEXT = Flags<IndirectCommandsLayoutUsageFlagBitsEXT, uint32_t>;
 
 struct IndirectCommandsPushConstantTokenEXT {
 	vk::PushConstantRange updateRange = {};
@@ -10273,14 +10272,14 @@ enum class PresentScalingFlagBitsEXT : uint32_t {
 	eAspectRatioStretch = 0x2,
 	eStretch = 0x4,
 };
-using PresentScalingFlagsEXT = Flags<PresentScalingFlagBitsEXT>;
+using PresentScalingFlagsEXT = Flags<PresentScalingFlagBitsEXT, uint32_t>;
 
 enum class PresentGravityFlagBitsEXT : uint32_t {
 	eMin = 0x1,
 	eMax = 0x2,
 	eCentered = 0x4,
 };
-using PresentGravityFlagsEXT = Flags<PresentGravityFlagBitsEXT>;
+using PresentGravityFlagsEXT = Flags<PresentGravityFlagBitsEXT, uint32_t>;
 
 struct SurfacePresentScalingCapabilitiesEXT {
 	vk::StructureType sType = StructureType::eSurfacePresentScalingCapabilitiesEXT;
