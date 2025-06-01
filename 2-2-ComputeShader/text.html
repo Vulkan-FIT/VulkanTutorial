@@ -16,7 +16,7 @@
 <h3>2-2 - Compute Shader</h3>
 
 <p>In this article, we will try to measure the performance of a Vulkan device
-in GFLOPS (Giga FLoating-point Operations Per Second).
+in TFLOPS (Tera FLoating-point Operations Per Second).
 We will create simple compute shader that will contain stream of 10'000 instructions,
 we will execute the shader many times on particular device,
 we will measure the execution time and print the measured performance.</p>
@@ -365,11 +365,11 @@ When combined with number of local workgroups, we have 128 x 100'000 = 12'800'00
 Finally, each compute shader invocation executes 10'000 multiplications and 10'000 additions.
 It is 20'000 floating operations.
 So, the whole computation is composed of 20'000 x 12'800'000 = 256'000'000'000 floating point operations.
-We can write 256 giga operations.
-Now, if we divide it by execution time, we get the performance in GFLOPS
-GFLOPS (Giga FLoating-point Operations Per Second).
-If, for example, the execution took 10 milliseconds, we divide it by 0.01 (in seconds) and receive 25'600 GFLOPS,
-or 25.6 TFLOPS. Such number would mean quite good graphics card for the time of writing of this article in 2025.</p>
+We can write 256 giga operations, or 0.256 tera operations.
+Now, if we divide it by execution time, we get the performance in GFLOPS/TFLOPS
+(Giga/Tera FLoating-point Operations Per Second).
+If, for example, the execution took 10 milliseconds, we divide it by 0.01 (in seconds) and receive 25.6 TFLOPS.
+Such number would mean quite good graphics card for the time of writing of this article in 2025.</p>
 
 </body>
 </html>

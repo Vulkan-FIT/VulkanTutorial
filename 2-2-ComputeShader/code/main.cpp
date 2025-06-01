@@ -250,7 +250,7 @@ int main(int argc, char* argv[])
 		double delta = chrono::duration<double>(t2 - t1).count();
 		cout << "Computation time: " << delta * 1e3 << "ms." << endl;
 		constexpr uint64_t numInstructions = uint64_t(20000) * 128 * groupCountX * groupCountY * groupCountZ;
-		cout << "Computing performance: " << double(numInstructions) / delta * 1e-9 << " GFLOPS." << endl;
+		cout << "Computing performance: " << double(numInstructions) / delta * 1e-12 << " TFLOPS." << endl;
 
 	// catch exceptions
 	} catch(vk::Error& e) {
