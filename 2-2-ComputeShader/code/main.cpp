@@ -200,7 +200,8 @@ int main(int argc, char* argv[])
 		// dispatch computation
 		constexpr const uint32_t groupCountX = 1000;
 		constexpr const uint32_t groupCountY = 100;
-		vk::cmdDispatch(commandBuffer, groupCountX, groupCountY, 1);
+		constexpr const uint32_t groupCountZ = 1;
+		vk::cmdDispatch(commandBuffer, groupCountX, groupCountY, groupCountZ);
 
 		// end command buffer
 		vk::endCommandBuffer(commandBuffer);
@@ -248,7 +249,7 @@ int main(int argc, char* argv[])
 		// print results
 		double delta = chrono::duration<double>(t2 - t1).count();
 		cout << "Computation time: " << delta * 1e3 << "ms." << endl;
-		constexpr uint64_t numInstructions = uint64_t(20000) * 128 * groupCountX * groupCountY;
+		constexpr uint64_t numInstructions = uint64_t(20000) * 128 * groupCountX * groupCountY * groupCountZ;
 		cout << "Computing performance: " << double(numInstructions) / delta * 1e-9 << " GFLOPS." << endl;
 
 	// catch exceptions

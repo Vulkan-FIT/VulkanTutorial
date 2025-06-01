@@ -207,8 +207,74 @@ constexpr uint32_t apiVersionPatch(uint32_t version)  { return version & 0xfff; 
 
 
 
-// enums
+// Flags class
 // author: PCJohn (peciva at fit.vut.cz)
+template <typename BitType>
+class Flags {
+public:
+
+	using ValueType = uint32_t;//typename std::underlying_type<BitType>::type;
+
+protected:
+	ValueType _value;
+public:
+
+	// constructors
+	constexpr Flags() noexcept  : _value(0) {}
+	constexpr Flags(BitType bit) noexcept  : _value(static_cast<ValueType>(bit)) {}
+	constexpr Flags(const Flags<BitType>& other) noexcept = default;
+	constexpr explicit Flags(ValueType flags) noexcept  : _value(flags) {}
+
+	// relational operators
+	constexpr bool operator< (const Flags<BitType>& rhs) const noexcept  { return _value <  rhs._value; }
+	constexpr bool operator<=(const Flags<BitType>& rhs) const noexcept  { return _value <= rhs._value; }
+	constexpr bool operator> (const Flags<BitType>& rhs) const noexcept  { return _value >  rhs._value; }
+	constexpr bool operator>=(const Flags<BitType>& rhs) const noexcept  { return _value >= rhs._value; }
+	constexpr bool operator==(const Flags<BitType>& rhs) const noexcept  { return _value == rhs._value; }
+	constexpr bool operator!=(const Flags<BitType>& rhs) const noexcept  { return _value != rhs._value; }
+
+	// logical operator
+	constexpr bool operator!() const noexcept  { return !_value; }
+
+	// bitwise operators
+	constexpr Flags<BitType> operator&(const Flags<BitType>& rhs) const noexcept  { return Flags<BitType>(_value & rhs._value); }
+	constexpr Flags<BitType> operator|(const Flags<BitType>& rhs) const noexcept  { return Flags<BitType>(_value | rhs._value); }
+	constexpr Flags<BitType> operator^(const Flags<BitType>& rhs) const noexcept  { return Flags<BitType>(_value ^ rhs._value); }
+
+	// assignment operators
+	constexpr Flags<BitType>& operator= (const Flags<BitType>& rhs) noexcept = default;
+	constexpr Flags<BitType>& operator|=(const Flags<BitType>& rhs) noexcept  { _value |= rhs._value; return *this; }
+	constexpr Flags<BitType>& operator&=(const Flags<BitType>& rhs) noexcept  { _value &= rhs._value; return *this; }
+	constexpr Flags<BitType>& operator^=(const Flags<BitType>& rhs) noexcept  { _value ^= rhs._value; return *this; }
+
+	// cast operators
+	explicit constexpr operator bool() const noexcept  { return !!_value; }
+	explicit constexpr operator ValueType() const noexcept  { return _value; }
+
+};
+
+
+template<typename BitType>
+constexpr Flags<BitType> operator&(BitType bit, const Flags<BitType>& flags) noexcept  { return flags.operator&(bit); }
+
+template<typename BitType>
+constexpr Flags<BitType> operator|(BitType bit, const Flags<BitType>& flags) noexcept  { return flags.operator|(bit); }
+
+template<typename BitType>
+constexpr Flags<BitType> operator^(BitType bit, const Flags<BitType>& flags) noexcept  { return flags.operator^(bit); }
+
+template<typename BitType>
+constexpr Flags<BitType> operator&(BitType lhs, BitType rhs) noexcept  { return Flags<BitType>(lhs) & rhs; }
+
+template<typename BitType>
+constexpr Flags<BitType> operator|(BitType lhs, BitType rhs) noexcept  { return Flags<BitType>(lhs) | rhs; }
+
+template<typename BitType>
+constexpr Flags<BitType> operator^(BitType lhs, BitType rhs) noexcept  { return Flags<BitType>(lhs) ^ rhs; }
+
+
+// enums
+// taken from Vulkan headers
 enum class Result
 {
 	eSuccess                                     = 0,
@@ -2549,73 +2615,6 @@ enum class VendorId {
 	eMobileye = 0x10007,
 };
 
-
-
-
-template <typename BitType>
-class Flags {
-public:
-
-	using ValueType = typename std::underlying_type<BitType>::type;
-
-protected:
-	ValueType _value;
-public:
-
-	// constructors
-	constexpr Flags() noexcept  : _value(0) {}
-	constexpr Flags(BitType bit) noexcept  : _value(static_cast<ValueType>(bit)) {}
-	constexpr Flags(const Flags<BitType>& other) noexcept = default;
-	constexpr explicit Flags(ValueType flags) noexcept  : _value(flags) {}
-
-	// relational operators
-	constexpr bool operator< (const Flags<BitType>& rhs) const noexcept  { return _value <  rhs._value; }
-	constexpr bool operator<=(const Flags<BitType>& rhs) const noexcept  { return _value <= rhs._value; }
-	constexpr bool operator> (const Flags<BitType>& rhs) const noexcept  { return _value >  rhs._value; }
-	constexpr bool operator>=(const Flags<BitType>& rhs) const noexcept  { return _value >= rhs._value; }
-	constexpr bool operator==(const Flags<BitType>& rhs) const noexcept  { return _value == rhs._value; }
-	constexpr bool operator!=(const Flags<BitType>& rhs) const noexcept  { return _value != rhs._value; }
-
-	// logical operator
-	constexpr bool operator!() const noexcept  { return !_value; }
-
-	// bitwise operators
-	constexpr Flags<BitType> operator&(const Flags<BitType>& rhs) const noexcept  { return Flags<BitType>(_value & rhs._value); }
-	constexpr Flags<BitType> operator|(const Flags<BitType>& rhs) const noexcept  { return Flags<BitType>(_value | rhs._value); }
-	constexpr Flags<BitType> operator^(const Flags<BitType>& rhs) const noexcept  { return Flags<BitType>(_value ^ rhs._value); }
-
-	// assignment operators
-	constexpr Flags<BitType>& operator= (const Flags<BitType>& rhs) noexcept = default;
-	constexpr Flags<BitType>& operator|=(const Flags<BitType>& rhs) noexcept  { _value |= rhs._value; return *this; }
-	constexpr Flags<BitType>& operator&=(const Flags<BitType>& rhs) noexcept  { _value &= rhs._value; return *this; }
-	constexpr Flags<BitType>& operator^=(const Flags<BitType>& rhs) noexcept  { _value ^= rhs._value; return *this; }
-
-	// cast operators
-	explicit constexpr operator bool() const noexcept  { return !!_value; }
-	explicit constexpr operator ValueType() const noexcept  { return _value; }
-
-};
-
-
-template<typename BitType>
-constexpr Flags<BitType> operator&(BitType bit, const Flags<BitType>& flags) noexcept  { return flags.operator&(bit); }
-
-template<typename BitType>
-constexpr Flags<BitType> operator|(BitType bit, const Flags<BitType>& flags) noexcept  { return flags.operator|(bit); }
-
-template<typename BitType>
-constexpr Flags<BitType> operator^(BitType bit, const Flags<BitType>& flags) noexcept  { return flags.operator^(bit); }
-
-template<typename BitType>
-constexpr Flags<BitType> operator&(BitType lhs, BitType rhs) noexcept  { return Flags<BitType>(lhs) & rhs; }
-
-template <typename BitType>
-constexpr Flags<BitType> operator|(BitType lhs, BitType rhs) noexcept  { return Flags<BitType>(lhs) | rhs; }
-
-template <typename BitType>
-constexpr Flags<BitType> operator^(BitType lhs, BitType rhs) noexcept  { return Flags<BitType>(lhs) ^ rhs; }
-
-
 enum class FramebufferCreateFlagBits : uint32_t {
 	eImageless = 0x1,
 	eImagelessKHR = 0x1,
@@ -4901,6 +4900,7 @@ using DeviceSize = uint64_t;
 #endif
 
 
+// taken from Vulkan headers
 using PFN_vkAllocationFunction = void* (VKAPI_PTR *)(
 	void*                                       pUserData,
 	size_t                                      size,
@@ -4944,6 +4944,7 @@ using PFN_vkDebugReportCallbackEXT = Bool32 (VKAPI_PTR *)(
 
 
 
+// taken from Vulkan headers
 struct BaseOutStructure {
 	StructureType sType = StructureType::eApplicationInfo;
 	BaseOutStructure* pNext = nullptr;
@@ -11452,6 +11453,7 @@ typedef struct BufferMemoryBarrier {
 
 
 // function pointer types
+// taken from Vulkan headers
 using PFN_vkVoidFunction = void (VKAPI_PTR *)(void);
 using PFN_vkGetInstanceProcAddr = PFN_vkVoidFunction (VKAPI_PTR *)(Instance::HandleType instanceHandle, const char* pName);
 using PFN_vkEnumerateInstanceVersion = Result (VKAPI_PTR *)(uint32_t* pApiVersion);
@@ -12501,6 +12503,8 @@ public:
 #endif
 
 
+// vector class
+// author: PCJohn (peciva at fit.vut.cz)
 template<typename Type>
 class vector {
 protected:
@@ -12703,6 +12707,8 @@ bool vector<Type>::resize_noThrow(size_t newSize) noexcept
 }
 
 
+// span class
+// author: PCJohn (peciva at fit.vut.cz)
 template<typename Type>
 class span {
 protected:
@@ -12727,6 +12733,8 @@ public:
 };
 
 
+// string_view class
+// author: PCJohn (peciva at fit.vut.cz)
 class string_view {
 protected:
 	const char* _data;
@@ -12745,11 +12753,12 @@ public:
 };
 
 
-// to_string_view
+
+// conversions
+// author: PCJohn (peciva at fit.vut.cz)
 const char* to_cstr(PhysicalDeviceType v);
 string_view to_string_view(PhysicalDeviceType v);
 
-// conversions
 // resultToString() returns Span that contains pointer to const char array
 // and size of the string excluding terminating zero character
 span<const char> resultToString(Result result);
@@ -12758,6 +12767,7 @@ span<const char> resultToString(Result result);
 // the buffer can be smaller if the user is sure that the value can be stored there;
 // returned value is the length of the string stored in bufferAtLeast12BytesLong excluding terminating zero character
 size_t int32ToString(int32_t value, char* bufferAtLeast12BytesLong);
+
 
 
 // exceptions
@@ -12818,6 +12828,9 @@ class InvalidOpaqueCaptureAddressError : public Error { public: using Error::Err
 class VkgError : public Error { public: using Error::Error; };
 
 
+
+// functions class
+// author: PCJohn (peciva at fit.vut.cz)
 template<typename T> inline T getGlobalProcAddr(const char* name) noexcept  { return reinterpret_cast<T>(funcs.vkGetInstanceProcAddr(nullptr, name)); }
 template<typename T> inline T getInstanceProcAddr(const char* name) noexcept  { return reinterpret_cast<T>(funcs.vkGetInstanceProcAddr(detail::_instance.handle(), name)); }
 template<typename T> inline T getDeviceProcAddr(const char* name) noexcept  { return reinterpret_cast<T>(funcs.vkGetDeviceProcAddr(detail::_device.handle(), name)); }
