@@ -12597,7 +12597,7 @@ void vector<Type>::resize(size_t newSize)
 		size_t j = s;
 		try {
 			for(; i<s; i++)
-				new(&m[i]) Type(std::move(_data[i]));
+				new(&m[i]) Type(static_cast<Type&&>(_data[i]));
 			for(; j<newSize; j++)
 				new(&m[j]) Type();
 		} catch(...) {
@@ -12626,7 +12626,7 @@ void vector<Type>::resize(size_t newSize)
 			size_t i = 0;
 			try {
 				for(size_t c=newSize; i<c; i++)
-					new(&m[i]) Type(std::move(_data[i]));
+					new(&m[i]) Type(static_cast<Type&&>(_data[i]));
 			} catch(...) {
 				while(i != 0) {
 					i--;
@@ -12655,7 +12655,7 @@ bool vector<Type>::resize_noThrow(size_t newSize) noexcept
 		size_t j = s;
 		try {
 			for(; i<s; i++)
-				new(&m[i]) Type(std::move(_data[i]));
+				new(&m[i]) Type(static_cast<Type&&>(_data[i]));
 			for(; j<newSize; j++)
 				new(&m[j]) Type();
 		} catch(...) {
@@ -12686,7 +12686,7 @@ bool vector<Type>::resize_noThrow(size_t newSize) noexcept
 			size_t i = 0;
 			try {
 				for(size_t c=newSize; i<c; i++)
-					new(&m[i]) Type(std::move(_data[i]));
+					new(&m[i]) Type(static_cast<Type&&>(_data[i]));
 			} catch(...) {
 				while(i != 0) {
 					i--;
