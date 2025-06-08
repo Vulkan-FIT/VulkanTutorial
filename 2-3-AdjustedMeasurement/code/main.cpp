@@ -187,6 +187,11 @@ int main(int argc, char* argv[])
 				}
 			);
 
+		// output header
+		cout << "\n"
+		        " Measurement        Number of         Computation     Performance\n"
+		        "  time stamp     local workgroups        time" << endl;
+
 		uint32_t groupCountX = 1;
 		uint32_t groupCountY = 1;
 		uint32_t groupCountZ = 1;
@@ -255,10 +260,11 @@ int main(int argc, char* argv[])
 			// print results
 			double delta = chrono::duration<double>(t2 - t1).count();
 			uint64_t numInstructions = uint64_t(20000) * 128 * groupCountX * groupCountY * groupCountZ;
-			cout << "Measurement time stamp: " << setprecision(2) << totalTime * 1000 << "ms, "
-			        "number of local workgroups: " << groupCountX * groupCountY * groupCountZ << ", "
-			        "computation time: " << delta * 1e3 << "ms, "
-			        "performance: " << double(numInstructions) / delta * 1e-12 << " TFLOPS." << endl;
+			cout << fixed << setprecision(2)
+			     << setw(9) << totalTime * 1000 << "ms       "
+			     << setw(9) << groupCountX * groupCountY * groupCountZ << "        "
+			     << setw(9) << delta * 1e3 << "ms   "
+			     << setw(9) << double(numInstructions) / delta * 1e-12 << " TFLOPS" << endl;
 
 			// update number of local workgroups
 			// to reach computation time of about 20ms
