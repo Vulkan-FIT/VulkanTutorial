@@ -9,6 +9,7 @@ set(PACKAGES
     1-5-LogicalDevice
     2-1-CommandSubmission
     2-2-ComputeShader
+    2-3-AdjustedMeasurement
    )
 
 foreach(pkg ${PACKAGES})
