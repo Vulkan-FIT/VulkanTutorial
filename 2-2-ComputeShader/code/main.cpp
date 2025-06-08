@@ -170,7 +170,7 @@ int main(int argc, char* argv[])
 		vk::UniqueCommandPool commandPool =
 			vk::createCommandPoolUnique(
 				vk::CommandPoolCreateInfo{
-					.flags = {},
+					.flags = vk::CommandPoolCreateFlagBits::eTransient,
 					.queueFamilyIndex = queueFamily,
 				}
 			);
