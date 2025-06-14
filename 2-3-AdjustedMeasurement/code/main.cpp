@@ -8,6 +8,11 @@
 
 using namespace std;
 
+
+// constants
+constexpr const char* appName = "2-3-AdjustedMeasurement";
+
+
 // shader code as SPIR-V binary
 static const uint32_t performanceSpirv[] = {
 #include "performance.comp.spv"
@@ -20,6 +25,53 @@ int main(int argc, char* argv[])
 	// (vk functions throw if they fail)
 	try {
 
+		// parse command-line arguments
+		bool printHelp = false;
+		size_t selectedDeviceIndex = 0;
+		char* deviceFilterString = nullptr;
+		for(int i=1; i<argc; i++) {
+
+			// parse options starting with '-'
+			if(argv[i][0] == '-') {
+
+				// print help
+				if(strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
+					printHelp = true;
+					continue;
+				}
+
+				// 
+				if(argv[i][1] >= '0' && argv[i][1] <= '9') {
+					char* endp = nullptr;
+					selectedDeviceIndex = strtoull(&argv[i][1], &endp, 10);
+					if(selectedDeviceIndex == 0 || endp == &argv[i][1] || (endp && *endp != 0))
+						printHelp = true;
+					continue;
+				}
+
+				printHelp = true;
+				continue;
+			}
+
+			// parse device filter string
+			deviceFilterString = argv[i];
+
+		}
+
+		// print help
+		if(printHelp) {
+			cout << appName << " prints the performance of a Vulkan device\n"
+			        "\n"
+			        "Usage: " << appName << " [-deviceIndex] [deviceNameFilter]\n"
+			        "   -deviceIndex - for example -1 or -3, specifies the index\n"
+			        "      of the device used for the performance test; it might be\n"
+			        "      useful when more devices are present in the system;\n"
+			        "      devices are numbered starting from one\n"
+			        "   deviceNameFilter - only devices matching the given string\n"
+			        "      will be considered; for example AMD, GeForce, Intel\n" << endl;
+			exit(99);
+		}
+
 		// load Vulkan library
 		vk::loadLib();
 
@@ -29,7 +81,7 @@ int main(int argc, char* argv[])
 				.flags = {},
 				.pApplicationInfo =
 					&(const vk::ApplicationInfo&)vk::ApplicationInfo{
-						.pApplicationName = "2-3-AdjustedMeasurement",
+						.pApplicationName = appName,
 						.applicationVersion = 0,
 						.pEngineName = nullptr,
 						.engineVersion = 0,
@@ -63,37 +115,73 @@ int main(int argc, char* argv[])
 
 		// print compatible devices
 		cout << "Compatible devices:" << endl;
-		for(auto& t : compatibleDevices)
-			cout << "   " << get<2>(t).deviceName << " (compute queue: " << get<1>(t)
-			     << ", type: " << to_cstr(get<2>(t).deviceType) << ")" << endl;
+		for(size_t i=0, c=compatibleDevices.size(); i<c; i++) {
+			auto& t = compatibleDevices[i];
+			cout << "   " << i+1 << ": " << get<2>(t).deviceName << " (compute queue: "
+			     << get<1>(t) << ", type: " << to_cstr(get<2>(t).deviceType) << ")" << endl;
+		}
 
-		// choose the best device
-		auto bestDevice = compatibleDevices.begin();
-		if(bestDevice == compatibleDevices.end())
-			throw runtime_error("No compatible devices.");
-		constexpr const array deviceTypeScore = {
-			10, // vk::PhysicalDeviceType::eOther         - lowest score
-			40, // vk::PhysicalDeviceType::eIntegratedGpu - high score
-			50, // vk::PhysicalDeviceType::eDiscreteGpu   - highest score
-			30, // vk::PhysicalDeviceType::eVirtualGpu    - normal score
-			20, // vk::PhysicalDeviceType::eCpu           - low score
-			10, // unknown vk::PhysicalDeviceType
-		};
-		int bestScore = deviceTypeScore[clamp(int(get<2>(*bestDevice).deviceType), 0, int(deviceTypeScore.size())-1)];
-		for(auto it=compatibleDevices.begin()+1; it!=compatibleDevices.end(); it++) {
-			int score = deviceTypeScore[clamp(int(get<2>(*it).deviceType), 0, int(deviceTypeScore.size())-1)];
-			if(score > bestScore) {
-				bestDevice = it;
-				bestScore = score;
+		// select the device
+		decltype(compatibleDevices)::iterator selectedDevice;
+		if(deviceFilterString)
+		{
+			// select the device by name and index:
+			// (1) filter devices by name and
+			// (2) on the resulting list, choose the device on the index selectedDeviceIndex-1
+			size_t counter = 1;
+			for(size_t i=0, c=compatibleDevices.size(); i<c; i++) {
+				if(strstr(get<2>(compatibleDevices[i]).deviceName, deviceFilterString))
+					if(counter == selectedDeviceIndex || selectedDeviceIndex == 0) {
+						selectedDevice = compatibleDevices.begin() + i;
+						goto deviceFound;
+					}
+					else
+						counter++;
+			}
+			if(counter == 0)
+				throw runtime_error("No device selected.");
+			else
+				throw runtime_error("Invalid device index.");
+		deviceFound:;
+		}
+		else if(selectedDeviceIndex > 0)
+		{
+			// select the device by index
+			if(selectedDeviceIndex > compatibleDevices.size())
+				throw runtime_error("Invalid device index.");
+			selectedDevice = compatibleDevices.begin() + selectedDeviceIndex - 1;
+		}
+		else
+		{
+			// choose the device automatically
+			// using score heuristic
+			selectedDevice = compatibleDevices.begin();
+			if(selectedDevice == compatibleDevices.end())
+				throw runtime_error("No compatible devices.");
+			constexpr const array deviceTypeScore = {
+				10, // vk::PhysicalDeviceType::eOther         - lowest score
+				40, // vk::PhysicalDeviceType::eIntegratedGpu - high score
+				50, // vk::PhysicalDeviceType::eDiscreteGpu   - highest score
+				30, // vk::PhysicalDeviceType::eVirtualGpu    - normal score
+				20, // vk::PhysicalDeviceType::eCpu           - low score
+				10, // unknown vk::PhysicalDeviceType
+			};
+			int score = deviceTypeScore[clamp(int(get<2>(*selectedDevice).deviceType), 0, int(deviceTypeScore.size())-1)];
+			for(auto it=compatibleDevices.begin()+1; it!=compatibleDevices.end(); it++) {
+				int newScore = deviceTypeScore[clamp(int(get<2>(*it).deviceType), 0, int(deviceTypeScore.size())-1)];
+				if(newScore > score) {
+					selectedDevice = it;
+					score = newScore;
+				}
 			}
 		}
 		cout << "Using device:\n"
-		        "   " << get<2>(*bestDevice).deviceName << endl;
-		uint32_t queueFamily = get<1>(*bestDevice);
+		        "   " << get<2>(*selectedDevice).deviceName << endl;
+		uint32_t queueFamily = get<1>(*selectedDevice);
 
 		// create device
 		vk::initDevice(
-			get<0>(*bestDevice),  // physicalDevice
+			get<0>(*selectedDevice),  // physicalDevice
 			vk::DeviceCreateInfo{  // pCreateInfo
 				.flags = {},
 				.queueCreateInfoCount = 1,  // at least one queue is mandatory
