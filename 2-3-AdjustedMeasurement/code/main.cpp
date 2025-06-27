@@ -19,6 +19,73 @@ static const uint32_t performanceSpirv[] = {
 };
 
 
+// Convert float value to c-string.
+//
+// It prints float followed by SI suffix, such as K, M, G, m, u, n, etc.
+// for kilo, mega, giga, milli, micro, nano,
+// It uses precision of three digits, taking form of one of three variants:
+// 1.23, 12.3, or 123, followed by space and SI suffix.
+// To make it always the same length, third variant appends a space before the number:
+// "1.23 K", "12.3 M", or " 123 G"
+// Supported range is from "100 a" to "999 E". Bigger values are converted to "+inf   ".
+// Lower values including negative numbers are converted to "   0  ".
+static auto formatFloatSI(float v)
+{
+	// return type with implicit conversion to const char*
+	struct SmallString {
+		array<char,7> buffer;
+		operator const char*() const { return buffer.data(); }
+	};
+	SmallString s;
+
+	// compute significand and exponent
+	int exponent = floorf(log10f(v));
+	float divisor = expf(float(exponent - 2) * logf(10));  // this computes exp10f(exponent - 2)
+	int significand = int(v / divisor + 0.5f);  // value is >=100 and <1000, actually it might be
+		// a little out this range because of small floating computation imprecisions; +0.5 makes proper
+		// rounding and avoids underflow to 99, but might cause overflow to 1000 (or even 1001?)
+
+	// convert significand to numbers
+	char n[4];
+	n[3] = significand % 10;
+	significand /= 10;
+	n[2] = significand % 10;
+	significand /= 10;
+	n[1] = significand % 10;
+	int thousandNumber = significand / 10;  // thousandNumber is 0 or 1; value 1 is present in some extreme cases
+	n[0] = thousandNumber;
+	exponent += thousandNumber;  // increment exponent if n contains >=1000
+
+	// make exponent ready to index into SI prefix table
+	constexpr const array<char,13> siPrefix = {
+		'a', 'f', 'p', 'n', 'u', 'm', ' ', 'K', 'M', 'G', 'T', 'P', 'E'
+	};
+	exponent += 18;  // make zero exponent point on the ' ' in siPrefixes
+	if(exponent < 0) {
+		s.buffer = { ' ', ' ', ' ', '0', ' ', ' ', 0 };
+		return s;
+	}
+	if(exponent >= 39) {
+		s.buffer = { '+', 'i', 'n', 'f', ' ', ' ', 0 };
+		return s;
+	}
+
+	// create final string
+	s.buffer[6] = 0;
+	s.buffer[5] = siPrefix[exponent / 3];
+	s.buffer[4] = ' ';
+	int dotPos = (exponent % 3) + 1;
+	if(dotPos == 3)
+		s.buffer[0] = ' ';
+	else
+		s.buffer[dotPos] = '.';
+	s.buffer[3] = '0' + n[3 - thousandNumber];
+	s.buffer[dotPos==2 ? 1 : 2] = '0' + n[2 - thousandNumber];
+	s.buffer[dotPos==3 ? 1 : 0] = '0' + n[1 - thousandNumber];
+	return s;
+}
+
+
 int main(int argc, char* argv[])
 {
 	// catch exceptions
@@ -278,12 +345,12 @@ int main(int argc, char* argv[])
 		// output header
 		cout << "\n"
 		        " Measurement        Number of         Computation     Performance\n"
-		        "  time stamp     local workgroups        time" << endl;
+		        "  time stamp     local workgroups         time" << endl;
 
 		uint32_t groupCountX = 1;
 		uint32_t groupCountY = 1;
 		uint32_t groupCountZ = 1;
-		double totalTime = 0.;
+		chrono::time_point startTime = chrono::high_resolution_clock::now();
 		do {
 
 			// begin command buffer
@@ -346,18 +413,23 @@ int main(int argc, char* argv[])
 				vk::checkForSuccessValue(r, "vkWaitForFences");
 
 			// print results
-			double delta = chrono::duration<double>(t2 - t1).count();
+			double time = chrono::duration<double>(t2 - t1).count();
+			double totalTime = chrono::duration<double>(t2 - startTime).count();
 			uint64_t numInstructions = uint64_t(20000) * 128 * groupCountX * groupCountY * groupCountZ;
 			cout << fixed << setprecision(2)
 			     << setw(9) << totalTime * 1000 << "ms       "
 			     << setw(9) << groupCountX * groupCountY * groupCountZ << "        "
-			     << setw(9) << delta * 1e3 << "ms   "
-			     << setw(9) << double(numInstructions) / delta * 1e-12 << " TFLOPS" << endl;
+			     << "     " << formatFloatSI(time) << "s   "
+			     << "    " << formatFloatSI(double(numInstructions) / time) << "FLOPS" << endl;
+
+			// stop measurements after three seconds
+			if(totalTime >= 3.)
+				break;
 
 			// update number of local workgroups
 			// to reach computation time of about 20ms
-			constexpr double targetDelta = 0.02;
-			if(delta < targetDelta / 10.) {
+			constexpr double targetTime = 0.02;
+			if(time < targetTime / 10.) {
 				if(groupCountX <= 1000)
 					groupCountX *= 10;
 				else if(groupCountY <= 1000)
@@ -366,7 +438,7 @@ int main(int argc, char* argv[])
 					groupCountZ *= 10;
 			}
 			else {
-				double ratio = targetDelta / delta;
+				double ratio = targetTime / time;
 				uint64_t newNumGroups = uint64_t(ratio * (uint64_t(groupCountX) * groupCountY * groupCountZ));
 				if(newNumGroups > 10000 * 10000) {
 					groupCountZ = 1 + ((newNumGroups - 1) / (10000 * 10000));
@@ -383,9 +455,7 @@ int main(int argc, char* argv[])
 				}
 			}
 
-			totalTime += delta;
-
-		} while(totalTime < 3.);
+		} while(true);
 
 	// catch exceptions
 	} catch(vk::Error& e) {
