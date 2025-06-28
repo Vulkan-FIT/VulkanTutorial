@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<title>2-3-AdjustedMeasurement</title>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../common/vulkanStyle.css">
+<style media="screen" type="text/css">
+</style>
+</head>
+
+<body>
+
+<h1>Vulkan Tutorial</h1>
+
+<h3>2-3 - Adjusted Measurement</h3>
+
+<p>In previous article, we measured the performance running 100'000 local workgroups
+that executed 256 billion floating point operations in total.
+This might take about 2 milliseconds on GeForce 5090,
+about 0.5 second on integrated Intel graphics
+and timeout on slow Vulkan software driver.
+In short, our measurement algorithm needs improvements. The reasons are as follows:</p>
+
+<ul>
+<li>avoid very long measurements on very slow devices and avoid timeouts</li>
+<li>avoid too short measurements on very fast devices - very short measurements might not be precise</li>
+<li>avoid power management to influence the results</li>
+</ul>
+
+<p>Our goal will be to perform measurements that takes about 20ms
+and we will do them repeatedly.
+We will print the output header and start our measurement with single local group:</p>
+
+<pre>
+// output header
+cout << "\n"
+        " Measurement        Number of         Computation     Performance\n"
+        "  time stamp     local workgroups         time" << endl;
+
+uint32_t groupCountX = 1;
+uint32_t groupCountY = 1;
+uint32_t groupCountZ = 1;
+chrono::time_point startTime = chrono::high_resolution_clock::now();
+do {
+
+	// begin command buffer
+	vk::beginCommandBuffer(
+		commandBuffer,
+		vk::CommandBufferBeginInfo{
+			.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
+			.pInheritanceInfo = nullptr,
+		}
+	);
+
+	// bind pipeline
+	vk::cmdBindPipeline(commandBuffer, vk::PipelineBindPoint::eCompute, pipeline);
+
+	// dispatch computation
+	vk::cmdDispatch(commandBuffer, groupCountX, groupCountY, groupCountZ);
+
+	// end command buffer
+	vk::endCommandBuffer(commandBuffer);
+</pre>
+
+<p>Then, we submit the work and measure the time to have the work completed by the device.
+Once done, we print the results and stop further measurements if we are measuring for more than 3 seconds already:</p>
+
+<pre>
+	// print results
+	double time = chrono::duration<double>(t2 - t1).count();
+	double totalTime = chrono::duration<double>(t2 - startTime).count();
+	uint64_t numInstructions = uint64_t(20000) * 128 * groupCountX * groupCountY * groupCountZ;
+	cout << fixed << setprecision(2)
+	     << setw(9) << totalTime * 1000 << "ms       "
+	     << setw(9) << groupCountX * groupCountY * groupCountZ << "        "
+	     << "     " << formatFloatSI(time) << "s   "
+	     << "    " << formatFloatSI(double(numInstructions) / time) << "FLOPS" << endl;
+
+	// stop measurements after three seconds
+	if(totalTime >= 3.)
+		break;
+</pre>
+
+<p>The function formatFloatSI(float) makes just more nice floating point value formatting.
+It prints just three most significant numbers followed by SI suffix like M for mega, G for giga and T for tera.
+Only three digits are printed to keep the output as simple as possible.</p>
+
+<p>We follow by updating number of local workgroups for the next measurement.
+If the previous measurement time is shorter than 2ms, we just multiply number of local workgroups by 10.
+Otherwise, we compute ratio and try to target 20ms measurement.
+Vulkan specification tells us that at least 65535 local workgroups is supported
+in each of X, Y, and Z dimensions.
+So, we cap each dimension to 10'000 to avoid exceeding the limit:</p>
+
+<pre>
+	// update number of local workgroups
+	// to reach computation time of about 20ms
+	constexpr double targetTime = 0.02;
+	if(time < targetTime / 10.) {
+		if(groupCountX <= 1000)
+			groupCountX *= 10;
+		else if(groupCountY <= 1000)
+			groupCountY *= 10;
+		else if(groupCountZ <= 1000)
+			groupCountZ *= 10;
+	}
+	else {
+		double ratio = targetTime / time;
+		uint64_t newNumGroups = uint64_t(ratio * (uint64_t(groupCountX) * groupCountY * groupCountZ));
+		if(newNumGroups > 10000 * 10000) {
+			groupCountZ = 1 + ((newNumGroups - 1) / (10000 * 10000));
+			uint64_t remainder = newNumGroups / groupCountZ;
+			groupCountY = 1 + ((remainder - 1) / 10000);
+			groupCountX = remainder / groupCountY;
+		}
+		else {
+			if(newNumGroups == 0)
+				newNumGroups = 1;
+			groupCountZ = 1;
+			groupCountY = 1 + ((newNumGroups - 1) / 10000);
+			groupCountX = newNumGroups / groupCountY;
+		}
+	}
+
+} while(true);
+</pre>
+
+<p>When we run the application, we might see the result similar to the following one:</p>
+
+<pre>
+Compatible devices:
+   1: Intel(R) UHD Graphics (compute queue: 0, type: IntegratedGpu)
+   2: Quadro RTX 3000 (compute queue: 0, type: DiscreteGpu)
+   3: Quadro RTX 3000 (compute queue: 2, type: DiscreteGpu)
+   4: llvmpipe (LLVM 20.1.5, 256 bits) (compute queue: 0, type: Cpu)
+Using device:
+   Quadro RTX 3000
+
+ Measurement        Number of         Computation     Performance
+  time stamp     local workgroups         time
+     1.15ms               1              846 us       3.03 GFLOPS
+     2.42ms              10              520 us       49.3 GFLOPS
+     3.47ms             100              407 us        629 GFLOPS
+     4.92ms            1000              852 us       3.00 TFLOPS
+    14.41ms           10000             8.72 ms       2.94 TFLOPS
+    35.27ms           22932             20.2 ms       2.90 TFLOPS
+    54.96ms           22680             19.0 ms       3.06 TFLOPS
+    77.15ms           23895             20.9 ms       2.93 TFLOPS
+    96.27ms           22866             17.9 ms       3.27 TFLOPS
+   116.82ms           25557             19.7 ms       3.32 TFLOPS
+   140.63ms           25902             23.1 ms       2.87 TFLOPS
+   160.41ms           22395             18.0 ms       3.19 TFLOPS
+   180.69ms           24897             19.6 ms       3.24 TFLOPS
+   202.45ms           25341             20.4 ms       3.18 TFLOPS
+   223.12ms           24810             19.4 ms       3.28 TFLOPS
+   241.48ms           25629             17.1 ms       3.84 TFLOPS
+   254.78ms           30016             12.4 ms       6.22 TFLOPS
+   276.27ms           48570             20.2 ms       6.15 TFLOPS
+   298.58ms           48080             19.9 ms       6.17 TFLOPS
+   320.31ms           48220             20.2 ms       6.10 TFLOPS
+   342.46ms           47630             20.8 ms       5.87 TFLOPS
+   365.67ms           45840             21.4 ms       5.49 TFLOPS
+   384.84ms           42890             17.8 ms       6.16 TFLOPS
+   405.64ms           48155             19.9 ms       6.20 TFLOPS
+   [...snip...]
+</pre>
+
+<p>In the first column, we see the timeline.
+In the second column, number of local workgroups grow from 1 in the first measurement
+to about 23 thousands, stays for a while and then, grows to about 48 thousands.
+The computation time reaches 20 milliseconds in the sixth measurement.
+The meaningful performance of 3 TFLOPS is reported already in fourth measurement.
+Strange change can be seen after 200ms since beginning of the measurements.
+Suddenly, the performance raises from about 3.0 to about 6.2 TFLOPS.
+It is more than doubled at that moment and stays on until the end of the measurement process.
+Undoubtedly, the graphics card is switched after 200 ms to the higher performance level
+and higher power consumption.
+So, the real graphics card performance is not always seen immediately,
+but some time might be needed before highest performance level is reached.</p>
+
+
+<h3>Graphics Device selection</h3>
+
+<p>We might also want to measure another graphics card installed in the system.
+Possible options are identified by the number, ranging from 1 to 4 in our case:</p>
+
+<pre>
+Compatible devices:
+   1: Intel(R) UHD Graphics (compute queue: 0, type: IntegratedGpu)
+   2: Quadro RTX 3000 (compute queue: 0, type: DiscreteGpu)
+   3: Quadro RTX 3000 (compute queue: 2, type: DiscreteGpu)
+   4: llvmpipe (LLVM 20.1.5, 256 bits) (compute queue: 0, type: Cpu)
+</pre>
+
+<p>We can pass '-' followed by the number to command line to select particular device
+and compute queue. For example, specifying -1 to command line will measure performance of
+integrated Intel GPU.</p>
+
+<p>Passing substring of device name is another way to select the device to test.
+For example, passing llvm on command line will select llvmpipe software device run completely on CPU.</p>
+
+<p>We can combine both approaches and specify RTX to get two devices while the first one would be used
+unless we specify -2 to select the second one that uses different compute queue.</p>
+
+
+</body>
+</html>
