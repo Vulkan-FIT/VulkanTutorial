@@ -10,6 +10,7 @@ set(PACKAGES
     2-1-CommandSubmission
     2-2-ComputeShader
     2-3-AdjustedMeasurement
+    2-4-TimestampQueries
    )
 
 foreach(pkg ${PACKAGES})
