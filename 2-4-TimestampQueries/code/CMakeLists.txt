@@ -12,7 +12,9 @@ set(APP_INCLUDES
    )
 
 set(APP_SHADERS
-    performance.comp
+    performance-float.comp
+    performance-double.comp
+    performance-half.comp
    )
 
 # executable
