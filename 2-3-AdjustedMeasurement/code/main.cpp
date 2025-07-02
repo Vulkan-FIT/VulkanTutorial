@@ -107,7 +107,7 @@ int main(int argc, char* argv[])
 					continue;
 				}
 
-				// 
+				// parse device index
 				if(argv[i][1] >= '0' && argv[i][1] <= '9') {
 					char* endp = nullptr;
 					selectedDeviceIndex = strtoull(&argv[i][1], &endp, 10);

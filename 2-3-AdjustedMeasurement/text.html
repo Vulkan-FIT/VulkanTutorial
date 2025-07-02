@@ -139,41 +139,42 @@ Using device:
 
  Measurement        Number of         Computation     Performance
   time stamp     local workgroups         time
-     1.15ms               1              846 us       3.03 GFLOPS
-     2.42ms              10              520 us       49.3 GFLOPS
-     3.47ms             100              407 us        629 GFLOPS
-     4.92ms            1000              852 us       3.00 TFLOPS
-    14.41ms           10000             8.72 ms       2.94 TFLOPS
-    35.27ms           22932             20.2 ms       2.90 TFLOPS
-    54.96ms           22680             19.0 ms       3.06 TFLOPS
-    77.15ms           23895             20.9 ms       2.93 TFLOPS
-    96.27ms           22866             17.9 ms       3.27 TFLOPS
-   116.82ms           25557             19.7 ms       3.32 TFLOPS
-   140.63ms           25902             23.1 ms       2.87 TFLOPS
-   160.41ms           22395             18.0 ms       3.19 TFLOPS
-   180.69ms           24897             19.6 ms       3.24 TFLOPS
-   202.45ms           25341             20.4 ms       3.18 TFLOPS
-   223.12ms           24810             19.4 ms       3.28 TFLOPS
-   241.48ms           25629             17.1 ms       3.84 TFLOPS
-   254.78ms           30016             12.4 ms       6.22 TFLOPS
-   276.27ms           48570             20.2 ms       6.15 TFLOPS
-   298.58ms           48080             19.9 ms       6.17 TFLOPS
-   320.31ms           48220             20.2 ms       6.10 TFLOPS
-   342.46ms           47630             20.8 ms       5.87 TFLOPS
-   365.67ms           45840             21.4 ms       5.49 TFLOPS
-   384.84ms           42890             17.8 ms       6.16 TFLOPS
-   405.64ms           48155             19.9 ms       6.20 TFLOPS
+     0.53ms               1              286 us       8.96 GFLOPS
+     1.30ms              10              180 us        142 GFLOPS
+     2.01ms             100              186 us       1.38 TFLOPS
+     3.46ms            1000              935 us       2.74 TFLOPS
+    11.32ms           10000             7.30 ms       3.51 TFLOPS
+    31.74ms           27390             19.9 ms       3.53 TFLOPS
+    53.28ms           27576             20.1 ms       3.52 TFLOPS
+    74.43ms           27480             19.8 ms       3.56 TFLOPS
+    96.04ms           27774             20.2 ms       3.52 TFLOPS
+   117.46ms           27483             20.0 ms       3.53 TFLOPS
+   139.08ms           27540             20.1 ms       3.50 TFLOPS
+   163.54ms           27363             20.1 ms       3.48 TFLOPS
+   184.53ms           27198             19.9 ms       3.50 TFLOPS
+   207.91ms           27348             19.7 ms       3.55 TFLOPS
+   230.24ms           27744             18.2 ms       3.90 TFLOPS
+   245.08ms           30492             11.8 ms       6.63 TFLOPS
+   265.70ms           51804             19.6 ms       6.76 TFLOPS
+   286.95ms           52806             19.8 ms       6.83 TFLOPS
+   309.12ms           53394             20.6 ms       6.62 TFLOPS
+   332.74ms           51750             19.7 ms       6.74 TFLOPS
+   355.33ms           52626             19.7 ms       6.85 TFLOPS
+   377.28ms           53472             20.3 ms       6.74 TFLOPS
+   399.08ms           52626             20.3 ms       6.64 TFLOPS
+   420.75ms           51858             20.1 ms       6.59 TFLOPS
+   444.25ms           51492             19.7 ms       6.71 TFLOPS
    [...snip...]
 </pre>
 
 <p>In the first column, we see the timeline.
 In the second column, number of local workgroups grow from 1 in the first measurement
-to about 23 thousands, stays for a while and then, grows to about 48 thousands.
+to about 27 thousands, stays for a while and then, grows to about 52 thousands.
 The computation time reaches 20 milliseconds in the sixth measurement.
-The meaningful performance of 3 TFLOPS is reported already in fourth measurement.
-Strange change can be seen after 200ms since beginning of the measurements.
-Suddenly, the performance raises from about 3.0 to about 6.2 TFLOPS.
-It is more than doubled at that moment and stays on until the end of the measurement process.
+The meaningful performance of 3.5 TFLOPS is reported already in fifth measurement.
+Strange change can be seen after 200ms since the beginning of the measurements.
+Suddenly, the performance starts to raise from about 3.5 to about 6.7 TFLOPS.
+It is almost doubled at that point of time and stays about 6.7 TFLOPS until the end of the measurement process.
 Undoubtedly, the graphics card is switched after 200 ms to the higher performance level
 and higher power consumption.
 So, the real graphics card performance is not always seen immediately,
