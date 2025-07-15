@@ -15,20 +15,8 @@ constexpr const char* appName = "2-4-TimestampQueries";
 
 
 // shader code as SPIR-V binary
-static const uint32_t performanceFloatSpirv[] = {
-#include "performance-float.comp.spv"
-};
-static const uint32_t performanceDoubleSpirv[] = {
-#include "performance-double.comp.spv"
-};
-static const uint32_t performanceHalfSpirv[] = {
-#include "performance-half.comp.spv"
-};
-constexpr const array<const uint32_t*, 3> performanceSpirvList = {
-	performanceFloatSpirv, performanceDoubleSpirv, performanceHalfSpirv
-};
-constexpr const array<size_t, 3> performanceSpirvSizeList = {
-	sizeof(performanceFloatSpirv), sizeof(performanceDoubleSpirv), sizeof(performanceHalfSpirv)
+static const uint32_t performanceSpirv[] = {
+#include "performance.comp.spv"
 };
 
 
@@ -109,7 +97,6 @@ int main(int argc, char* argv[])
 		bool printHelp = false;
 		size_t selectedDeviceIndex = 0;
 		char* deviceFilterString = nullptr;
-		unsigned testIndex = 0;
 		for(int i=1; i<argc; i++) {
 
 			// parse options starting with '-'
@@ -127,24 +114,6 @@ int main(int argc, char* argv[])
 					selectedDeviceIndex = strtoull(&argv[i][1], &endp, 10);
 					if(selectedDeviceIndex == 0 || endp == &argv[i][1] || (endp && *endp != 0))
 						printHelp = true;
-					continue;
-				}
-
-				// float performance
-				if(strcmp(argv[i], "--float") == 0 || strcmp(argv[i], "--f32") == 0) {
-					testIndex = 0;
-					continue;
-				}
-
-				// double performance
-				if(strcmp(argv[i], "--double") == 0 || strcmp(argv[i], "--f64") == 0) {
-					testIndex = 1;
-					continue;
-				}
-
-				// half performance
-				if(strcmp(argv[i], "--half") == 0 || strcmp(argv[i], "--f16") == 0) {
-					testIndex = 2;
 					continue;
 				}
 
@@ -278,13 +247,6 @@ int main(int argc, char* argv[])
 		cout << "Using device:\n"
 		        "   " << get<2>(*selectedDevice).deviceName << endl;
 
-		// print precision
-		constexpr const array<const char*,3> precisionString = {
-			"Float (float32)", "Double (float64)", "Half (float16)"
-		};
-		cout << "Using precision:\n"
-		        "   " << precisionString[testIndex] << endl;
-
 		// get device and queue info
 		uint32_t queueFamily = get<1>(*selectedDevice);
 		uint32_t timestampValidBits = get<3>(*selectedDevice).timestampValidBits;
@@ -292,17 +254,6 @@ int main(int argc, char* argv[])
 		float timestampPeriod = get<2>(*selectedDevice).limits.timestampPeriod;
 		if(timestampValidBitMask == 0)
 			throw runtime_error("Vulkan timestamps are not supported on the queue.");
-
-		// get supported features
-		vk::PhysicalDeviceVulkan12Features features12;
-		vk::PhysicalDeviceFeatures2 features10 = { .pNext = &features12 };
-		vk::getPhysicalDeviceFeatures2(get<0>(*selectedDevice), features10);
-		bool float64Supported = features10.features.shaderFloat64;
-		bool float16Supported = features12.shaderFloat16;
-		if(testIndex == 1 && !float64Supported)
-			throw runtime_error("Vulkan device does not support double precision computations.");
-		if(testIndex == 2 && !float16Supported)
-			throw runtime_error("Vulkan device does not support half precision computations.");
 
 		// create device
 		vk::initDevice(
@@ -325,12 +276,10 @@ int main(int argc, char* argv[])
 				.ppEnabledExtensionNames = nullptr,
 				.pEnabledFeatures =
 					&(const vk::PhysicalDeviceFeatures&)vk::PhysicalDeviceFeatures{
-						.shaderFloat64 = (testIndex == 1),
 						.shaderInt64 = true,
 					},
 			}.setPNext(
 				&(const vk::PhysicalDeviceVulkan12Features&)vk::PhysicalDeviceVulkan12Features{
-					.shaderFloat16 = (testIndex == 2),
 					.bufferDeviceAddress = true,
 				}
 			)
@@ -344,8 +293,8 @@ int main(int argc, char* argv[])
 			vk::createShaderModuleUnique(
 				vk::ShaderModuleCreateInfo{
 					.flags = {},
-					.codeSize = performanceSpirvSizeList[testIndex],
-					.pCode = performanceSpirvList[testIndex],
+					.codeSize = sizeof(performanceSpirv),
+					.pCode = performanceSpirv,
 				}
 			);
 

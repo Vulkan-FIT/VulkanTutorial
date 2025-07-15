@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<title>2-4-TimestampQueries</title>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../common/vulkanStyle.css">
+<style media="screen" type="text/css">
+</style>
+</head>
+
+<body>
+
+<h1>Vulkan Tutorial</h1>
+
+<h3>2-4 - Timestamp Queries</h3>
+
+<p>Using chrono::high_resolution_clock::now() is the CPU way to get the current time.
+However, Vulkan provides its own way to get the current time directly on the device.
+Getting the time directly on the device avoids unnecessary overhead and
+might provide higher precision of the measurement.</p>
+
+<p>Vulkan provides vkCmdWriteTimestamp function to request timestamp and to write it to the memory:</p>
+
+<pre>
+void vkCmdWriteTimestamp(
+	VkCommandBuffer commandBuffer,
+	VkPipelineStageFlagBits pipelineStage,
+	VkQueryPool queryPool,
+	uint32_t query);
+</pre>
+
+<p>The command is recorded into the command buffer specified by the first parameter.
+The second parameter gives the pipeline stage that must be completed before the write timestamp command is executed.
+Vulkan devices might execute commands in parallel and sometimes out of submission order.
+Moreover, commands are executed in stages, such as compute shader stage, vertex shader stage,
+geometry shader stage and fragment shader stage.
+All commands submitted before vkCmdWriteTimestamp must complete execution of at least the stage
+specified by pipelineStage parameter before the timestamp command can be executed.
+Third parameter queryPool specifies the object where the timestamp will be stored.
+Finally, fourth parameter specifies index of the query inside queryPool where the result will be stored.</p>
+
+<p>The command buffer is recorded as follows:</p>
+
+<pre>
+// reset timestamp pool
+vk::cmdResetQueryPool(
+	commandBuffer,
+	timestampPool,
+	0,  // firstQuery
+	2);  // queryCount
+
+// bind pipeline
+vk::cmdBindPipeline(commandBuffer, vk::PipelineBindPoint::eCompute, pipeline);
+
+// write timestamp 0
+vk::cmdWriteTimestamp(
+	commandBuffer,
+	vk::PipelineStageFlagBits::eTopOfPipe,
+	timestampPool,
+	0);  // query
+
+// dispatch computation
+vk::cmdDispatch(commandBuffer, groupCountX, groupCountY, groupCountZ);
+
+// write timestamp 1
+vk::cmdWriteTimestamp(
+	commandBuffer,
+	vk::PipelineStageFlagBits::eBottomOfPipe,
+	timestampPool,
+	1);  // query
+</pre>
+
+<p>First, we reset query pool and bind the pipeline. Then, we write first timestamp,
+record the work using vk::cmdDispatch() and write the second timestamp.</p>
+
+<p>When the command buffer is executed, the timestamps are written by the device into the query pool.
+After waiting for the command buffer execution to complete, we read the timestamps:</p>
+
+<pre>
+// read timestamps
+array<uint64_t, 2> timestamps;
+vk::getQueryPoolResults(
+	timestampPool,  // queryPool
+	0,  // firstQuery
+	2,  // queryCount
+	2 * sizeof(uint64_t),  // dataSize
+	timestamps.data(),  // pData
+	sizeof(uint64_t),  // stride
+	vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait  // flags
+);
+
+// print results
+double time = float((timestamps[1] - timestamps[0]) & timestampValidBitMask) * timestampPeriod / 1e9;
+double totalTime = chrono::duration<double>(chrono::high_resolution_clock::now() - startTime).count();
+uint64_t numInstructions = uint64_t(20000) * 128 * groupCountX * groupCountY * groupCountZ;
+cout << fixed << setprecision(2)
+     << setw(9) << totalTime * 1000 << "ms       "
+     << setw(9) << groupCountX * groupCountY * groupCountZ << "        "
+     << "     " << formatFloatSI(time) << "s   "
+     << "    " << formatFloatSI(double(numInstructions) / time) << "FLOPS" << endl;
+</pre>
+
+<p>We read two timestamps as two 64-bit integers. We substract them to get their difference,
+perform logical and with timestampValidBitMask to limit the result just to valid bits,
+and finally, we multiply it by timestampPeriod and divide by 1e9 to get the time difference in seconds.
+The variable timestampPeriod contains number of nanoseconds that pass
+to make timestamp incremented by one. At the end, the results and printed to the screen.</p>
+
+<p>The last missing piece of the code is query pool creation:</p>
+
+<pre>
+// timestamp pool
+vk::UniqueQueryPool timestampPool =
+	vk::createQueryPoolUnique(
+		vk::QueryPoolCreateInfo{
+			.flags = {},
+			.queryType = vk::QueryType::eTimestamp,
+			.queryCount = 2,
+			.pipelineStatistics = {},
+		}
+	);
+</pre>
+
+<p>We choose to store timestamps in the pool and to store two values there.</p>
+
+<p>We can run the example and see if we got any additional precision in this simple application.
+On my Quadro RTX 3000, I see the real difference in first few measurements.
+Dispatching 1, 10 or 100 workgroups results in as short measurement time as 100 us when using timestamps.
+Without timestamps, the overhead is much longer in these three measurements.
+I see values ranging from 250 to 600 us that have its roots in CPU - GPU synchronization.
+When measurement time is about 20ms, the difference is still there but it is probably not noticeable to the user.</p>
+
+</body>
+</html>
