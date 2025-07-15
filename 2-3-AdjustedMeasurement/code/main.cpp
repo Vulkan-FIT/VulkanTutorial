@@ -130,8 +130,8 @@ int main(int argc, char* argv[])
 		if(printHelp) {
 			cout << appName << " prints the performance of a Vulkan device\n"
 			        "\n"
-			        "Usage: " << appName << " [-deviceIndex] [deviceNameFilter]\n"
-			        "   -deviceIndex - for example -1 or -3, specifies the index\n"
+			        "Usage: " << appName << " [-<deviceIndex>] [deviceNameFilter]\n"
+			        "   -<deviceIndex> - for example -1 or -3, specifies the index\n"
 			        "      of the device used for the performance test; it might be\n"
 			        "      useful when more devices are present in the system;\n"
 			        "      devices are numbered starting from one\n"
