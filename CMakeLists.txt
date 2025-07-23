@@ -11,6 +11,7 @@ set(PACKAGES
     2-2-ComputeShader
     2-3-AdjustedMeasurement
     2-4-TimestampQueries
+    2-5-FloatPrecision
    )
 
 foreach(pkg ${PACKAGES})

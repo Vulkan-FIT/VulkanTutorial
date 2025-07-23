@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<title>2-5-FloatPrecision</title>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../common/vulkanStyle.css">
+<style media="screen" type="text/css">
+</style>
+</head>
+
+<body>
+
+<h1>Vulkan Tutorial</h1>
+
+<h3>2-5 - Float Precision</h3>
+
+<p>Standard float type has limited precision. So, double type is often used as an alternative
+when higher precision is needed. On the other hand side, half type might be considered
+when limited precision is not an issue because it might provide more performance.</p>
+
+
+<h3>Float type (float32)</h3>
+
+<p>Float type occupies 4 bytes, e.g. 32 bits:</p>
+
+<table><tr>
+<td style="text-align: center;" bgcolor="#000000">&nbsp;sign&nbsp;</td>
+<td style="text-align: center;" bgcolor="#000000" colspan="8">&nbsp;exponent (8 bits)&nbsp;</td>
+<td style="text-align: center;" bgcolor="#000000" colspan="23">&nbsp;23 fraction bits representing significand&nbsp;</td>
+</tr><tr>
+<td style="color: black; text-align: center;" bgcolor="#c6fcff">0</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">0</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">1</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">1</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">1</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">1</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">1</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">0</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+</tr></table>
+
+<p>It is composed of the sign bit, 8 bits of the exponent and 23 bits of the fraction that represents significand.
+Representable value ranges from -3.40e38 to 3.40e38 with about 7.2 decimal digits precision.</p>
+
+
+<h3>Double type (float64)</h3>
+
+<p>Double type takes 8 bytes, e.g. 64 bits:</p>
+
+<table><tr>
+<td style="text-align: center;" bgcolor="#000000">&nbsp;sign&nbsp;</td>
+<td style="text-align: center;" bgcolor="#000000" colspan="11">&nbsp;exponent (11 bits)&nbsp;</td>
+<td style="text-align: center;" bgcolor="#000000" colspan="52">&nbsp;52 fraction bits representing significand&nbsp;</td>
+</tr><tr>
+<td style="color: black; text-align: center;" bgcolor="#c6fcff">0</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">0</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">1</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">1</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">1</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">1</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">1</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">0</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">0</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">0</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">0</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td><td style="color:black;" bgcolor="#ffb0af">0</td>
+</tr></table>
+
+<p>It is composed of the sign bit, 11 bits of the exponent and 52 bits of the fraction that represents significand.
+Representable value ranges from -1.80e308 to 1.80e308 with about 16.0 decimal digits precision.</p>
+
+
+<h3>Half type (float16)</h3>
+
+<p>Half type is stored on 2 bytes, e.g. 16 bits:</p>
+
+<table><tr>
+<td style="text-align: center;" bgcolor="#000000">&nbsp;sign&nbsp;</td>
+<td style="text-align: center;" bgcolor="#000000" colspan="5">&nbsp;exponent (5 bits)&nbsp;</td>
+<td style="text-align: center;" bgcolor="#000000" colspan="10">&nbsp;10 fraction bits representing significand&nbsp;</td>
+</tr><tr>
+<td style="color: black; text-align: center;" bgcolor="#c6fcff">0</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">0</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">1</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">1</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">1</td>
+<td style="color: black; text-align: center;" bgcolor="#a0ffaf">1</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+<td style="color:black;" bgcolor="#ffb0af">0</td>
+</tr></table>
+
+<p>It is composed of the sign bit, 5 bits of the exponent and 10 bits of the fraction that represents significand.
+Representable value ranges from -65504 to 65504 with about 3.31 decimal digits precision.</p>
+
+
+<h3>Double precision shader</h3>
+
+<p>Compute shader for double precision is the same as for float precision except using of double variables:</p>
+
+<pre>
+void main()
+{
+	// initial values of x, y and z
+	<b>double</b> x = gl_GlobalInvocationID.x;
+	<b>double</b> y = gl_GlobalInvocationID.y;
+	<b>double</b> z = gl_GlobalInvocationID.z;
+
+	FMA10000;
+
+	[...]
+}
+</pre>
+
+
+<h3>Half precision shader</h3>
+
+<p>Compute shader for half precision is slightly modified version of float precision.
+Apart from using half type, we need to allow two half operations to be executed in parallel:</p>
+
+<pre>
+#define FMA10 \
+	x1 = x1 * y1 + z; \
+	x2 = x2 * y2 + z; \
+	x1 = x1 * y1 + z; \
+	x2 = x2 * y2 + z; \
+	x1 = x1 * y1 + z; \
+	x2 = x2 * y2 + z; \
+	x1 = x1 * y1 + z; \
+	x2 = x2 * y2 + z; \
+	x1 = x1 * y1 + z; \
+	x2 = x2 * y2 + z
+
+#define FMA100 \
+	[...]
+
+#define FMA1000 \
+	[...]
+
+#define FMA10000 \
+	[...]
+
+
+void main()
+{
+	// initial values of x, y and z
+	float16_t x1 = float16_t(gl_GlobalInvocationID.x);
+	float16_t y1 = float16_t(gl_GlobalInvocationID.y);
+	float16_t z  = float16_t(gl_GlobalInvocationID.z);
+	float16_t x2 = x1 + float16_t(0.5);
+	float16_t y2 = y1 + float16_t(0.5);
+
+	FMA10000;
+
+	[...]
+}
+</pre>
+
+<p>The code uses x1, y1, x2 and y2 variables to allow two independent half precision computations to happen in parallel.
+It depends on Vulkan device if it can execute half precision operations faster.
+Often, we get double performance compared standard float precision computations.</p>
+
+
+<h3>Command line</h3>
+
+<p>First, we need to know what precision an user want to test.
+He can pass --float, --double and --half on command line.
+Depending on his choice, we set testIndex variable:</p>
+
+<pre>
+// float performance
+if(strcmp(argv[i], "--float") == 0 || strcmp(argv[i], "--f32") == 0) {
+	testIndex = 0;
+	continue;
+}
+
+// double performance
+if(strcmp(argv[i], "--double") == 0 || strcmp(argv[i], "--f64") == 0) {
+	testIndex = 1;
+	continue;
+}
+
+// half performance
+if(strcmp(argv[i], "--half") == 0 || strcmp(argv[i], "--f16") == 0) {
+	testIndex = 2;
+	continue;
+}
+</pre>
+
+
+<h3>Double and half type support</h3>
+
+<p>Next, we need to know whether double precision and half precision operations are supported.
+We find it out from Vulkan Physical Device Features:</p>
+
+<pre>
+// get supported features
+vk::PhysicalDeviceVulkan12Features features12;
+vk::PhysicalDeviceFeatures2 features10 = { .pNext = &features12 };
+vk::getPhysicalDeviceFeatures2(get<0>(*selectedDevice), features10);
+bool float64Supported = features10.features.shaderFloat64;
+bool float16Supported = features12.shaderFloat16;
+if(testIndex == 1 && !float64Supported)
+	throw runtime_error("Vulkan device does not support double precision computations.");
+if(testIndex == 2 && !float16Supported)
+	throw runtime_error("Vulkan device does not support half precision computations.");
+</pre>
+
+<p>Then, the features need to be enabled during device creation:</p>
+
+<pre>
+// create device
+vk::initDevice(
+	get<0>(*selectedDevice),  // physicalDevice
+	vk::DeviceCreateInfo{  // pCreateInfo
+		.flags = {},
+		.queueCreateInfoCount = 1,  // at least one queue is mandatory
+		.pQueueCreateInfos =
+			array{
+				vk::DeviceQueueCreateInfo{
+					.flags = {},
+					.queueFamilyIndex = queueFamily,
+					.queueCount = 1,
+					.pQueuePriorities = &(const float&)1.f,
+				}
+			}.data(),
+		.enabledLayerCount = 0,  // no enabled layers
+		.ppEnabledLayerNames = nullptr,
+		.enabledExtensionCount = 0,  // no enabled extensions
+		.ppEnabledExtensionNames = nullptr,
+		<b>.pEnabledFeatures =
+			&(const vk::PhysicalDeviceFeatures&)vk::PhysicalDeviceFeatures{
+				.shaderFloat64 = (testIndex == 1),
+				.shaderInt64 = true,
+			},
+	}.setPNext(
+		&(const vk::PhysicalDeviceVulkan12Features&)vk::PhysicalDeviceVulkan12Features{
+			.shaderFloat16 = (testIndex == 2),
+			.bufferDeviceAddress = true,
+		}
+	)</b>
+);
+</pre>
+
+
+<h3>Pipeline creation</h3>
+
+<p>We ne</p>
+
+<p>Double precision computations are usually slower. It might be half of float precision performance
+or even fraction of it, such as 1/32.</p>
+
+// shader code as SPIR-V binary
+static const uint32_t performanceFloatSpirv[] = {
+#include "performance-float.comp.spv"
+};
+static const uint32_t performanceDoubleSpirv[] = {
+#include "performance-double.comp.spv"
+};
+static const uint32_t performanceHalfSpirv[] = {
+#include "performance-half.comp.spv"
+};
+constexpr const array<const uint32_t*, 3> performanceSpirvList = {
+	performanceFloatSpirv, performanceDoubleSpirv, performanceHalfSpirv
+};
+constexpr const array<size_t, 3> performanceSpirvSizeList = {
+	sizeof(performanceFloatSpirv), sizeof(performanceDoubleSpirv), sizeof(performanceHalfSpirv)
+};
+
+
+</body>
+</html>
