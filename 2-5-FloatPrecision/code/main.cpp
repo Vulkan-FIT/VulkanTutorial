@@ -580,9 +580,6 @@ int main(int argc, char* argv[])
 			floatNumWorkgroups = computeNumWorkgroups(floatNumWorkgroups, floatTime);
 			if(float64Supported)
 				doubleNumWorkgroups = computeNumWorkgroups(doubleNumWorkgroups, doubleTime);
-			cout << "f16 " << halfNumWorkgroups << ", t: " << halfTime << endl;
-			cout << "f32 " << floatNumWorkgroups << ", t: " << floatTime << endl;
-			cout << "f64 " << doubleNumWorkgroups << ", t: " << doubleTime << endl;
 
 		} while(true);
 
@@ -598,8 +595,17 @@ int main(int argc, char* argv[])
 				if(supported) {
 					if(performanceList.empty())
 						cout << "measurement error" << endl;
-					else
-						cout << formatFloatSI(performanceList[performanceList.size()/2]) << "FLOPS" << endl;
+					else {
+
+						// print median
+						cout << formatFloatSI(performanceList[performanceList.size()/2]) << "FLOPS";
+
+						// print dispersion using IQR (Interquartile Range);
+						// Q1 is the value in 25% and Q3 in 75%
+						cout << "  (Q1: " << formatFloatSI(performanceList[performanceList.size()/4]) << "FLOPS";
+						cout << " Q3: " << formatFloatSI(performanceList[performanceList.size()/4*3]) << "FLOPS)";
+						cout << endl;
+					}
 				}
 				else
 					cout << "not supported" << endl;
