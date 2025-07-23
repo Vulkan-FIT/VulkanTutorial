@@ -144,7 +144,7 @@ int main(int argc, char* argv[])
 
 
 		// fence
-		vk::UniqueFence renderingFinishedFence =
+		vk::UniqueFence computingFinishedFence =
 			vk::createFenceUnique(
 				vk::FenceCreateInfo{
 					.flags = {}
@@ -164,14 +164,14 @@ int main(int argc, char* argv[])
 				.signalSemaphoreCount = 0,
 				.pSignalSemaphores = nullptr,
 			},
-			renderingFinishedFence
+			computingFinishedFence
 		);
 
 		// wait for the work
 		cout << "Waiting for the work..." << endl;
 		vk::Result r =
 			vk::waitForFence_noThrow(
-				renderingFinishedFence,
+				computingFinishedFence,
 				uint64_t(3e9)  // timeout (3s)
 			);
 		if(r == vk::Result::eTimeout)

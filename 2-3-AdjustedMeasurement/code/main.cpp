@@ -323,7 +323,6 @@ int main(int argc, char* argv[])
 			);
 
 		// command pool
-		vk::AccessFlags2 b = vk::AccessFlagBits2::eColorAttachmentRead | vk::AccessFlagBits2::eColorAttachmentWrite;
 		vk::UniqueCommandPool commandPool =
 			vk::createCommandPoolUnique(
 				vk::CommandPoolCreateInfo{
@@ -340,6 +339,14 @@ int main(int argc, char* argv[])
 					.commandPool = commandPool,
 					.level = vk::CommandBufferLevel::ePrimary,
 					.commandBufferCount = 1,
+				}
+			);
+
+		// fence
+		vk::UniqueFence computingFinishedFence =
+			vk::createFenceUnique(
+				vk::FenceCreateInfo{
+					.flags = {}
 				}
 			);
 
@@ -373,14 +380,6 @@ int main(int argc, char* argv[])
 			vk::endCommandBuffer(commandBuffer);
 
 
-			// fence
-			vk::UniqueFence renderingFinishedFence =
-				vk::createFenceUnique(
-					vk::FenceCreateInfo{
-						.flags = {}
-					}
-				);
-
 			// submit work
 			chrono::time_point t1 = chrono::high_resolution_clock::now();
 			vk::queueSubmit(
@@ -394,13 +393,13 @@ int main(int argc, char* argv[])
 					.signalSemaphoreCount = 0,
 					.pSignalSemaphores = nullptr,
 				},
-				renderingFinishedFence
+				computingFinishedFence
 			);
 
 			// wait for the work
 			vk::Result r =
 				vk::waitForFence_noThrow(
-					renderingFinishedFence,
+					computingFinishedFence,
 					uint64_t(3e9)  // timeout (3s)
 				);
 			chrono::time_point t2 = chrono::high_resolution_clock::now();
@@ -412,6 +411,9 @@ int main(int argc, char* argv[])
 				exit(-1);
 			} else
 				vk::checkForSuccessValue(r, "vkWaitForFences");
+
+			// reset fence
+			vk::resetFence(computingFinishedFence);
 
 			// print results
 			double time = chrono::duration<double>(t2 - t1).count();

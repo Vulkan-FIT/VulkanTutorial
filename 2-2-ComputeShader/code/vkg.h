@@ -95,7 +95,7 @@ public:
 	UniqueHandle(UniqueHandle&& other) noexcept : _value(other._value)  { other._value = nullptr; }
 	inline ~UniqueHandle()  { destroy(_value); }
 	UniqueHandle& operator=(const UniqueHandle&) = delete;
-	UniqueHandle& operator=(UniqueHandle&& other) noexcept  { reset(other._value); other._value = nullptr; }
+	UniqueHandle& operator=(UniqueHandle&& other) noexcept  { reset(other._value); other._value = nullptr; return *this; }
 	Type get() const noexcept  { return _value; }
 	void reset(Type value = nullptr) noexcept  { if(value==_value) return; destroy(_value); _value=value; }
 	Type release() noexcept  { Type r=_value; _value=nullptr; return r; }
@@ -13114,6 +13114,20 @@ inline void endCommandBuffer(CommandBuffer commandBuffer) noexcept  { funcs.vkEn
 inline void resetCommandBuffer_throw(CommandBuffer commandBuffer, CommandBufferResetFlags flags)  { Result r = funcs.vkResetCommandBuffer(commandBuffer.handle(), flags); checkForSuccessValue(r, "vkResetCommandBuffer"); }
 inline Result resetCommandBuffer_noThrow(CommandBuffer commandBuffer, CommandBufferResetFlags flags) noexcept  { return funcs.vkResetCommandBuffer(commandBuffer.handle(), flags); }
 inline void resetCommandBuffer(CommandBuffer commandBuffer, CommandBufferResetFlags flags)  { resetCommandBuffer_throw(commandBuffer, flags); }
+
+inline QueryPool createQueryPool_throw(const QueryPoolCreateInfo& createInfo)  { QueryPool::HandleType h; Result r = funcs.vkCreateQueryPool(detail::_device.handle(), &createInfo, nullptr, &h); processResult(r, h, "vkCreateQueryPool"); return h; }
+inline Result createQueryPool_noThrow(const QueryPoolCreateInfo& createInfo, QueryPool& v) noexcept  { return funcs.vkCreateQueryPool(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<QueryPool::HandleType*>(&v)); }
+inline QueryPool createQueryPool(const QueryPoolCreateInfo& createInfo)  { return createQueryPool_throw(createInfo); }
+inline UniqueQueryPool createQueryPoolUnique_throw(const QueryPoolCreateInfo& createInfo)  { return UniqueQueryPool(createQueryPool_throw(createInfo)); }
+inline Result createQueryPoolUnique_noThrow(const QueryPoolCreateInfo& createInfo, UniqueQueryPool& u) noexcept  { u.reset(); return funcs.vkCreateQueryPool(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<QueryPool::HandleType*>(&u)); }
+inline UniqueQueryPool createQueryPoolUnique(const QueryPoolCreateInfo& createInfo)  { return createQueryPoolUnique_throw(createInfo); }
+
+inline void destroyQueryPool(QueryPool queryPool) noexcept  { funcs.vkDestroyQueryPool(detail::_device.handle(), queryPool.handle(), nullptr); }
+inline void destroy(QueryPool queryPool) noexcept  { funcs.vkDestroyQueryPool(detail::_device.handle(), queryPool.handle(), nullptr); }
+
+inline void getQueryPoolResults_throw(QueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, size_t dataSize, void* pData, DeviceSize stride, QueryResultFlags flags)  { Result r = funcs.vkGetQueryPoolResults(detail::_device.handle(), queryPool.handle(), firstQuery, queryCount, dataSize, pData, stride, flags); checkForSuccessValue(r, "vkGetQueryPoolResults"); }
+inline Result getQueryPoolResults_noThrow(QueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, size_t dataSize, void* pData, DeviceSize stride, QueryResultFlags flags) noexcept  { return funcs.vkGetQueryPoolResults(detail::_device.handle(), queryPool.handle(), firstQuery, queryCount, dataSize, pData, stride, flags); }
+inline void getQueryPoolResults(QueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, size_t dataSize, void* pData, DeviceSize stride, QueryResultFlags flags)  { return getQueryPoolResults_throw(queryPool, firstQuery, queryCount, dataSize, pData, stride, flags); }
 
 inline Fence createFence_throw(const FenceCreateInfo& createInfo)  { Fence::HandleType h; Result r = funcs.vkCreateFence(detail::_device.handle(), &createInfo, nullptr, &h); processResult(r, h, "vkCreateFence"); return h; }
 inline Result createFence_noThrow(const FenceCreateInfo& createInfo, Fence& fence) noexcept  { return funcs.vkCreateFence(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<Fence::HandleType*>(&fence)); }

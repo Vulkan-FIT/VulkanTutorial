@@ -95,7 +95,7 @@ public:
 	UniqueHandle(UniqueHandle&& other) noexcept : _value(other._value)  { other._value = nullptr; }
 	inline ~UniqueHandle()  { destroy(_value); }
 	UniqueHandle& operator=(const UniqueHandle&) = delete;
-	UniqueHandle& operator=(UniqueHandle&& other) noexcept  { reset(other._value); other._value = nullptr; }
+	UniqueHandle& operator=(UniqueHandle&& other) noexcept  { reset(other._value); other._value = nullptr; return *this; }
 	Type get() const noexcept  { return _value; }
 	void reset(Type value = nullptr) noexcept  { if(value==_value) return; destroy(_value); _value=value; }
 	Type release() noexcept  { Type r=_value; _value=nullptr; return r; }
