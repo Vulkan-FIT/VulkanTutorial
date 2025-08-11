@@ -128,7 +128,7 @@ vk::UniqueQueryPool timestampPool =
 On my Quadro RTX 3000, I see the real difference in first few measurements.
 Dispatching 1, 10 or 100 workgroups results in as short measurement time as 100 us when using timestamps.
 Without timestamps, the overhead is much longer in these three measurements.
-I see values ranging from 250 to 600 us that have its roots in CPU - GPU synchronization.
+I see values ranging from 250 to 600 us. Higher values are probably caused by CPU - GPU synchronization.
 When measurement time is about 20ms, the difference is still there but it is probably not noticeable to the user.</p>
 
 </body>
