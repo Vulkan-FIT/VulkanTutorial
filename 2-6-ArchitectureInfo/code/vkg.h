@@ -12818,6 +12818,7 @@ public:
 // conversions
 // author: PCJohn (peciva at fit.vut.cz)
 const char* to_cstr(PhysicalDeviceType v);
+const char* to_cstr(DriverId v);
 string_view to_string_view(PhysicalDeviceType v);
 
 // resultToString() returns Span that contains pointer to const char array

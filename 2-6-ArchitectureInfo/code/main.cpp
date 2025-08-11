@@ -286,6 +286,65 @@ int main(int argc, char* argv[])
 				amdInfo2Supported = true;
 		}
 
+		// hardware info
+		vk::PhysicalDeviceProperties& props = get<2>(*selectedDevice);
+		cout << "Vulkan info:" << endl;
+		cout << "   Instance version:  " << vk::apiVersionMajor(vk::enumerateInstanceVersion())
+			<< '.' << vk::apiVersionMinor(vk::enumerateInstanceVersion()) << '.'
+			<< vk::apiVersionPatch(vk::enumerateInstanceVersion()) << endl;
+		cout << "   Device name:  " << props.deviceName << endl;
+		cout << "   VendorID:  0x" << hex << props.vendorID;
+		switch(props.vendorID) {
+		case 0x1002:  cout << " (AMD/ATI)" << endl; break;
+		case 0x10DE:  cout << " (Nvidia)"  << endl; break;
+		case 0x8086:  cout << " (Intel)"   << endl; break;
+		case 0x10005: cout << " (Mesa)"    << endl; break;
+		default: cout << endl;
+		}
+		cout << "   DeviceID:  0x" << props.deviceID << dec << endl;
+		cout << "   Device type:  " << vk::to_cstr(props.deviceType) << endl;
+		cout << "   Device version:  " << vk::apiVersionMajor(props.apiVersion) << '.'
+			<< vk::apiVersionMinor(props.apiVersion) << '.' << vk::apiVersionPatch(props.apiVersion) << endl;
+		cout << "   Driver version:  ";
+		if(props.vendorID == 0x10DE)
+			// Nvidia uses 10-8-8-6 bit scheme
+			cout << ((props.driverVersion >> 22) & 0x3ff) << '.'
+			     << ((props.driverVersion >> 14) & 0x0ff) << '.'
+			     << ((props.driverVersion >>  6) & 0x0ff) << '.'
+			     << ((props.driverVersion >>  0) & 0x03f);
+	#ifdef _WIN32
+		else if(props.vendorID == 0x8086)
+			// Intel uses 18-14 bit scheme on Win32
+			cout << (props.driverVersion >> 14) << '.'
+			     << (props.driverVersion & 0x3fff);
+	#endif
+		else
+			// try standard Vulkan versioning scheme, e.g. 10-10-12 
+			cout <<  (props.driverVersion >> 22) << '.'
+			     << ((props.driverVersion >> 12) & 0x3ff) << '.'
+			     << ((props.driverVersion >>  0) & 0xfff);
+		// print hexadecimal version
+		cout << " (0x" << hex << props.driverVersion << ")" << dec << endl;
+		// print driver info
+		if(props.apiVersion >= vk::makeApiVersion(1, 2, 0)) {
+			vk::PhysicalDeviceVulkan12Properties props12;
+			vk::PhysicalDeviceProperties2 props2 { .pNext = &props12 };
+			vk::getPhysicalDeviceProperties2(get<0>(*selectedDevice), props2);
+			cout << "   Driver name:  " << props12.driverName << endl;
+			cout << "   Driver info:  " << props12.driverInfo << endl;
+			cout << "   Driver id:    " << vk::to_cstr(props12.driverID) << endl;
+			cout << "   Driver conformance version:  " << unsigned(props12.conformanceVersion.major)
+			     << "." << unsigned(props12.conformanceVersion.minor) 
+			     << "." << unsigned(props12.conformanceVersion.subminor)
+			     << "." << unsigned(props12.conformanceVersion.patch) << endl;
+		}
+		else {
+			cout << "   Driver name:  n/a" << endl;
+			cout << "   Driver info:  n/a" << endl;
+			cout << "   Driver id:    n/a" << endl;
+			cout << "   Driver conformance version:  n/a" << endl;
+		}
+
 		// print device architecture info
 		cout << "Device architecture info:" << endl;
 		if(nvidiaInfoSupported) {
