@@ -365,7 +365,7 @@ int main(int argc, char* argv[])
 			cout << "   Shader arrays per engine:        " << amdInfo.shaderArraysPerEngineCount << endl;
 			cout << "   Compute units per shader array:  " << amdInfo.computeUnitsPerShaderArray << endl;
 			if(amdInfo2Supported)
-				cout << "   Active compute units:           " << amdInfo2.activeComputeUnitCount << endl;
+				cout << "   Active compute units:            " << amdInfo2.activeComputeUnitCount << endl;
 			cout << "   SIMDs per compute unit:          " << amdInfo.simdPerComputeUnit << endl;
 		}
 		else if(armInfoSupported) {
