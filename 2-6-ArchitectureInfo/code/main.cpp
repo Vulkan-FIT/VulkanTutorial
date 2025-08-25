@@ -253,14 +253,6 @@ int main(int argc, char* argv[])
 		cout << "Using device:\n"
 		        "   " << get<2>(*selectedDevice).deviceName << endl;
 
-		// get device and queue info
-		uint32_t queueFamily = get<1>(*selectedDevice);
-		uint32_t timestampValidBits = get<3>(*selectedDevice).timestampValidBits;
-		uint64_t timestampValidBitMask = (timestampValidBits >= 64) ? ~uint64_t(0) : (uint64_t(1) << timestampValidBits) - 1;
-		float timestampPeriod = get<2>(*selectedDevice).limits.timestampPeriod;
-		if(timestampValidBitMask == 0)
-			throw runtime_error("Vulkan timestamps are not supported on the queue.");
-
 		// get supported features
 		vk::PhysicalDeviceVulkan12Features features12;
 		vk::PhysicalDeviceFeatures2 features10 = { .pNext = &features12 };
@@ -377,6 +369,17 @@ int main(int argc, char* argv[])
 		}
 		else
 			cout << "   not available" << endl;
+
+		// get device and queue info
+		uint32_t queueFamily = get<1>(*selectedDevice);
+		uint32_t timestampValidBits = get<3>(*selectedDevice).timestampValidBits;
+		uint64_t timestampValidBitMask = (timestampValidBits >= 64) ? ~uint64_t(0) : (uint64_t(1) << timestampValidBits) - 1;
+		float timestampPeriod = get<2>(*selectedDevice).limits.timestampPeriod;
+		if(timestampValidBitMask == 0)
+			throw runtime_error("Vulkan timestamps are not supported on the queue.");
+
+		if(get<2>(*selectedDevice).apiVersion < vk::ApiVersion12)
+			throw runtime_error("Vulkan 1.2 is not supported on the device.");
 
 		// create device
 		vk::initDevice(
