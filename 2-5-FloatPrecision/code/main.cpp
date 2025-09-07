@@ -345,27 +345,42 @@ int main(int argc, char* argv[])
 			);
 
 		// pipeline
-		array<vk::UniquePipeline, 3> pipelineList;
-		for(size_t i=0; i<shaderModuleList.size(); i++)
-			if(shaderModuleList[i])
-				pipelineList[i] =
-					vk::createComputePipelineUnique(
-						nullptr,
-						vk::ComputePipelineCreateInfo{
-							.flags = {},
-							.stage =
-								vk::PipelineShaderStageCreateInfo{
-									.flags = {},
-									.stage = vk::ShaderStageFlagBits::eCompute,
-									.module = shaderModuleList[i],
-									.pName = "main",
-									.pSpecializationInfo = nullptr,
-								},
-							.layout = pipelineLayout,
-							.basePipelineHandle = nullptr,
-							.basePipelineIndex = -1,
-						}
-					);
+		array<vk::UniquePipeline, 3> pipelineList =
+			[&](){
+				array<vk::UniquePipeline, 3> pipelineList;
+				array<vk::ComputePipelineCreateInfo, 3> createInfos;
+				uint32_t numPipelines = 0;
+				size_t i;
+				for(i=0; i<shaderModuleList.size(); i++)
+					if(shaderModuleList[i])
+						createInfos[numPipelines++] = 
+							vk::ComputePipelineCreateInfo{
+								.flags = {},
+								.stage =
+									vk::PipelineShaderStageCreateInfo{
+										.flags = {},
+										.stage = vk::ShaderStageFlagBits::eCompute,
+										.module = shaderModuleList[i],
+										.pName = "main",
+										.pSpecializationInfo = nullptr,
+									},
+								.layout = pipelineLayout,
+								.basePipelineHandle = nullptr,
+								.basePipelineIndex = -1,
+							};
+				vk::createComputePipelinesUnique(
+					nullptr,
+					numPipelines,
+					createInfos.data(),
+					pipelineList.data()
+				);
+				while(i>numPipelines) {
+					i--;
+					if(shaderModuleList[i])
+						pipelineList[i] = move(pipelineList[--numPipelines]);
+				}
+				return pipelineList;
+			}();
 
 		// timestamp pool
 		vk::UniqueQueryPool timestampPool =
