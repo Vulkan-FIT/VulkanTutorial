@@ -12519,6 +12519,38 @@ public:
 #endif
 
 
+// iterator class
+template<typename Type>
+class iterator {
+public:
+	using pointer = Type*;
+	using reference = Type&;
+protected:
+	pointer _p;
+public:
+	iterator() : _p(nullptr) {}
+	iterator(pointer p) : _p(p) {}
+	iterator(reference r) : _p(&r) {}
+	pointer operator->() const  { return _p; }
+	reference operator*()  { return *_p; }
+	reference operator[](std::ptrdiff_t index) const  { return *(_p+index); }
+	iterator& operator++()  { _p++; return *this; }
+	iterator& operator--()  { _p--; return *this; }
+	iterator  operator++(int)  { iterator it(*this); _p++; return it; }
+	iterator  operator--(int)  { iterator it(*this); _p--; return it; }
+	iterator& operator+=(std::ptrdiff_t n)  { _p += n; return *this; }
+	iterator& operator-=(std::ptrdiff_t n)  { _p -= n; return *this; }
+	iterator operator+(std::ptrdiff_t n) const  { return iterator(_p + n); }
+	iterator operator-(std::ptrdiff_t n) const  { return iterator(_p - n); }
+	std::ptrdiff_t operator-(iterator rhs) const  { return _p - rhs._p; }
+	bool operator<(const iterator rhs) const  { return _p < rhs._p; }
+	bool operator>(const iterator rhs) const  { return _p > rhs._p; }
+	bool operator<=(const iterator rhs) const  { return _p <= rhs._p; }
+	bool operator>=(const iterator rhs) const  { return _p >= rhs._p; }
+	bool operator==(const iterator rhs) const  { return _p == rhs._p; }
+	bool operator!=(const iterator rhs) const  { return _p != rhs._p; }
+};
+
 // vector class
 // author: PCJohn (peciva at fit.vut.cz)
 template<typename Type>
@@ -12527,6 +12559,12 @@ protected:
 	Type* _data;
 	size_t _size;
 public:
+	using value_type = Type;
+	using reference = Type&;
+	using const_reference = const Type&;
+	using iterator = vk::iterator<Type>;
+	using const_iterator = vk::iterator<Type>;
+
 	vector() noexcept : _data(nullptr), _size(0)  {}
 	vector(size_t size) : _data(new Type[size]), _size(size)  {}
 	vector(Type* data, size_t size) noexcept : _data(data), _size(size)  {}
@@ -12549,6 +12587,13 @@ public:
 	bool alloc_noThrow(size_t size) noexcept  { if(size != _size) { delete[] _data; if(size == 0) { _data = nullptr; _size = 0; return true; } _data = new(std::nothrow) Type[size]; if(!_data) { _size = 0; return false; } _size = size; return true; } else { for(size_t i=0; i<_size; i++) { _data[i].~Type(); new(&_data[i]) Type; } return true; } }
 	void resize(size_t newSize);
 	bool resize_noThrow(size_t newSize) noexcept;
+
+	iterator begin() noexcept  { return iterator(_data); }
+	iterator end() noexcept  { return iterator(_data + _size); }
+	const_iterator begin() const noexcept  { return const_iterator(_data); }
+	const_iterator end() const noexcept  { return const_iterator(_data + _size); }
+	const_iterator cbegin() const noexcept  { return const_iterator(_data); }
+	const_iterator cend() const noexcept  { return const_iterator(_data + _size); }
 };
 
 
@@ -12773,6 +12818,7 @@ public:
 // conversions
 // author: PCJohn (peciva at fit.vut.cz)
 const char* to_cstr(PhysicalDeviceType v);
+const char* to_cstr(DriverId v);
 string_view to_string_view(PhysicalDeviceType v);
 
 // resultToString() returns Span that contains pointer to const char array
