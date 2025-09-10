@@ -27,7 +27,7 @@ int main(int argc, char* argv[])
 						.applicationVersion = 0,
 						.pEngineName = nullptr,
 						.engineVersion = 0,
-						.apiVersion = vk::ApiVersion10,
+						.apiVersion = vk::ApiVersion10,  // highest api version used by the application
 					},
 				.enabledLayerCount = 0,
 				.ppEnabledLayerNames = nullptr,
@@ -39,32 +39,52 @@ int main(int argc, char* argv[])
 		// get compatible devices
 		vk::vector<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
 		vector<tuple<vk::PhysicalDevice, uint32_t, vk::PhysicalDeviceProperties>> compatibleDevices;
+		vector<vk::PhysicalDeviceProperties> incompatibleDevices;
 		for(size_t i=0; i<deviceList.size(); i++) {
 
-			// get queue family properties
+			// append compatible queue families
 			vk::PhysicalDevice pd = deviceList[i];
 			vk::PhysicalDeviceProperties props = vk::getPhysicalDeviceProperties(pd);
-			vk::vector<vk::QueueFamilyProperties> queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties(pd);
-			for(uint32_t i=0, c=uint32_t(queueFamilyList.size()); i<c; i++) {
+			vk::vector<vk::QueueFamilyProperties> queueFamilyPropList = vk::getPhysicalDeviceQueueFamilyProperties(pd);
+			bool found = false;
+			for(uint32_t i=0, c=uint32_t(queueFamilyPropList.size()); i<c; i++) {
 
-				// test for graphics operations support
-				if(queueFamilyList[i].queueFlags & vk::QueueFlagBits::eCompute)
+				// test for compute operations support
+				vk::QueueFamilyProperties& qfp = queueFamilyPropList[i];
+				if(qfp.queueFlags & vk::QueueFlagBits::eCompute) {
+					found = true;
 					compatibleDevices.emplace_back(pd, i, props);
+				}
 
 			}
 
+			// append incompatible devices
+			if(!found)
+				incompatibleDevices.emplace_back(props);
+
 		}
 
-		// print compatible devices
-		cout << "Compatible devices:" << endl;
-		for(auto& t : compatibleDevices)
-			cout << "   " << get<2>(t).deviceName << " (compute queue: " << get<1>(t)
-			     << ", type: " << to_cstr(get<2>(t).deviceType) << ")" << endl;
+		// print device list
+		cout << "List of devices:" << endl;
+		for(size_t i=0, c=compatibleDevices.size(); i<c; i++) {
+			auto& t = compatibleDevices[i];
+			cout << "   " << i+1 << ": " << get<2>(t).deviceName << " (compute queue: "
+			     << get<1>(t) << ", type: " << to_cstr(get<2>(t).deviceType) << ")" << endl;
+		}
+		for(size_t i=0, c=incompatibleDevices.size(); i<c; i++) {
+			auto& props = incompatibleDevices[i];
+			cout << "   incompatible: " << props.deviceName
+			     << " (type: " << to_cstr(props.deviceType) << ")" << endl;
+		}
+
+		// handle empty compatibleDevices list
+		if(compatibleDevices.empty()) {
+			cout << "No compatible devices." << endl;
+			return 0;
+		}
 
 		// choose the best device
 		auto bestDevice = compatibleDevices.begin();
-		if(bestDevice == compatibleDevices.end())
-			throw runtime_error("No compatible devices.");
 		constexpr const array deviceTypeScore = {
 			10, // vk::PhysicalDeviceType::eOther         - lowest score
 			40, // vk::PhysicalDeviceType::eIntegratedGpu - high score
@@ -81,13 +101,20 @@ int main(int argc, char* argv[])
 				bestScore = score;
 			}
 		}
+
+		// device to use
 		cout << "Using device:\n"
 		        "   " << get<2>(*bestDevice).deviceName << endl;
+		vk::PhysicalDevice pd = get<0>(*bestDevice);
 		uint32_t queueFamily = get<1>(*bestDevice);
+
+		// release resources
+		compatibleDevices.clear();
+		incompatibleDevices.clear();
 
 		// create device
 		vk::initDevice(
-			get<0>(*bestDevice),  // physicalDevice
+			pd,  // physicalDevice
 			vk::DeviceCreateInfo{  // pCreateInfo
 				.flags = {},
 				.queueCreateInfoCount = 1,  // at least one queue is mandatory
