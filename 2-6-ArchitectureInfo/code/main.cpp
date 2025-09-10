@@ -143,7 +143,7 @@ int main(int argc, char* argv[])
 			        "      devices are numbered starting from one\n"
 			        "   deviceNameFilter - only devices matching the given string\n"
 			        "      will be considered; for example AMD, GeForce, Intel\n" << endl;
-			exit(99);
+			return 99;
 		}
 
 		// load Vulkan library
@@ -159,7 +159,7 @@ int main(int argc, char* argv[])
 						.applicationVersion = 0,
 						.pEngineName = nullptr,
 						.engineVersion = 0,
-						.apiVersion = vk::ApiVersion12,
+						.apiVersion = vk::ApiVersion12,  // highest api version used by the application
 					},
 				.enabledLayerCount = 0,
 				.ppEnabledLayerNames = nullptr,
@@ -172,28 +172,58 @@ int main(int argc, char* argv[])
 		vk::vector<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
 		vector<tuple<vk::PhysicalDevice, uint32_t, vk::PhysicalDeviceProperties,
 			vk::QueueFamilyProperties>> compatibleDevices;
-		for(size_t i=0; i<deviceList.size(); i++) {
+		vector<vk::PhysicalDeviceProperties> incompatibleDevices;
+		for(size_t i=0,c=deviceList.size(); i<c; i++) {
 
-			// get queue family properties
+			// device version 1.2+
+			// (we need it for shaderFloat16 and bufferDeviceAddress)
 			vk::PhysicalDevice pd = deviceList[i];
 			vk::PhysicalDeviceProperties props = vk::getPhysicalDeviceProperties(pd);
-			vk::vector<vk::QueueFamilyProperties> queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties(pd);
-			for(uint32_t i=0, c=uint32_t(queueFamilyList.size()); i<c; i++) {
+			if(props.apiVersion < vk::ApiVersion12) {
+				incompatibleDevices.emplace_back(props);
+				continue;
+			}
 
-				// test for graphics operations support
-				if(queueFamilyList[i].queueFlags & vk::QueueFlagBits::eCompute)
-					compatibleDevices.emplace_back(pd, i, props, queueFamilyList[i]);
+			// append compatible queue families
+			vk::vector<vk::QueueFamilyProperties> queueFamilyPropList = vk::getPhysicalDeviceQueueFamilyProperties(pd);
+			bool found = false;
+			for(uint32_t i=0, c=uint32_t(queueFamilyPropList.size()); i<c; i++) {
+
+				// test for compute operations support and for timestamp support
+				vk::QueueFamilyProperties& qfp = queueFamilyPropList[i];
+				if(qfp.queueFlags & vk::QueueFlagBits::eCompute) {
+					if(qfp.timestampValidBits != 0) {
+						found = true;
+						compatibleDevices.emplace_back(pd, i, props, qfp);
+					}
+				}
 
 			}
 
+			// append incompatible devices
+			// (reason: lack of compute queue or lack of timestamp support)
+			if(!found)
+				incompatibleDevices.emplace_back(props);
+
 		}
 
-		// print compatible devices
-		cout << "Compatible devices:" << endl;
+		// print device list
+		cout << "List of devices:" << endl;
 		for(size_t i=0, c=compatibleDevices.size(); i<c; i++) {
 			auto& t = compatibleDevices[i];
 			cout << "   " << i+1 << ": " << get<2>(t).deviceName << " (compute queue: "
 			     << get<1>(t) << ", type: " << to_cstr(get<2>(t).deviceType) << ")" << endl;
+		}
+		for(size_t i=0, c=incompatibleDevices.size(); i<c; i++) {
+			auto& props = incompatibleDevices[i];
+			cout << "   incompatible: " << props.deviceName
+			     << " (type: " << to_cstr(props.deviceType) << ")" << endl;
+		}
+
+		// handle empty compatibleDevices list
+		if(compatibleDevices.empty()) {
+			cout << "No compatible devices." << endl;
+			return 0;
 		}
 
 		// select the device
@@ -205,25 +235,33 @@ int main(int argc, char* argv[])
 			// (2) on the resulting list, choose the device on the index selectedDeviceIndex-1
 			size_t counter = 1;
 			for(size_t i=0, c=compatibleDevices.size(); i<c; i++) {
-				if(strstr(get<2>(compatibleDevices[i]).deviceName, deviceFilterString))
+				if(strstr(get<2>(compatibleDevices[i]).deviceName, deviceFilterString)) {
 					if(counter == selectedDeviceIndex || selectedDeviceIndex == 0) {
 						selectedDevice = compatibleDevices.begin() + i;
 						goto deviceFound;
 					}
-					else
-						counter++;
+					counter++;
+				}
 			}
-			if(counter == 0)
-				throw runtime_error("No device selected.");
+
+			// if no device was selected, print error and exit
+			if(counter == 1)
+				cout << "No device selected. Invalid filter string: " << deviceFilterString << "." << endl;
 			else
-				throw runtime_error("Invalid device index.");
+				cout << "Invalid device index.\n"
+				     << "Index value: " << selectedDeviceIndex << ", filter string: "
+				     << deviceFilterString << "." << endl;
+			return 99;
+
 		deviceFound:;
 		}
 		else if(selectedDeviceIndex > 0)
 		{
 			// select the device by index
-			if(selectedDeviceIndex > compatibleDevices.size())
-				throw runtime_error("Invalid device index.");
+			if(selectedDeviceIndex > compatibleDevices.size()) {
+				cout << "Invalid device index." << endl;
+				return 99;
+			}
 			selectedDevice = compatibleDevices.begin() + selectedDeviceIndex - 1;
 		}
 		else
@@ -231,8 +269,6 @@ int main(int argc, char* argv[])
 			// choose the device automatically
 			// using score heuristic
 			selectedDevice = compatibleDevices.begin();
-			if(selectedDevice == compatibleDevices.end())
-				throw runtime_error("No compatible devices.");
 			constexpr const array deviceTypeScore = {
 				10, // vk::PhysicalDeviceType::eOther         - lowest score
 				40, // vk::PhysicalDeviceType::eIntegratedGpu - high score
@@ -250,13 +286,24 @@ int main(int argc, char* argv[])
 				}
 			}
 		}
+
+		// device to use
 		cout << "Using device:\n"
 		        "   " << get<2>(*selectedDevice).deviceName << endl;
+		vk::PhysicalDevice pd = get<0>(*selectedDevice);
+		uint32_t queueFamily = get<1>(*selectedDevice);
+		uint32_t timestampValidBits = get<3>(*selectedDevice).timestampValidBits;
+		uint64_t timestampValidBitMask = (timestampValidBits >= 64) ? ~uint64_t(0) : (uint64_t(1) << timestampValidBits) - 1;
+		float timestampPeriod = get<2>(*selectedDevice).limits.timestampPeriod;
+
+		// release resources
+		compatibleDevices.clear();
+		incompatibleDevices.clear();
 
 		// get supported features
 		vk::PhysicalDeviceVulkan12Features features12;
 		vk::PhysicalDeviceFeatures2 features10 = { .pNext = &features12 };
-		vk::getPhysicalDeviceFeatures2(get<0>(*selectedDevice), features10);
+		vk::getPhysicalDeviceFeatures2(pd, features10);
 		bool float64Supported = features10.features.shaderFloat64;
 		bool float16Supported = features12.shaderFloat16;
 
@@ -266,7 +313,7 @@ int main(int argc, char* argv[])
 		bool amdInfo2Supported = false;
 		bool armInfoSupported = false;
 		vk::vector<vk::ExtensionProperties> extensionList =
-			vk::enumerateDeviceExtensionProperties(get<0>(*selectedDevice), nullptr);
+			vk::enumerateDeviceExtensionProperties(pd, nullptr);
 		for(const vk::ExtensionProperties& e : extensionList) {
 			if(strcmp(e.extensionName, "VK_NV_shader_sm_builtins") == 0)
 				nvidiaInfoSupported = true;
@@ -279,7 +326,10 @@ int main(int argc, char* argv[])
 		}
 
 		// hardware info
-		vk::PhysicalDeviceProperties& props = get<2>(*selectedDevice);
+		vk::PhysicalDeviceVulkan12Properties props12;
+		vk::PhysicalDeviceProperties2 props10 { .pNext = &props12 };
+		vk::PhysicalDeviceProperties& props = props10.properties;
+		vk::getPhysicalDeviceProperties2(pd, props10);
 		cout << "Vulkan info:" << endl;
 		cout << "   Instance version:  " << vk::apiVersionMajor(vk::enumerateInstanceVersion())
 			<< '.' << vk::apiVersionMinor(vk::enumerateInstanceVersion()) << '.'
@@ -318,31 +368,20 @@ int main(int argc, char* argv[])
 		// print hexadecimal version
 		cout << " (0x" << hex << props.driverVersion << ")" << dec << endl;
 		// print driver info
-		if(props.apiVersion >= vk::makeApiVersion(1, 2, 0)) {
-			vk::PhysicalDeviceVulkan12Properties props12;
-			vk::PhysicalDeviceProperties2 props2 { .pNext = &props12 };
-			vk::getPhysicalDeviceProperties2(get<0>(*selectedDevice), props2);
-			cout << "   Driver name:  " << props12.driverName << endl;
-			cout << "   Driver info:  " << props12.driverInfo << endl;
-			cout << "   Driver id:    " << vk::to_cstr(props12.driverID) << endl;
-			cout << "   Driver conformance version:  " << unsigned(props12.conformanceVersion.major)
-			     << "." << unsigned(props12.conformanceVersion.minor) 
-			     << "." << unsigned(props12.conformanceVersion.subminor)
-			     << "." << unsigned(props12.conformanceVersion.patch) << endl;
-		}
-		else {
-			cout << "   Driver name:  n/a" << endl;
-			cout << "   Driver info:  n/a" << endl;
-			cout << "   Driver id:    n/a" << endl;
-			cout << "   Driver conformance version:  n/a" << endl;
-		}
+		cout << "   Driver name:  " << props12.driverName << endl;
+		cout << "   Driver info:  " << props12.driverInfo << endl;
+		cout << "   Driver id:    " << vk::to_cstr(props12.driverID) << endl;
+		cout << "   Driver conformance version:  " << unsigned(props12.conformanceVersion.major)
+		     << "." << unsigned(props12.conformanceVersion.minor) 
+		     << "." << unsigned(props12.conformanceVersion.subminor)
+		     << "." << unsigned(props12.conformanceVersion.patch) << endl;
 
 		// print device architecture info
 		cout << "Device architecture info:" << endl;
 		if(nvidiaInfoSupported) {
 			vk::PhysicalDeviceShaderSMBuiltinsPropertiesNV nvInfo;
-			vk::PhysicalDeviceProperties2 props2 { .pNext = &nvInfo };
-			vk::getPhysicalDeviceProperties2(get<0>(*selectedDevice), props2);
+			vk::PhysicalDeviceProperties2 props10 { .pNext = &nvInfo };
+			vk::getPhysicalDeviceProperties2(pd, props10);
 			cout << "   Streaming multiprocessor count:      " << nvInfo.shaderSMCount << endl;
 			cout << "   Warps per streaming multiprocessor:  " << nvInfo.shaderWarpsPerSM << endl;
 		}
@@ -351,8 +390,8 @@ int main(int argc, char* argv[])
 			vk::PhysicalDeviceShaderCorePropertiesAMD amdInfo {
 				.pNext = (amdInfo2Supported) ? &amdInfo2 : nullptr
 			};
-			vk::PhysicalDeviceProperties2 props2 { .pNext = &amdInfo };
-			vk::getPhysicalDeviceProperties2(get<0>(*selectedDevice), props2);
+			vk::PhysicalDeviceProperties2 props10 { .pNext = &amdInfo };
+			vk::getPhysicalDeviceProperties2(pd, props10);
 			cout << "   Shader engine count:             " << amdInfo.shaderEngineCount << endl;
 			cout << "   Shader arrays per engine:        " << amdInfo.shaderArraysPerEngineCount << endl;
 			cout << "   Compute units per shader array:  " << amdInfo.computeUnitsPerShaderArray << endl;
@@ -362,28 +401,17 @@ int main(int argc, char* argv[])
 		}
 		else if(armInfoSupported) {
 			vk::PhysicalDeviceShaderCoreBuiltinsPropertiesARM armInfo;
-			vk::PhysicalDeviceProperties2 props2 { .pNext = &armInfo };
-			vk::getPhysicalDeviceProperties2(get<0>(*selectedDevice), props2);
+			vk::PhysicalDeviceProperties2 props10 { .pNext = &armInfo };
+			vk::getPhysicalDeviceProperties2(pd, props10);
 			cout << "   Shader core count:      " << armInfo.shaderCoreCount << endl;
 			cout << "   Warps per shader core:  " << armInfo.shaderWarpsPerCore << endl;
 		}
 		else
 			cout << "   not available" << endl;
 
-		// get device and queue info
-		uint32_t queueFamily = get<1>(*selectedDevice);
-		uint32_t timestampValidBits = get<3>(*selectedDevice).timestampValidBits;
-		uint64_t timestampValidBitMask = (timestampValidBits >= 64) ? ~uint64_t(0) : (uint64_t(1) << timestampValidBits) - 1;
-		float timestampPeriod = get<2>(*selectedDevice).limits.timestampPeriod;
-		if(timestampValidBitMask == 0)
-			throw runtime_error("Vulkan timestamps are not supported on the queue.");
-
-		if(get<2>(*selectedDevice).apiVersion < vk::ApiVersion12)
-			throw runtime_error("Vulkan 1.2 is not supported on the device.");
-
 		// create device
 		vk::initDevice(
-			get<0>(*selectedDevice),  // physicalDevice
+			pd,  // physicalDevice
 			vk::DeviceCreateInfo{  // pCreateInfo
 				.flags = {},
 				.queueCreateInfoCount = 1,  // at least one queue is mandatory
