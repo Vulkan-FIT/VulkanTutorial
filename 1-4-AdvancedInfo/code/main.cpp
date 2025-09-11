@@ -75,10 +75,14 @@ int main(int argc, char* argv[])
 			                           vk::isExtensionSupported(extensionList, "VK_KHR_ray_tracing_pipeline") &&
 			                           vk::isExtensionSupported(extensionList, "VK_KHR_ray_query") &&
 			                           properties.apiVersion >= vk::ApiVersion11;
+			bool pciBusInfoSupported = vk::isExtensionSupported(extensionList, "VK_EXT_pci_bus_info");
 
 			// extended device properties
-			vk::PhysicalDeviceVulkan12Properties properties12{  // requires Vulkan 1.2
+			vk::PhysicalDevicePCIBusInfoPropertiesEXT pciBusInfo{  // requires VK_EXT_pci_bus_info
 				.pNext = nullptr,
+			};
+			vk::PhysicalDeviceVulkan12Properties properties12{  // requires Vulkan 1.2
+				.pNext = pciBusInfoSupported ? &pciBusInfo : nullptr,
 			};
 			vk::PhysicalDeviceVulkan11Properties properties11{  // requires Vulkan 1.2 (really 1.2, not 1.1)
 				.pNext = &properties12,
@@ -141,6 +145,14 @@ int main(int argc, char* argv[])
 				cout << "      Driver name:     < unknown >" << endl;
 				cout << "      Driver info:     < unknown >" << endl;
 			}
+
+			// PCI bus info
+			cout << "      PCI bus info:" << endl;
+			if(pciBusInfoSupported)
+				cout << "         domain: " << pciBusInfo.pciDomain << ", bus: " << pciBusInfo.pciBus
+				     << ", device: " << pciBusInfo.pciDevice << ", function: " << pciBusInfo.pciFunction << endl;
+			else
+				cout << "         not available" << endl;
 
 			// device limits
 			cout << "      MaxTextureSize:  " << properties.limits.maxImageDimension2D << endl;
