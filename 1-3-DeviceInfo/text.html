@@ -228,10 +228,11 @@ than to the memory on the motherboard.
 Interesting situation appears on integrated graphics solutions where device memory
 and host memory might be the same physical memory.</p>
 
-<p>To get information about the memory configuration on given system,
+<p>To get information about the memory configuration on the given system,
 vk::getPhysicalDeviceMemoryProperties() can be used:</p>
 
 <pre>
+// memory properties
 cout << "      Memory heaps:" << endl;
 vk::PhysicalDeviceMemoryProperties memoryProperties = vk::getPhysicalDeviceMemoryProperties(pd);
 for(uint32_t i=0, c=memoryProperties.memoryHeapCount; i&lt;c; i++) {
@@ -252,22 +253,23 @@ They are organized into families. Each family has the same properties and the sa
 We can list queue families as follows:</p>
 
 <pre>
-cout << "      Queue families:" << endl;
-vk::Vector<vk::QueueFamilyProperties> queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties(pd);
+// queue family properties
+cout &lt;&lt; "      Queue families:" &lt;&lt; endl;
+vk::vector&lt;vk::QueueFamilyProperties> queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties(pd);
 for(uint32_t i=0, c=uint32_t(queueFamilyList.size()); i&lt;c; i++) {
-	cout << "         " << i << ": ";
+	cout &lt;&lt; "         " &lt;&lt; i &lt;&lt; ": ";
 	vk::QueueFamilyProperties& queueFamilyProperties = queueFamilyList[i];
 	if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eGraphics)
-		cout << "g";
+		cout &lt;&lt; "g";
 	if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eCompute)
-		cout << "c";
+		cout &lt;&lt; "c";
 	if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eTransfer)
-		cout << "t";
-	cout << "  (count: " << queueFamilyProperties.queueCount << ")" << endl;
+		cout &lt;&lt; "t";
+	cout &lt;&lt; "  (count: " &lt;&lt; queueFamilyProperties.queueCount &lt;&lt; ")" &lt;&lt; endl;
 }
 </pre>
 
-<p>We output family index followed by letters g,c and t.
+<p>We output family index followed by letters g, c and t.
 These letters indicate graphics, compute and transfer capability.
 So, we might have queues just for graphics, just for compute or for both.
 Some of the families might support transfer capability as well.
@@ -284,6 +286,7 @@ we can use vk::getPhysicalDeviceFormatProperties().</p>
 we can use following code:</p>
 
 <pre>
+// format support for images with optimal tiling
 cout << "      Format support for rendering into images with optimal tiling:" << endl;
 vk::FormatProperties formatProperties = vk::getPhysicalDeviceFormatProperties(pd, vk::Format::eR8G8B8A8Srgb);
 if(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eColorAttachment)
@@ -323,10 +326,9 @@ R8G8B8Srgb would be more memory efficient alternative
 while less memory bandwidth might sometimes improve the performance despite that fact that it is not 4-byte aligned.
 R8G8B8Srgb format support is optional and we have to test for it.</p>
 
-<p>R16G16B16A16Sfloat is half float based format. It can be used to do HDR rendering.
-Its support is mandatory, at least for color attachment (e.g. for rendering output),
-so our test is again superfluous.
-R16G16B16Srgb is optional. So, we would need to test for its support before use.</p>
+<p>R16G16B16A16Sfloat is <a href="https://en.wikipedia.org/wiki/Half-precision_floating-point_format">half float</a> based format.
+It can be used to do HDR rendering. Its support is mandatory, at least for color attachment (e.g. for rendering output),
+so our test is again superfluous. R16G16B16Srgb is optional. So, we would need to test for its support before use.</p>
 
 
 <h3>Other device query functions</h3>

@@ -15,7 +15,7 @@
 
 <h3>1-4 - Advanced Info</h3>
 
-<p>Vulkan is now much more capable than it was in the time of Vulkan 1.0 release in 2016.
+<p>Vulkan is much more capable now than it was in the time of Vulkan 1.0 release in 2016.
 Some examples of new functionalities can be seen in the following output
 produced by the example code of this article. The new functionalities are marked by the red tint:</p>
 
@@ -49,7 +49,9 @@ Vulkan devices:
       DeviceID:        0x1f36<b style="color:#ff7060">
       Device UUID:     e0e7b72b-a391-a141-9bbf-2059ba86ca79
       Driver name:     NVIDIA
-      Driver info:     552.74</b>
+      Driver info:     552.74
+      PCI bus info:
+         domain: 0, bus: 1, device: 0, function: 0</b>
       MaxTextureSize:  32768
       Geometry shader:     supported
       Double precision:    supported<b style="color:#ff7060">
@@ -65,29 +67,31 @@ Vulkan devices:
          1: ts  (count: 2)
          2: cts  (count: 8)
          3: ts<b style="color:#ff7060">v</b>  (count: 3, <b style="color:#ff7060">decode H264, decode H265</b>)
-         4: ts<b style="color:#ff7060">v</b>  (count: 1)
-      R8G8B8A8Srgb format support for color attachment:
-         Images with linear tiling: no
-         Images with optimal tiling: yes
-         Buffers: no<b style="color:#ff7060">
+         4: ts<b style="color:#ff7060">v</b>  (count: 1)<b style="color:#ff7060">
+      Format support for compressed textures:
+         BC7  (BC7_SRGB):            yes
+         ETC2 (ETC2_R8G8B8A8_SRGB):  no
+         ASTC (ASTC_4x4_SRGB):       no
+         ASTC (ASTC_4x4_SFLOAT):     yes
       Extensions (215 in total):  VK_KHR_16bit_storage, [...]
 </b></pre>
 
 <p>We can see new extensions for both - instance and devices.
 If list of extensions floods your screen too much, you might disable it by --no-extension-list.
 As we can see, the instance supports 18 extensions and the device 215.
-Out of the supported extension list, we can find out
-Vulkan video and Vulkan raytracing support:</p>
+Using the device extension list, we can find out Vulkan video, Vulkan raytracing and PCI bus info support:</p>
 
 <pre>
 // supported extensions
-vk::Vector<vk::ExtensionProperties> extensionList =
+vk::vector&lt;vk::ExtensionProperties> extensionList =
 	vk::enumerateDeviceExtensionProperties(pd, nullptr);
 bool videoQueueSupported = vk::isExtensionSupported(extensionList, "VK_KHR_video_queue") &&
                            instanceVersion >= vk::ApiVersion11;
 bool raytracingSupported = vk::isExtensionSupported(extensionList, "VK_KHR_acceleration_structure") &&
                            vk::isExtensionSupported(extensionList, "VK_KHR_ray_tracing_pipeline") &&
                            vk::isExtensionSupported(extensionList, "VK_KHR_ray_query") &&
+                           instanceVersion >= vk::ApiVersion11;
+bool pciBusInfoSupported = vk::isExtensionSupported(extensionList, "VK_EXT_pci_bus_info") &&
                            instanceVersion >= vk::ApiVersion11;
 </pre>
 
@@ -98,6 +102,7 @@ we should make sure it is supported. The support can be provided by:</p>
 <li>Vulkan core version - e.g. Vulkan 1.0, Vulkan 1.1, ...</li>
 <li>Extension - such as VK_KHR_video_queue or VK_KHR_ray_query</li>
 <li>Feature - such as double precision support - various features might or might not be supported by a particular device</li>
+<li>Properties, limits, formats - returned through the Vulkan API</li>
 </ul>
 
 <p>Let's analyze the output of this article example:</p>
@@ -204,12 +209,8 @@ struct PhysicalDeviceProperties2 {
 };
 </pre>
 
-<p>Now, we can chain structures using pNext pointer.
-For example, pNext may point to vk::PhysicalDeviceVulkan12Properties or
-vk::PhysicalDeviceVulkan11Properties structure.
-Both of them were introduced by Vulkan 1.2, so we should include them in pNext chain
-only if the device version is at least 1.2.
-We start with getting device version:</p>
+<p>Now, we can chain structures using pNext pointer. Before we do that,
+let's start with declaring the structures and getting device version:</p>
 
 <pre>
 // get device properties
@@ -218,52 +219,28 @@ vk::PhysicalDeviceProperties& properties = properties2.properties;
 properties = vk::getPhysicalDeviceProperties(pd);
 </pre>
 
-<p>Now, we will do a little trick. If Vulkan instance is of version 1.0 only,
-we cannot use any device core functionality of Vulkan 1.1+.
-It is a historical limitation when Vulkan was very new and some functionality
-was not yet developed for instance.
-Such condition is indicated by vulkan10enforced boolean.
-When this boolean is set, we just reduce device version to 1.0.
-Using this trick we can skip all the further tests whether instance is at least 1.1
-when dealing with device 1.1+ functionality:</p>
-
-<pre>
-// limit device Vulkan version on Vulkan 1.0 instances
-if(vulkan10enforced)
-	properties.apiVersion = vk::ApiVersion10 | vk::apiVersionPatch(properties.apiVersion);
-</pre>
-
-<p>Then, we create properties12 and properties11 and chain it with pNext pointers.
-We just omit structures that are not supported by the device:</p>
+<p>We follow with chaining of the structures using pNext pointer:</p>
 
 <pre>
 // extended device properties
-vk::PhysicalDeviceVulkan12Properties properties12{  // requires Vulkan 1.2
-	.pNext = nullptr,
-};
-vk::PhysicalDeviceVulkan11Properties properties11{  // requires Vulkan 1.2 (really 1.2, not 1.1)
-	.pNext = &properties12,
-};
-if(properties.apiVersion >= vk::ApiVersion12)
-	properties2.pNext = &properties11;
-</pre>
-
-<p>Finally, if we are on Vulkan 1.1+, we call vk::getPhysicalDeviceProperties2().
-It makes all the structures to be filled with the data:</p>
-
-<pre>
-if(properties.apiVersion >= vk::ApiVersion11)
+vk::PhysicalDevicePCIBusInfoPropertiesEXT pciBusInfo;  // requires VK_EXT_pci_bus_info
+vk::PhysicalDeviceVulkan12Properties properties12;  // requires Vulkan 1.2
+vk::PhysicalDeviceVulkan11Properties properties11;  // requires Vulkan 1.2 (really 1.2, not 1.1)
+if(properties.apiVersion >= vk::ApiVersion11) {
+	void** lastPNext = &properties2.pNext;
+	if(properties.apiVersion >= vk::ApiVersion12) {
+		properties2.pNext = &properties11;
+		properties11.pNext = &properties12;
+		lastPNext = &properties12.pNext;
+	}
+	if(pciBusInfoSupported)
+		*lastPNext = &pciBusInfo;
 	vk::getPhysicalDeviceProperties2(pd, properties2);
-
-// device name
-cout << "   " << properties.deviceName << endl;
+}
 </pre>
 
-<p>If we are on Vulkan 1.0 only, data pointed by properties variable is all the valid data we have.
-On Vulkan 1.2+, we can print additional info from vk::PhysicalDeviceVulkan11Properties and
-vk::PhysicalDeviceVulkan12Properties structures.
-For example, we can print device UUID to distinguish the same graphics cards in multi-gpu systems.
-We can print driver name and its info string, and so on:
+<p>During vk::getPhysicalDeviceProperties2() call, all the structures in the structure chain are filled with the data.
+Now, we can print additional info from the structures:</p>
 
 <pre>
 if(properties.apiVersion >= vk::ApiVersion12) {
@@ -276,16 +253,26 @@ else {
 }
 </pre>
 
+<p>If VK_EXT_pci_bus_info extension is supported, we can also print pci bus information:</p>
+
+<pre>
+// PCI bus info
+cout << "      PCI bus info:" << endl;
+if(pciBusInfoSupported)
+	cout << "         domain: " << pciBusInfo.pciDomain << ", bus: " << pciBusInfo.pciBus
+	     << ", device: " << pciBusInfo.pciDevice << ", function: " << pciBusInfo.pciFunction << endl;
+else
+	cout << "         not available" << endl;
+</pre>
+
 
 <h3>Device features</h3>
 
-<p>Vulkan 1.1+ features are retrieved in the similar way as properties:</p>
+<p>Vulkan features from newer Vulkan versions are retrieved in the similar way as properties:</p>
 
 <pre>
 // device features
-vk::PhysicalDeviceVulkan12Features features12{
-	.pNext = nullptr,
-};
+vk::PhysicalDeviceVulkan12Features features12;
 vk::PhysicalDeviceFeatures2 features2{
 	.pNext = (properties.apiVersion>=vk::ApiVersion12) ? &features12 : nullptr,
 };
@@ -299,30 +286,30 @@ else
 <p>Then, we can, for example, find out if half precision floats are supported:</p>
 
 <pre>
-cout << "      Half precision:      ";
-if(properties.apiVersion >= vk::ApiVersion12 && features12.shaderFloat16)
-	cout << "supported" << endl;
+cout &lt;&lt; "      Half precision:      ";
+if(properties.apiVersion >= vk::ApiVersion12 &amp;&amp; features12.shaderFloat16)
+	cout &lt;&lt; "supported" &lt;&lt; endl;
 else
-	cout << "not supported" << endl;
+	cout &lt;&lt; "not supported" &lt;&lt; endl;
+cout &lt;&lt; "      Half precision:      ";
 </pre>
 
 
 <h3>Device queue family properties</h3>
 
-<p>To get extended info for queue families, we use vector of vk::QueueFamilyProperties2.
-Any additional info structures, such as vk::QueueFamilyVideoPropertiesKHR,
-use extra vector:</p>
+<p>To get extended info for queue families, we use vector of vk::QueueFamilyProperties2
+and vector of vk::QueueFamilyVideoPropertiesKHR:</p>
 
 <pre>
 // queue family properties
-cout << "      Queue families:" << endl;
-vk::Vector&lt;vk::QueueFamilyProperties2> queueFamilyList;
-vk::Vector&lt;vk::QueueFamilyVideoPropertiesKHR> queueVideoPropertiesList;
+cout &lt;&lt; "      Queue families:" &lt;&lt; endl;
+vk::vector&lt;vk::QueueFamilyProperties2> queueFamilyList;
+vk::vector&lt;vk::QueueFamilyVideoPropertiesKHR> queueVideoPropertiesList;
 if(properties.apiVersion >= vk::ApiVersion11)
 	queueFamilyList = vk::getPhysicalDeviceQueueFamilyProperties2(
 		pd, queueVideoPropertiesList, videoQueueSupported);
 else {
-	vk::Vector&lt;vk::QueueFamilyProperties> v = vk::getPhysicalDeviceQueueFamilyProperties(pd);
+	vk::vector&lt;vk::QueueFamilyProperties> v = vk::getPhysicalDeviceQueueFamilyProperties(pd);
 	queueFamilyList.resize(v.size());
 	for(size_t i=0; i&lt;v.size(); i++)
 		queueFamilyList[i].queueFamilyProperties = v[i];
@@ -338,28 +325,28 @@ The extension provided functionality is marked by bold text:</p>
 
 <pre>
 for(uint32_t i=0, c=uint32_t(queueFamilyList.size()); i&lt;c; i++) {
-	cout << "         " << i << ": ";
+	cout &lt;&lt; "         " &lt;&lt; i &lt;&lt; ": ";
 	vk::QueueFamilyProperties& queueFamilyProperties = queueFamilyList[i].queueFamilyProperties;
 	if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eGraphics)
-		cout << "g";
+		cout &lt;&lt; "g";
 	if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eCompute)
-		cout << "c";
+		cout &lt;&lt; "c";
 	if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eTransfer)
-		cout << "t";
+		cout &lt;&lt; "t";
 	if(queueFamilyProperties.queueFlags & vk::QueueFlagBits::eSparseBinding)
-		cout << "s";
+		cout &lt;&lt; "s";
 	<b>if(queueFamilyProperties.queueFlags & (vk::QueueFlagBits::eVideoDecodeKHR | vk::QueueFlagBits::eVideoEncodeKHR))
-		cout << "v";</b>
-	cout << "  (count: " << queueFamilyProperties.queueCount;
+		cout &lt;&lt; "v";</b>
+	cout &lt;&lt; "  (count: " &lt;&lt; queueFamilyProperties.queueCount;
 	<b>if(videoQueueSupported) {
 		if(queueVideoPropertiesList[i].videoCodecOperations & vk::VideoCodecOperationFlagBitsKHR::eDecodeH264)
-			cout << ", decode H264";
+			cout &lt;&lt; ", decode H264";
 		if(queueVideoPropertiesList[i].videoCodecOperations & vk::VideoCodecOperationFlagBitsKHR::eDecodeH265)
-			cout << ", decode H265";
+			cout &lt;&lt; ", decode H265";
 		if(queueVideoPropertiesList[i].videoCodecOperations & vk::VideoCodecOperationFlagBitsKHR::eDecodeAV1)
-			cout << ", decode AV1";
+			cout &lt;&lt; ", decode AV1";
 	}</b>
-	cout << ")" << endl;
+	cout &lt;&lt; ")" &lt;&lt; endl;
 }
 </pre>
 
@@ -368,7 +355,7 @@ for(uint32_t i=0, c=uint32_t(queueFamilyList.size()); i&lt;c; i++) {
 
 <p>We can test, for example, for compressed texture support. The compressed textures reduce memory consumption,
 lower bandwidth, but might reduce visual quality. Memory consumption and bandwidth requirements might be of issue
-for example, on mobile devices. But checking of the visual quality of compressed textures might be useful.</p>
+for example, on mobile devices. But checking of the visual quality of compressed textures might be sometimes important.</p>
 
 <p>As of 2025, we can query for these Vulkan core formats:</p>
 <ul><li>Block-Compressed image formats (BC1 to BC7)</li>

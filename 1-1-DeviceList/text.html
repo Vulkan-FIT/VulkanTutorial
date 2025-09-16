@@ -22,7 +22,7 @@ Currently, it is probably the most important APIs in its area.</p>
 
 <p>Vulkan 1.0 was released in 2016. It is almost 25 years after the first version of OpenGL.
 On the beginning of 90', graphics cards were - if we simplify it - only a piece of memory with monitor output.
-Whatever was written to the memory appeared on the screen. Today in 2024, a main stream graphics card is programmable, massively parallel compute unit.
+Whatever was written to the memory appeared on the screen. Today in 2024, a mainstream graphics card is programmable, massively parallel compute unit.
 When comparing computing power, it might outperform tens, hundreds, or even thousands of traditional processors in extreme cases.
 Vulkan is designed with the focus on effective use of the performance potential that is hidden in the graphics cards of today.</p>
 
@@ -30,14 +30,17 @@ Vulkan is designed with the focus on effective use of the performance potential 
 This corresponds to a single active OpenGL context per thread. This was logical design for these old times, but it does not fit well in our reality.
 Today, standard computer contains multi-core processor capable of executing many threads simultaneously.
 Executing of tens of threads in parallel is not an exception.
-No wonder that Vulkan is designed to be able to take advantage of multi-threaded programming and parallel processing by many cores of the processor.
-And not only multi-core processing is in Vulkan design focus, but also multiple graphics cards can be handled by Vulkan natively.</p>
+No wonder that Vulkan is designed to be able to take advantage of multi-threaded programming
+and parallel processing by many cores of the processor.
+And Vulkan design focus is not only multi-core processing, but also
+multiple graphics cards can be handled by Vulkan natively.</p>
 
-<p>OpenGL has high overhead for some operations and its driver is very complex.
+<p>OpenGL driver is very complex and it has high overhead for some operations.
 On the other side, Vulkan is low-level API with low overhead and relatively simple driver.
-Simple driver usually results in much less driver bugs and better driver and system stability.</p>
+Simple driver usually results in much less driver bugs and better system stability.</p>
 
-<p>OpenGL is platform neutral, but faced difficulties anyway. On macOS, it was always number of versions behind the standard.
+<p>OpenGL is platform neutral, but faced difficulties on some platforms.
+On macOS, it was always number of versions behind the standard.
 On mobile devices, usually only OpenGL ES was supported.
 When looking on Vulkan, it is supported on macOS (through MoltenVk) and majority of modern tablets and mobile phones.</p>
 
@@ -49,7 +52,7 @@ However, it has also its downsides.
 Few lines of OpenGL code might need tens or even hundreds lines of code when using Vulkan.
 Low-level Vulkan code brings new flexibility.
 But many programmers might feel unprepared to deal with such amount of low-level code and to understand it.
-And exactly to this situation comes this tutorial -
+And here comes this tutorial,
 to make an attempt to help and to introduce a programmer into basics of Vulkan programming.</p>
 
 <p>In our tutorial, we will use modern C++20 or newer. Normally, we would use Vulkan C++ binding
@@ -62,7 +65,7 @@ Another Vulkan-Hpp limitation is memory overhead of Unique_* and raii classes.
 Both mentioned issues are solved by vkg Vulkan binding. Vkg means Vulkan generated.
 Being generated, its another advantage is that not used parts of the API can be switched off
 and omitted from vkg.h and vkg.cpp.
-This results in a smaller API, a little smaller output binary, and usually less function pointers
+This results in a smaller API, smaller output binary, and usually less function pointers
 which, in turn, results in a little better cache effectivity.</p>
 
 <p>Now a little controversial thing: C++ exceptions.
@@ -71,9 +74,9 @@ results in higher application performance and make code shorter and more readabl
 The use of exceptions removes much of the error handling logic from our code.
 The error status does not need to be returned from subrutine to current rutine
 and from the current rutine to parent rutine.
-And each routine level might require some condition logic to handle error conditions,
+Each routine level might require some logic to handle error conditions,
 incuring extra overhead even if no error was returned.
-Having exceptions, all this error condition logic and overhead might be removed,
+Having exceptions, all this error logic and overhead might be removed,
 making the code faster and more readable.
 Instead of the error handling code, the task is handled by exceptions.
 Many compilers implement them by tables that control the process of exception handling.
@@ -102,11 +105,11 @@ or other serious actions.</p>
 <p>Our first Vulkan application will print names of all Vulkan physical devices installed in the given system.
 We will do it in five steps:</p>
 <ol>
-<item>vk::loadLib() - loads Vulkan library</item>
-<item>vk::createInstance() - creates global Vulkan instance object</item>
-<item>vk::enumeratePhysicalDevices() - gets list of physical devices</item>
-<item>vk::getPhysicalDeviceProperties() - gets properties of each physical device</item>
-<item>print device name</item>
+<li>vk::loadLib() - loads Vulkan library</li>
+<li>vk::createInstance() - creates global Vulkan instance object</li>
+<li>vk::enumeratePhysicalDevices() - gets list of physical devices</li>
+<li>vk::getPhysicalDeviceProperties() - gets properties of each physical device</li>
+<li>print device name</li>
 </ol>
 
 <p>And we have to wrap our code to catch exceptions if one is raised:</p>
@@ -130,20 +133,16 @@ int main(int, char**)
 		vk::loadLib();
 
 		// Vulkan instance
-		vk::createInstance(
+		vk::initInstance(
 			vk::InstanceCreateInfo{
-				.sType = vk::STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO,
-				.pNext = nullptr,
-				.flags = 0,
+				.flags = {},
 				.pApplicationInfo =
 					&amp;(const vk::ApplicationInfo&amp;)vk::ApplicationInfo{
-						.sType = vk::STRUCTURE_TYPE_APPLICATION_INFO,
-						.pNext = nullptr,
 						.pApplicationName = "1-1-DeviceList",
 						.applicationVersion = 0,
 						.pEngineName = nullptr,
 						.engineVersion = 0,
-						.apiVersion = vk::apiVersion1_0,
+						.apiVersion = vk::ApiVersion10,
 					},
 				.enabledLayerCount = 0,
 				.ppEnabledLayerNames = nullptr,
@@ -152,7 +151,7 @@ int main(int, char**)
 			});
 
 		// print device list
-		vk::Vector&lt;vk::PhysicalDevice&gt; deviceList = vk::enumeratePhysicalDevices();
+		vk::vector&lt;vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
 		cout &lt;&lt; "Physical devices:" &lt;&lt; endl;
 		for(size_t i=0; i&lt;deviceList.size(); i++) {
 			vk::PhysicalDeviceProperties p = vk::getPhysicalDeviceProperties(deviceList[i]);
@@ -161,7 +160,7 @@ int main(int, char**)
 
 	// catch exceptions
 	} catch(vk::Error&amp; e) {
-		cout &lt;&lt; "Failed because of Vulkan exception: " &lt;&lt; e.what() &lt;&lt; endl;
+		cout &lt;&lt; e.what() &lt;&lt; endl;
 	} catch(exception&amp; e) {
 		cout &lt;&lt; "Failed because of exception: " &lt;&lt; e.what() &lt;&lt; endl;
 	} catch(...) {
@@ -240,11 +239,10 @@ the harmless warning about using pointer to temporary variable.</p>
 
 <p>Documentation to all the structures and the whole Vulkan can be found on
 <a href="https://registry.khronos.org/vulkan/">Khronos website</a>.
-I recommend the latest Vulkan specification while there are three versions - core API only,
-core + ratified extensions and core + all published extensions.
-I recommend core + ratified extensions, or core only specification.
-Core + all published extensions contains much of content related to various vendor extensions
-which might be misleading and might make it more difficult to understand Vulkan.</p>
+There are couple of versions of Vulkan specification - in html, in pdf, core only, including ratified extensions
+and with all published extensions.
+I recommend to start with core only versions of the specification because it is shorter and better for grasping the essence of Vulkan.
+As the needs come, the version with ratified extensions or will all published extensions might be useful sometimes.</p>
 
 <details><summary>Detailed code description</summary>
 
@@ -298,11 +296,11 @@ Physical devices:
    llvmpipe (LLVM 15.0.7, 256 bits)
 </pre>
 
-<p>We can see number of graphics cards. Depending on our system, we will usually see one or two devices.
+<p>We can see number of graphics cards. Depending on your system, you will usually see one or two devices.
 Here, we see Nvidia and AMD graphics as first two graphics cards.
 So, the user is probably developer who wants to test his applications on various graphics cards and various vendors.
 There is also integrated Intel graphics. The last one is llvmpipe that I often see on Linux.
-It is software implementation of Vulkan. It is useful on some special circumstances.</p>
+It is software implementation of Vulkan. It is useful under some special circumstances.</p>
 
 <p>If you see some error instead of graphics card list, there might be some problem on the computer.
 We shall fix it in the next article.</p>

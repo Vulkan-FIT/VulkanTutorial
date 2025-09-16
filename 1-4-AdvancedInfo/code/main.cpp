@@ -70,27 +70,29 @@ int main(int argc, char* argv[])
 			vk::vector<vk::ExtensionProperties> extensionList =
 				vk::enumerateDeviceExtensionProperties(pd, nullptr);
 			bool videoQueueSupported = vk::isExtensionSupported(extensionList, "VK_KHR_video_queue") &&
-			                           properties.apiVersion >= vk::ApiVersion11;
+			                           instanceVersion >= vk::ApiVersion11;
 			bool raytracingSupported = vk::isExtensionSupported(extensionList, "VK_KHR_acceleration_structure") &&
 			                           vk::isExtensionSupported(extensionList, "VK_KHR_ray_tracing_pipeline") &&
 			                           vk::isExtensionSupported(extensionList, "VK_KHR_ray_query") &&
-			                           properties.apiVersion >= vk::ApiVersion11;
-			bool pciBusInfoSupported = vk::isExtensionSupported(extensionList, "VK_EXT_pci_bus_info");
+			                           instanceVersion >= vk::ApiVersion11;
+			bool pciBusInfoSupported = vk::isExtensionSupported(extensionList, "VK_EXT_pci_bus_info") &&
+			                           instanceVersion >= vk::ApiVersion11;
 
 			// extended device properties
-			vk::PhysicalDevicePCIBusInfoPropertiesEXT pciBusInfo{  // requires VK_EXT_pci_bus_info
-				.pNext = nullptr,
-			};
-			vk::PhysicalDeviceVulkan12Properties properties12{  // requires Vulkan 1.2
-				.pNext = pciBusInfoSupported ? &pciBusInfo : nullptr,
-			};
-			vk::PhysicalDeviceVulkan11Properties properties11{  // requires Vulkan 1.2 (really 1.2, not 1.1)
-				.pNext = &properties12,
-			};
-			if(properties.apiVersion >= vk::ApiVersion12)
-				properties2.pNext = &properties11;
-			if(properties.apiVersion >= vk::ApiVersion11)
+			vk::PhysicalDevicePCIBusInfoPropertiesEXT pciBusInfo;  // requires VK_EXT_pci_bus_info
+			vk::PhysicalDeviceVulkan12Properties properties12;  // requires Vulkan 1.2
+			vk::PhysicalDeviceVulkan11Properties properties11;  // requires Vulkan 1.2 (really 1.2, not 1.1)
+			if(properties.apiVersion >= vk::ApiVersion11) {
+				void** lastPNext = &properties2.pNext;
+				if(properties.apiVersion >= vk::ApiVersion12) {
+					properties2.pNext = &properties11;
+					properties11.pNext = &properties12;
+					lastPNext = &properties12.pNext;
+				}
+				if(pciBusInfoSupported)
+					*lastPNext = &pciBusInfo;
 				vk::getPhysicalDeviceProperties2(pd, properties2);
+			}
 
 			// device name
 			cout << "   " << properties.deviceName << endl;
@@ -158,9 +160,7 @@ int main(int argc, char* argv[])
 			cout << "      MaxTextureSize:  " << properties.limits.maxImageDimension2D << endl;
 
 			// device features
-			vk::PhysicalDeviceVulkan12Features features12{
-				.pNext = nullptr,
-			};
+			vk::PhysicalDeviceVulkan12Features features12;
 			vk::PhysicalDeviceFeatures2 features2{
 				.pNext = (properties.apiVersion>=vk::ApiVersion12) ? &features12 : nullptr,
 			};

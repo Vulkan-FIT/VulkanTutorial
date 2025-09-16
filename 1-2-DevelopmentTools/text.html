@@ -17,8 +17,8 @@
 
 <p>Number of valuable tools and utilities exist that might help us during application development
 and finally with its deployment on target computers.
-We will start with those that we can use immediately for testing of our application of the previous article
-that initializes Vulkan instance and prints out all Vulkan devices available.</p>
+We will start with those that we can use immediately for testing of our application
+of <a href="../1-1-DeviceList/text.html">the previous article</a>.</p>
 
 
 
@@ -43,7 +43,7 @@ and often many libraries and packages are missing, compared to our development c
 To find all statically linked DLLs of our application, we can use, for instance,
 <a href="https://www.dependencywalker.com">DependencyWalker</a> or its modern alternative
 <a href="https://github.com/lucasg/Dependencies">Dependencies</a>.
-And to make a final test, we can use <a href="">Windows Sandbox</a>.
+And to make a final test, we can use Windows Sandbox.
 Windows Sandbox provides pristine Windows installation each time we start it,
 so we can run our application there and see if it runs or some libraries are missing.</p>
 
@@ -81,7 +81,7 @@ as is shown bellow:</p>
 
 <p>However, we see Vulkan error that says "incompatible driver".
 It tells us there is not a single compatible Vulkan driver installed in the system,
-which might means that there is no Vulkan driver at all.
+which might mean that there is no Vulkan driver at all.
 To get working Vulkan driver, we can install CPU driver, or we can allow Windows Sandbox
 to use Vulkan device of the host operating system, for instance.</p>
 
@@ -103,7 +103,7 @@ In other words, our Sandbox now looks like it uses graphics card of the host ope
 <a href="https://www.mesa3d.org">Mesa 3D</a>. We can download Mesa 3D compiled binaries for Windows from
 <a href="https://github.com/pal1000/mesa-dist-win">https://github.com/pal1000/mesa-dist-win</a>.
 In the <a href="https://github.com/pal1000/mesa-dist-win/releases">releases section</a>, there are
-binaries built by MSVC and MinGW. Both of them should work well. Among the available downloads,
+binaries built by MSVC and MinGW. If not sure, MSVC might be a good choice. Among the available downloads,
 I suggest to take the one with "release" in the name and to skip all "debug" and "devel" versions.
 After opening the downloaded zip, we need to find vulkan_lvp.dll and lvp_icd.x86_64.json.
 We can copy both files into the Windows Sandbox desktop and execute the following command in the command prompt:</p>
@@ -144,14 +144,14 @@ that simplifies their setup using relatively simple GUI:</p>
 <p>Vulkan Validation Layers are part of Vulkan SDK.
 So, we can <a href="https://vulkan.lunarg.com/sdk/home">download Vulkan SDK</a> for our platform and install it.
 On Linux, it is possible that packages for Vulkan Validation Layers and vkconfig exist for our Linux distribution.
-I usually had problem that vkconfig was not present in the packages.</p>
+I usually had problem that vkconfig was not present in the distribution packages.</p>
 
 <p>Once we have the things on place, we can use vkconfig utility. On Windows, we can go to Start and type vkconfig
 or find Vulkan Configurator in the menu. On Linux, typing vkconfig in the console might be the way,
 or it may appear also in your Start menu of your Linux desktop.</p>
 
 <p>Long info about the usage can be found in
-<a href="https://github.com/LunarG/VulkanTools/blob/main/vkconfig/README.md">vkconfig README.md</a>.
+<a href="https://github.com/LunarG/VulkanTools/blob/main/vkconfig_gui/README.md">vkconfig README.md</a>.
 For us, the most essential settings are in top-left part called "Vulkan Layers Management".
 We need the option "Overriding Layers by the Vulkan Configurator" to be selected.
 In the left center part called "Vulkan Layers Configurations", we need "Validation" to be selected.
@@ -217,11 +217,33 @@ reading of uninitialized memory, detecting of memory leaks, and so on.</p>
 <p>After running valgrind on our application we can see the output:</p>
 
 <pre>
-valgrind --tool=memcheck ...exeName...
-...output...
+$ valgrind --tool=memcheck ./1-1-DeviceList
+==3326== Memcheck, a memory error detector
+==3326== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.
+==3326== Using Valgrind-3.22.0 and LibVEX; rerun with -h for copyright info
+==3326== Command: 1-1-DeviceList/code/1-1-DeviceList
+==3326==
+Physical devices:
+   Intel(R) UHD Graphics (CML GT2)
+   llvmpipe (LLVM 17.0.6, 256 bits)
+==3326==
+==3326== HEAP SUMMARY:
+==3326==     in use at exit: 351,185 bytes in 2,719 blocks
+==3326==   total heap usage: 8,824 allocs, 6,105 frees, 2,886,400 bytes allocated
+==3326==
+==3326== LEAK SUMMARY:
+==3326==    definitely lost: 0 bytes in 0 blocks
+==3326==    indirectly lost: 0 bytes in 0 blocks
+==3326==      possibly lost: 28,496 bytes in 100 blocks
+==3326==    still reachable: 322,689 bytes in 2,619 blocks
+==3326==         suppressed: 0 bytes in 0 blocks
+==3326== Rerun with --leak-check=full to see details of leaked memory
+==3326==
+==3326== For lists of detected and suppressed errors, rerun with: -s
+==3326== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
 </pre>
 
-<p>In other words, there is no wrong memory</p>
+<p>As we can see, there is no memory error reported by valgrind.</p>
 
 <details><summary>More details on valgrind</summary>
 
@@ -246,7 +268,7 @@ Some useful options might be: --num-callers=100, --error-limit=no,
 
 <h3>Other tools</h3>
 
-<p>Much more tools exist. If one is interested, he might take a look on Nvidia Nsight, for instance,
+<p>Much more tools exist. If somebody is interested, he might take a look, for instance, on Nvidia Nsight
 or on <a href="https://github.com/SaschaWillems/VulkanCapsViewer">Vulkan Hardware Capability Viewer</a>
 (vulkanCapsViewer) that is part of Vulkan SDK, or one of the tools on
 <a href="https://vulkan.org/tools#profilers-and-debuggers">vulkan.org -> Tools -> Profiling and debugging</a>.</p>

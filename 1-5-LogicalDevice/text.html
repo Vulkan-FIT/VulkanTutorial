@@ -15,9 +15,9 @@
 
 <h3>1-5 - Logical Device</h3>
 
-<p>Logical device is needed for the real work in Vulkan, such as computations or graphics rendering.
-In the previous articles we covered Vulkan instance, physical devices, and the ways
-in which we can get their properties, features, list of extensions, etc. out of them.
+<p>Logical device is needed to perform the real work in Vulkan. The real work is, for example, computations or graphics rendering.
+In the previous articles we covered Vulkan instance, physical devices,
+and the ways in which we can get their properties, features, list of extensions, and other things out of them.
 The next step is logical device.</p>
 
 <p>A logical device can be created using the following code:</p>
@@ -27,11 +27,11 @@ The next step is logical device.</p>
 vk::initDevice(
 	pd,  // physicalDevice
 	vk::DeviceCreateInfo{  // pCreateInfo
-		.flags = 0,
+		.flags = {},
 		.queueCreateInfoCount = 1,  // at least one queue is mandatory
 		.pQueueCreateInfos = array&lt;vk::DeviceQueueCreateInfo,1>{
 			vk::DeviceQueueCreateInfo{
-				.flags = 0,
+				.flags = {},
 				.queueFamilyIndex = 0,
 				.queueCount = 1,
 				.pQueuePriorities = &amp;(const float&amp;)1.f,
@@ -46,9 +46,9 @@ vk::initDevice(
 );
 </pre>
 
-<p>As can be seen, a logical device is created out of physical device.
-Additionally, we provide the list of the required queues, list of enabled layers and extensions,
-and enabled features.</p>
+<p>As can be seen, the logical device is created out of the physical device.
+Additionally, we provide the list of the required queues, the list of enabled layers and the list of extensions,
+and pointer to the structure with enabled features.</p>
 
 
 <h3>Logical and physical devices</h3>
@@ -66,20 +66,20 @@ the driver and our application might be more efficient.</p>
 
 <img src="architecture.svg" style="background-color: rgba(255,255,255,0.3)">
 
-<p>Applications are doing their Vulkan calls. These are going through the Vulkan loader.
+<p>The applications are doing their Vulkan calls. These are going through the Vulkan loader.
 The loader forwards them to the appropriate Vulkan drivers.
-The drivers control physical devices. One driver typically controls one physical device.
-If there are more physical devices from the same vendor, often they use the same driver.
+The drivers, then, control physical devices. One driver can controls one physical device, or it might control more of them.
+Especially, if there are more physical devices from the same vendor, they sometimes use the same driver.
 There are also drivers that are not directly connected with any physical device.
 One example is "CPU" drivers that are doing software rendering.</p>
 
 
 <h3>Function pointers</h3>
 
-<p>When the call is going through Vulkan loader, it uses trampoline to direct the call to particular Vulkan driver.
+<p>When the call is going through the Vulkan loader, it uses trampoline to direct the call to particular Vulkan driver.
 The overhead is usually negligible. Anyway, to avoid it or to gain additional flexibility, Vulkan provides
 vkGetDeviceProcAddr() function to query function pointer for particular logical device.
-Thus, we can directly call the drivers function as shown on the following image by yellow arrow:</p>
+Thus, we can directly call the driver functions as shown on the following image by the yellow arrow:</p>
 
 <img src="architecture-dynamic-calls.svg" style="background-color: rgba(255,255,255,0.3)">
 
@@ -106,7 +106,7 @@ Device function pointers:
       vkQueueSubmit()        points to: /usr/lib/x86_64-linux-gnu/libGLX_nvidia.so.0
 </pre>
 
-<p>This was result from Linux and Nvidia Quadro K1000M. Windows 7 with three different cards is slightly different:</p>
+<p>This is the result from Linux and Nvidia Quadro K1000M. Windows 7 with three different cards is slightly different:</p>
 
 <pre>
 Instance function pointers:
@@ -125,7 +125,7 @@ Device function pointers:
       vkQueueSubmit()        points to: C:\Windows\system32\igvk64.dll
 </pre>
 
-<p>So, Vulkan loader is implemented by libvulkan.so.1 on Linux and vulkan-1.dll on Windows.
+<p>So, the Vulkan loader is implemented by libvulkan.so.1 on Linux and vulkan-1.dll on Windows.
 The names of the drivers can be seen in the rest of the output.</p>
 
 <!-- Future topics: instance-level functionality, physical-device-level functionality and device-level functionality -->
