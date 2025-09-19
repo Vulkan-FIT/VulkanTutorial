@@ -21,10 +21,10 @@ We will create simple compute shader that will contain stream of 10'000 instruct
 we will execute the shader many times on particular device,
 we will measure the execution time and print the measured performance.</p>
 
-<p>The new objects we will describe are shaders and pipelines.
+<p>In this article, we will learn to use shaders and pipelines.
 A shader contains stream of instructions.
 Pipelines control how graphics or compute work is executed on the device.
-A pipeline include one or more shaders and state controlling any non-programmable stages of the pipeline.</p>
+A pipeline includes one or more shaders and state controlling any non-programmable stages of the pipeline.</p>
 
 
 <h3>Shader code</h3>
@@ -36,7 +36,7 @@ x = x * y + z;
 
 <p>This equation uses two math operations: multiplication and addition.
 Interestingly, many computing devices provide single instruction,
-usually called FMA (Fused Multiply Addition) that encodes these two operations.</p>
+usually called FMA (Fused Multiply Addition) that encodes multiply and addition operations.</p>
 
 <p>Now, we need to repeat the equation 10'000 times.
 We will use macros for it:</p>
@@ -106,7 +106,7 @@ So, we compare final x value with 0.1 and write y to address 0.
 Obviously, x will never be 0.1 so we will never write anything to address 0.
 But the outcome is that our 10'000 FMA instructions is not optimized out.</p>
 
-<p>The last piece of the shader code is its header:</p>
+<p>The last missing piece is the shader header:</p>
 
 <pre>
 #version 460
@@ -207,7 +207,7 @@ vk::UniquePipelineLayout pipelineLayout =
 
 <p>Pipeline layout describes the set of resources and push constants used by a pipeline.
 Set of resources is described by the collection of descriptor set layouts.
-For now, we are not using any of these. So, we will not go into detail on these.</p>
+For now, we are not using any of these. So, we will skip them for now.</p>
 
 <p>The compute pipeline is created as follows:</p>
 
@@ -257,15 +257,16 @@ vk::cmdDispatch(commandBuffer, groupCountX, groupCountY, groupCountZ);
 
 <p>First, we bind our pipeline. It is bound to the compute binding point.
 So, all the following compute commands in this command buffer will use this pipeline
-until another pipeline is bound to the compute binding point or until command buffer recording ends.</p>
+until another pipeline is bound to the compute binding point or until the command buffer recording ends.</p>
 
-<p>The next call is vk::cmdDispatch(). It records the work for the compute pipeline currently bound.
+<p>The next call is vk::cmdDispatch(). It records the command to execute the work of the compute pipeline currently bound.
 The work is not executed yet, it is just recorded.
-And what is recorded is the number of workgroups in X, Y and Z dimension.
+In the command, the number of workgroups in X, Y and Z dimension are recorded.
 We record 1000 workgroups in X dimension, 100 in Y dimension and 1 in Z dimension.
 In total, it is 1000x100x1 = 100'000 workgroups.
-These workgroups are called local workgroups, while all 100'000 workgroups together will form one global workgroup
-because it was provoked by single dispatch call.</p>
+These workgroups are called local workgroups, while all 100'000 local workgroups together will form one global workgroup
+because it was provoked by single dispatch call. If we speak just about workgroups, we will mean local workgroups
+that will be much more important for us.</p>
 
 <p>A local workgroup is composed of compute shader invocations.
 Their number is specified on the beginning of our compute shader as
@@ -310,7 +311,7 @@ To measure the execution time, we first get the current time (code in bold):</p>
 
 <pre>
 // submit work
-cout << "Submiting work and waiting for it..." << endl;
+cout &lt;&lt; "Submiting work and waiting for it..." &lt;&lt; endl;
 <b>chrono::time_point t1 = chrono::high_resolution_clock::now();</b>
 vk::queueSubmit(
 	queue,
@@ -323,18 +324,18 @@ vk::queueSubmit(
 		.signalSemaphoreCount = 0,
 		.pSignalSemaphores = nullptr,
 	},
-	renderingFinishedFence
+	computingFinishedFence
 );
 </pre>
 
-<p>Then, we wait for fence. When the submitted work execution is completed,
+<p>Then, we wait for the fence. When the submitted work execution is completed,
 the fence is signalled, and we take the current time again (in bold):</p>
 
 <pre>
 // wait for the work
 vk::Result r =
 	vk::waitForFence_noThrow(
-		renderingFinishedFence,
+		computingFinishedFence,
 		uint64_t(3e9)  // timeout (3s)
 	);
 <b>chrono::time_point t2 = chrono::high_resolution_clock::now();</b>
@@ -349,15 +350,15 @@ else
 <pre>
 // print results
 double delta = chrono::duration<double>(t2 - t1).count();
-cout << "Computation time: " << delta * 1e3 << "ms." << endl;
+cout &lt;&lt; "Computation time: " &lt;&lt; delta * 1e3 &lt;&lt; "ms." &lt;&lt; endl;
 constexpr uint64_t numInstructions = uint64_t(20000) * 128 * groupCountX * groupCountY * groupCountZ;
-cout << "Computing performance: " << double(numInstructions) / delta * 1e-9 << " GFLOPS." << endl;
+cout &lt;&lt; "Computing performance: " &lt;&lt; double(numInstructions) / delta * 1e-12 &lt;&lt; " TFLOPS." &lt;&lt; endl;
 </pre>
 
-<p>Computing performance is a little more complicated.
-We executed one global workgroup composed of groupCountX * groupCountY * groupCountZ local workgroups.
-It is 1'000 in X dimension, 100 in Y dimension and 1 in Z dimension. In total, 100'000 local groups.
-Each local workgroup is composed of compute shader invocations.
+<p>For computing the performance in TFLOPS, we need number of executed instructions.
+We executed groupCountX * groupCountY * groupCountZ local workgroups.
+It is 1'000 in X dimension, 100 in Y dimension and 1 in Z dimension. In total, 100'000 workgroups.
+Each workgroup is composed of compute shader invocations.
 Their number is specified on the beginning of the compute shader as
 <code>layout(local_size_x=32, local_size_y=4, local_size_z=1) in;</code>.
 So, it is 32x4x1 of them. 128 in total.

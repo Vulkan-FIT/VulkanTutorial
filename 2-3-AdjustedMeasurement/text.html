@@ -15,7 +15,7 @@
 
 <h3>2-3 - Adjusted Measurement</h3>
 
-<p>In previous article, we measured the performance running 100'000 local workgroups
+<p>In the previous article, we measured the performance by running 100'000 local workgroups
 that executed 256 billion floating point operations in total.
 This might take about 2 milliseconds on GeForce 5090,
 about 0.5 second on integrated Intel graphics
@@ -25,18 +25,18 @@ In short, our measurement algorithm needs improvements. The reasons are as follo
 <ul>
 <li>avoid very long measurements on very slow devices and avoid timeouts</li>
 <li>avoid too short measurements on very fast devices - very short measurements might not be precise</li>
-<li>avoid power management to influence the results</li>
+<li>avoid the power management to influence the results - some devices take time to switch from power saving modes</li>
 </ul>
 
 <p>Our goal will be to perform measurements that takes about 20ms
 and we will do them repeatedly.
-We will print the output header and start our measurement with single local group:</p>
+We will print the output header and start our measurement with single local workgroup:</p>
 
 <pre>
 // output header
-cout << "\n"
+cout &lt;&lt; "\n"
         " Measurement        Number of         Computation     Performance\n"
-        "  time stamp     local workgroups         time" << endl;
+        "  time stamp     local workgroups         time" &lt;&lt; endl;
 
 uint32_t groupCountX = 1;
 uint32_t groupCountY = 1;
@@ -64,7 +64,7 @@ do {
 </pre>
 
 <p>Then, we submit the work and measure the time to have the work completed by the device.
-Once done, we print the results and stop further measurements if we are measuring for more than 3 seconds already:</p>
+Once done, we print the results. Then, we stop the measurements if measuring for more than 3 seconds:</p>
 
 <pre>
 	// print results
@@ -82,11 +82,11 @@ Once done, we print the results and stop further measurements if we are measurin
 		break;
 </pre>
 
-<p>The function formatFloatSI(float) makes just more nice floating point value formatting.
-It prints just three most significant numbers followed by SI suffix like M for mega, G for giga and T for tera.
+<p>The function formatFloatSI(float) nicely formats floating point value.
+It prints just three most significant digits followed by SI suffix like M for mega, G for giga and T for tera.
 Only three digits are printed to keep the output as simple as possible.</p>
 
-<p>We follow by updating number of local workgroups for the next measurement.
+<p>Then, we update number of local workgroups for the next measurement.
 If the previous measurement time is shorter than 2ms, we just multiply number of local workgroups by 10.
 Otherwise, we compute ratio and try to target 20ms measurement.
 Vulkan specification tells us that at least 65535 local workgroups is supported
@@ -184,7 +184,7 @@ but some time might be needed before highest performance level is reached.</p>
 <h3>Graphics Device selection</h3>
 
 <p>We might also want to measure another graphics card installed in the system.
-Possible options are identified by the number, ranging from 1 to 4 in our case:</p>
+Possible options are given by the number, ranging from 1 to 4 in our case:</p>
 
 <pre>
 Compatible devices:
@@ -194,12 +194,12 @@ Compatible devices:
    4: llvmpipe (LLVM 20.1.5, 256 bits) (compute queue: 0, type: Cpu)
 </pre>
 
-<p>We can pass '-' followed by the number to command line to select particular device
+<p>We can pass '-' followed by the number to the command line to select particular device
 and compute queue. For example, specifying -1 to command line will measure performance of
 integrated Intel GPU.</p>
 
 <p>Passing substring of device name is another way to select the device to test.
-For example, passing llvm on command line will select llvmpipe software device run completely on CPU.</p>
+For example, passing llvm on the command line will select llvmpipe software device that runs completely on the CPU.</p>
 
 <p>We can combine both approaches and specify RTX to get two devices while the first one would be used
 unless we specify -2 to select the second one that uses different compute queue.</p>

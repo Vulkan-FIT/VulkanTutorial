@@ -265,12 +265,12 @@ int main(int argc, char* argv[])
 			// using score heuristic
 			selectedDevice = compatibleDevices.begin();
 			constexpr const array deviceTypeScore = {
-				10, // vk::PhysicalDeviceType::eOther         - lowest score
-				40, // vk::PhysicalDeviceType::eIntegratedGpu - high score
-				50, // vk::PhysicalDeviceType::eDiscreteGpu   - highest score
-				30, // vk::PhysicalDeviceType::eVirtualGpu    - normal score
-				20, // vk::PhysicalDeviceType::eCpu           - low score
-				10, // unknown vk::PhysicalDeviceType
+				10,  // vk::PhysicalDeviceType::eOther         - lowest score
+				40,  // vk::PhysicalDeviceType::eIntegratedGpu - high score
+				50,  // vk::PhysicalDeviceType::eDiscreteGpu   - highest score
+				30,  // vk::PhysicalDeviceType::eVirtualGpu    - normal score
+				20,  // vk::PhysicalDeviceType::eCpu           - low score
+				10,  // unknown vk::PhysicalDeviceType
 			};
 			int score = deviceTypeScore[clamp(int(get<2>(*selectedDevice).deviceType), 0, int(deviceTypeScore.size())-1)];
 			for(auto it=compatibleDevices.begin()+1; it!=compatibleDevices.end(); it++) {

@@ -18,9 +18,9 @@
 <p>Using chrono::high_resolution_clock::now() is the CPU way to get the current time.
 However, Vulkan provides its own way to get the current time directly on the device.
 Getting the time directly on the device avoids unnecessary overhead and
-might provide higher precision of the measurement.</p>
+might provide higher precision of measurements.</p>
 
-<p>Vulkan provides vkCmdWriteTimestamp function to request timestamp and to write it to the memory:</p>
+<p>Vulkan provides vkCmdWriteTimestamp function to request the timestamp and to write it to the memory:</p>
 
 <pre>
 void vkCmdWriteTimestamp(
@@ -31,14 +31,14 @@ void vkCmdWriteTimestamp(
 </pre>
 
 <p>The command is recorded into the command buffer specified by the first parameter.
-The second parameter gives the pipeline stage that must be completed before the write timestamp command is executed.
+The second parameter gives the pipeline stage. What is the pipeline stage and why we need it as the parameter?
 Vulkan devices might execute commands in parallel and sometimes out of submission order.
 Moreover, commands are executed in stages, such as compute shader stage, vertex shader stage,
 geometry shader stage and fragment shader stage.
 All commands submitted before vkCmdWriteTimestamp must complete execution of at least the stage
 specified by pipelineStage parameter before the timestamp command can be executed.
 Third parameter queryPool specifies the object where the timestamp will be stored.
-Finally, fourth parameter specifies index of the query inside queryPool where the result will be stored.</p>
+Finally, fourth parameter specifies index into queryPool where the result will be stored.</p>
 
 <p>The command buffer is recorded as follows:</p>
 
@@ -71,7 +71,7 @@ vk::cmdWriteTimestamp(
 	1);  // query
 </pre>
 
-<p>First, we reset query pool and bind the pipeline. Then, we write first timestamp,
+<p>First, we reset the query pool and bind the pipeline. Then, we write first timestamp,
 record the work using vk::cmdDispatch() and write the second timestamp.</p>
 
 <p>When the command buffer is executed, the timestamps are written by the device into the query pool.
@@ -102,12 +102,13 @@ cout << fixed << setprecision(2)
 </pre>
 
 <p>We read two timestamps as two 64-bit integers. We substract them to get their difference,
-perform logical and with timestampValidBitMask to limit the result just to valid bits,
-and finally, we multiply it by timestampPeriod and divide by 1e9 to get the time difference in seconds.
-The variable timestampPeriod contains number of nanoseconds that pass
-to make timestamp incremented by one. At the end, the results and printed to the screen.</p>
+mask the result by timestampValidBitMask to limit the result just to valid bits,
+we multiply it by timestampPeriod that contains number of nanoseconds that pass
+to make timestamp incremented by one.
+Finally, we divide the result by 1e9 to convert final value from nanoseconds to seconds.
+At the end, the results and printed to the screen.</p>
 
-<p>The last missing piece of the code is query pool creation:</p>
+<p>The last missing piece of the code is timestamp pool creation:</p>
 
 <pre>
 // timestamp pool
@@ -122,14 +123,17 @@ vk::UniqueQueryPool timestampPool =
 	);
 </pre>
 
-<p>We choose to store timestamps in the pool and to store two values there.</p>
+<p>We specify queryType to be eTimestamp, so the pool will store timestamps.
+And we ask for two timestamps to be stored there.</p>
 
-<p>We can run the example and see if we got any additional precision in this simple application.
+<p>We can run the example and see if we got any additional precision in our simple application.
 On my Quadro RTX 3000, I see the real difference in first few measurements.
-Dispatching 1, 10 or 100 workgroups results in as short measurement time as 100 us when using timestamps.
-Without timestamps, the overhead is much longer in these three measurements.
-I see values ranging from 250 to 600 us. Higher values are probably caused by CPU - GPU synchronization.
-When measurement time is about 20ms, the difference is still there but it is probably not noticeable to the user.</p>
+Dispatching 1, 10 or 100 workgroups results in as short measurement times as 100 us when using Vulkan timestamps.
+Without timestamps, I see values ranging from 250 to 600 us using the code of the previous article.
+As we can see, timestamps are more precise than measuring the time on CPU.
+Higher values when using CPU is probably caused by CPU - GPU synchronization.
+This difference is usually noticeable on short measurements only.
+Anyway, I recommend to use Vulkan timestamps whenever measuring execution time on Vulkan device.</p>
 
 </body>
 </html>
