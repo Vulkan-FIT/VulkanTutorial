@@ -15,9 +15,9 @@
 
 <h3>2-5 - Float Precision</h3>
 
-<p>Standard float type has limited precision. So, double type is often used as an alternative
-when higher precision is needed. On the other hand side, half type might be considered
-for its higher performance potential when half type limited precision is not an issue.</p>
+<p>Standard float type has limited precision of about 7 digits. So, double type is often used as an alternative
+when higher precision is needed. On the other hand side, we might sometimes look for performance or small storage requirements.
+Half floating point type might be interesting option in that case.</p>
 
 
 <h3>Float type (float32)</h3>
@@ -153,7 +153,7 @@ Representable value ranges from -65504 to 65504 with about 3.31 decimal digits p
 
 <h3>Double precision shader</h3>
 
-<p>Compute shader for double precision is the same as for float precision except using of double variables:</p>
+<p>Compute shader for double precision is the same as for float precision except using of double type for the variables:</p>
 
 <pre>
 void main()
@@ -173,7 +173,7 @@ void main()
 <h3>Half precision shader</h3>
 
 <p>Compute shader for half precision is slightly modified version of float precision.
-Apart from using half type, we need to allow two half operations to be executed in parallel:</p>
+Apart from using half type, we need to allow two half operations to be executed in parallel in single shader invocation:</p>
 
 <pre>
 #define FMA10 \
@@ -215,26 +215,22 @@ void main()
 
 <p>The code uses x1, y1, x2 and y2 variables to allow two independent half precision computations to happen in parallel.
 It depends on Vulkan device if it can execute half precision operations faster.
-Often, we get two times higher performance compared standard float precision computations.</p>
+Often, we get two times higher performance compared to standard float precision computations.</p>
 
 
 <h3>Double and half type support</h3>
 
 <p>We need to know whether double precision and half precision operations are supported.
 Floats are always supported, but halfs and doubles are optional.
-We find the information in Vulkan Physical Device Features:</p>
+We find the information in Vulkan physical device features:</p>
 
 <pre>
 // get supported features
 vk::PhysicalDeviceVulkan12Features features12;
 vk::PhysicalDeviceFeatures2 features10 = { .pNext = &features12 };
-vk::getPhysicalDeviceFeatures2(get<0>(*selectedDevice), features10);
+vk::getPhysicalDeviceFeatures2(pd, features10);
 bool float64Supported = features10.features.shaderFloat64;
 bool float16Supported = features12.shaderFloat16;
-if(testIndex == 1 && !float64Supported)
-	throw runtime_error("Vulkan device does not support double precision computations.");
-if(testIndex == 2 && !float16Supported)
-	throw runtime_error("Vulkan device does not support half precision computations.");
 </pre>
 
 <p>Then, the features need to be enabled during device creation:</p>
@@ -242,10 +238,10 @@ if(testIndex == 2 && !float16Supported)
 <pre>
 // create device
 vk::initDevice(
-	get<0>(*selectedDevice),  // physicalDevice
+	pd,  // physicalDevice
 	vk::DeviceCreateInfo{  // pCreateInfo
 		.flags = {},
-		.queueCreateInfoCount = 1,  // at least one queue is mandatory
+		.queueCreateInfoCount = 1,
 		.pQueueCreateInfos =
 			array{
 				vk::DeviceQueueCreateInfo{
@@ -319,10 +315,9 @@ do {
 </pre>
 
 <p>It keeps going for three seconds. First, it performs float16, float32 and float64 test.
-Initially, the tests are performed with a single workgroup.
-Then, test for timeout of three seconds is made.
-Finally, new number of workgroups is computed. The number of workgroups is updated to
-make the test lasting about 20ms.</p>
+Initially, the tests are performed with single workgroup.
+Then, the test for timeout of three seconds is made.
+Finally, new number of workgroups is computed in the way to target the test time of about 20ms.</p>
 
 <p>The results are recorded in halfPerformanceList, floatPerformanceList and doublePerformanceList
 as performance in FLOPS. When we are done with measurements, we sort the lists to be able to get median:</p>
@@ -334,7 +329,7 @@ sort(floatPerformanceList.begin(), floatPerformanceList.end());
 sort(doublePerformanceList.begin(), doublePerformanceList.end());
 </pre>
 
-<p>Finally, we print median value as the final performance.
+<p>Finally, we print median values for all three precisions.
 We do not use average value, because it is affected by all extreme values collected during the measurements.
 We do not use std::nth_element() that is more effective for median than std::sort, because
 we will print IQR dispersion as well. The code is the same for all three precisions:</p>
@@ -355,7 +350,7 @@ First quartile Q1 is taken from 25% of sorted data and third quartile Q3 is take
 IQR gives the idea of statistical dispersion of measured values.
 Q1 value might be considered median of values in lower half of measured data
 and Q3 might be considered median of upper half.
-One important property is that half of measured values are between Q1 and Q3 values.</p>
+One important property is that 50% of measured values are between Q1 and Q3 values.</p>
 
 </body>
 </html>

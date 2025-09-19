@@ -270,12 +270,12 @@ int main(int argc, char* argv[])
 			// using score heuristic
 			selectedDevice = compatibleDevices.begin();
 			constexpr const array deviceTypeScore = {
-				10, // vk::PhysicalDeviceType::eOther         - lowest score
-				40, // vk::PhysicalDeviceType::eIntegratedGpu - high score
-				50, // vk::PhysicalDeviceType::eDiscreteGpu   - highest score
-				30, // vk::PhysicalDeviceType::eVirtualGpu    - normal score
-				20, // vk::PhysicalDeviceType::eCpu           - low score
-				10, // unknown vk::PhysicalDeviceType
+				10,  // vk::PhysicalDeviceType::eOther         - lowest score
+				40,  // vk::PhysicalDeviceType::eIntegratedGpu - high score
+				50,  // vk::PhysicalDeviceType::eDiscreteGpu   - highest score
+				30,  // vk::PhysicalDeviceType::eVirtualGpu    - normal score
+				20,  // vk::PhysicalDeviceType::eCpu           - low score
+				10,  // unknown vk::PhysicalDeviceType
 			};
 			int score = deviceTypeScore[clamp(int(get<2>(*selectedDevice).deviceType), 0, int(deviceTypeScore.size())-1)];
 			for(auto it=compatibleDevices.begin()+1; it!=compatibleDevices.end(); it++) {
@@ -414,7 +414,7 @@ int main(int argc, char* argv[])
 			pd,  // physicalDevice
 			vk::DeviceCreateInfo{  // pCreateInfo
 				.flags = {},
-				.queueCreateInfoCount = 1,  // at least one queue is mandatory
+				.queueCreateInfoCount = 1,
 				.pQueueCreateInfos =
 					array{
 						vk::DeviceQueueCreateInfo{
@@ -485,9 +485,12 @@ int main(int argc, char* argv[])
 				}
 			);
 
-		// pipeline
+		// create pipelines
 		array<vk::UniquePipeline, 3> pipelineList =
-			[&](){
+			[&]() {
+
+				// prepare vk::ComputePipelineCreateInfo list
+				// (the list is dense; no null records allowed)
 				array<vk::UniquePipeline, 3> pipelineList;
 				array<vk::ComputePipelineCreateInfo, 3> createInfos;
 				uint32_t numPipelines = 0;
@@ -509,17 +512,25 @@ int main(int argc, char* argv[])
 								.basePipelineHandle = nullptr,
 								.basePipelineIndex = -1,
 							};
+
+				// create pipelines
 				vk::createComputePipelinesUnique(
 					nullptr,
 					numPipelines,
 					createInfos.data(),
 					pipelineList.data()
 				);
+
+				// move pipelines to their proper indices
+				// (the dense list is unpacked here)
 				while(i>numPipelines) {
 					i--;
-					if(shaderModuleList[i])
-						pipelineList[i] = move(pipelineList[--numPipelines]);
+					if(shaderModuleList[i]) {
+						numPipelines--;
+						pipelineList[i] = move(pipelineList[numPipelines]);
+					}
 				}
+
 				return pipelineList;
 			}();
 
@@ -565,25 +576,6 @@ int main(int argc, char* argv[])
 		auto performTest =
 			[&](vk::Pipeline pipeline, size_t numWorkgroups) -> float {
 
-				// dispatch dimensions
-				uint32_t groupCountX;
-				uint32_t groupCountY;
-				uint32_t groupCountZ;
-				if(numWorkgroups > 10000 * 10000) {
-					groupCountZ = 1 + ((numWorkgroups - 1) / (10000 * 10000));
-					uint64_t remainder = numWorkgroups / groupCountZ;
-					groupCountY = 1 + ((remainder - 1) / 10000);
-					groupCountX = remainder / groupCountY;
-				}
-				else {
-					if(numWorkgroups == 0)
-						numWorkgroups = 1;
-					groupCountZ = 1;
-					groupCountY = 1 + ((numWorkgroups - 1) / 10000);
-					groupCountX = numWorkgroups / groupCountY;
-				}
-
-
 				// begin command buffer
 				vk::beginCommandBuffer(
 					commandBuffer,
@@ -611,7 +603,24 @@ int main(int argc, char* argv[])
 					0);  // query
 
 				// dispatch computation
-				vk::cmdDispatch(commandBuffer, groupCountX, groupCountY, groupCountZ);
+				// (avoid any dimension to go over 10000)
+				uint32_t workgroupCountX;
+				uint32_t workgroupCountY;
+				uint32_t workgroupCountZ;
+				if(numWorkgroups > 10000 * 10000) {
+					workgroupCountZ = 1 + ((numWorkgroups - 1) / (10000 * 10000));
+					uint64_t remainder = numWorkgroups / workgroupCountZ;
+					workgroupCountY = 1 + ((remainder - 1) / 10000);
+					workgroupCountX = remainder / workgroupCountY;
+				}
+				else {
+					if(numWorkgroups == 0)
+						numWorkgroups = 1;
+					workgroupCountZ = 1;
+					workgroupCountY = 1 + ((numWorkgroups - 1) / 10000);
+					workgroupCountX = numWorkgroups / workgroupCountY;
+				}
+				vk::cmdDispatch(commandBuffer, workgroupCountX, workgroupCountY, workgroupCountZ);
 
 				// write timestamp 1
 				vk::cmdWriteTimestamp(

@@ -130,7 +130,7 @@ int main(int argc, char* argv[])
 			pd,  // physicalDevice
 			vk::DeviceCreateInfo{  // pCreateInfo
 				.flags = {},
-				.queueCreateInfoCount = 1,  // at least one queue is mandatory
+				.queueCreateInfoCount = 1,
 				.pQueueCreateInfos =
 					array{
 						vk::DeviceQueueCreateInfo{
@@ -232,10 +232,10 @@ int main(int argc, char* argv[])
 		vk::cmdBindPipeline(commandBuffer, vk::PipelineBindPoint::eCompute, pipeline);
 
 		// dispatch computation
-		constexpr const uint32_t groupCountX = 1000;
-		constexpr const uint32_t groupCountY = 100;
-		constexpr const uint32_t groupCountZ = 1;
-		vk::cmdDispatch(commandBuffer, groupCountX, groupCountY, groupCountZ);
+		constexpr const uint32_t workgroupCountX = 1000;
+		constexpr const uint32_t workgroupCountY = 100;
+		constexpr const uint32_t workgroupCountZ = 1;
+		vk::cmdDispatch(commandBuffer, workgroupCountX, workgroupCountY, workgroupCountZ);
 
 		// end command buffer
 		vk::endCommandBuffer(commandBuffer);
@@ -283,7 +283,7 @@ int main(int argc, char* argv[])
 		// print results
 		double delta = chrono::duration<double>(t2 - t1).count();
 		cout << "Computation time: " << delta * 1e3 << "ms." << endl;
-		constexpr uint64_t numInstructions = uint64_t(20000) * 128 * groupCountX * groupCountY * groupCountZ;
+		constexpr uint64_t numInstructions = uint64_t(20000) * 128 * workgroupCountX * workgroupCountY * workgroupCountZ;
 		cout << "Computing performance: " << double(numInstructions) / delta * 1e-12 << " TFLOPS." << endl;
 
 	// catch exceptions

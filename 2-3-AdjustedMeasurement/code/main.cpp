@@ -293,7 +293,7 @@ int main(int argc, char* argv[])
 			pd,  // physicalDevice
 			vk::DeviceCreateInfo{  // pCreateInfo
 				.flags = {},
-				.queueCreateInfoCount = 1,  // at least one queue is mandatory
+				.queueCreateInfoCount = 1,
 				.pQueueCreateInfos =
 					array{
 						vk::DeviceQueueCreateInfo{
@@ -396,9 +396,9 @@ int main(int argc, char* argv[])
 		        " Measurement        Number of         Computation     Performance\n"
 		        "  time stamp     local workgroups         time" << endl;
 
-		uint32_t groupCountX = 1;
-		uint32_t groupCountY = 1;
-		uint32_t groupCountZ = 1;
+		uint32_t workgroupCountX = 1;
+		uint32_t workgroupCountY = 1;
+		uint32_t workgroupCountZ = 1;
 		chrono::time_point startTime = chrono::high_resolution_clock::now();
 		do {
 
@@ -415,7 +415,7 @@ int main(int argc, char* argv[])
 			vk::cmdBindPipeline(commandBuffer, vk::PipelineBindPoint::eCompute, pipeline);
 
 			// dispatch computation
-			vk::cmdDispatch(commandBuffer, groupCountX, groupCountY, groupCountZ);
+			vk::cmdDispatch(commandBuffer, workgroupCountX, workgroupCountY, workgroupCountZ);
 
 			// end command buffer
 			vk::endCommandBuffer(commandBuffer);
@@ -459,10 +459,10 @@ int main(int argc, char* argv[])
 			// print results
 			double time = chrono::duration<double>(t2 - t1).count();
 			double totalTime = chrono::duration<double>(t2 - startTime).count();
-			uint64_t numInstructions = uint64_t(20000) * 128 * groupCountX * groupCountY * groupCountZ;
+			uint64_t numInstructions = uint64_t(20000) * 128 * workgroupCountX * workgroupCountY * workgroupCountZ;
 			cout << fixed << setprecision(2)
 			     << setw(9) << totalTime * 1000 << "ms       "
-			     << setw(9) << groupCountX * groupCountY * groupCountZ << "        "
+			     << setw(9) << workgroupCountX * workgroupCountY * workgroupCountZ << "        "
 			     << "     " << formatFloatSI(time) << "s   "
 			     << "    " << formatFloatSI(double(numInstructions) / time) << "FLOPS" << endl;
 
@@ -474,28 +474,28 @@ int main(int argc, char* argv[])
 			// to reach computation time of about 20ms
 			constexpr double targetTime = 0.02;
 			if(time < targetTime / 10.) {
-				if(groupCountX <= 1000)
-					groupCountX *= 10;
-				else if(groupCountY <= 1000)
-					groupCountY *= 10;
-				else if(groupCountZ <= 1000)
-					groupCountZ *= 10;
+				if(workgroupCountX <= 1000)
+					workgroupCountX *= 10;
+				else if(workgroupCountY <= 1000)
+					workgroupCountY *= 10;
+				else if(workgroupCountZ <= 1000)
+					workgroupCountZ *= 10;
 			}
 			else {
 				double ratio = targetTime / time;
-				uint64_t newNumGroups = uint64_t(ratio * (uint64_t(groupCountX) * groupCountY * groupCountZ));
+				uint64_t newNumGroups = uint64_t(ratio * (uint64_t(workgroupCountX) * workgroupCountY * workgroupCountZ));
 				if(newNumGroups > 10000 * 10000) {
-					groupCountZ = 1 + ((newNumGroups - 1) / (10000 * 10000));
-					uint64_t remainder = newNumGroups / groupCountZ;
-					groupCountY = 1 + ((remainder - 1) / 10000);
-					groupCountX = remainder / groupCountY;
+					workgroupCountZ = 1 + ((newNumGroups - 1) / (10000 * 10000));
+					uint64_t remainder = newNumGroups / workgroupCountZ;
+					workgroupCountY = 1 + ((remainder - 1) / 10000);
+					workgroupCountX = remainder / workgroupCountY;
 				}
 				else {
 					if(newNumGroups == 0)
 						newNumGroups = 1;
-					groupCountZ = 1;
-					groupCountY = 1 + ((newNumGroups - 1) / 10000);
-					groupCountX = newNumGroups / groupCountY;
+					workgroupCountZ = 1;
+					workgroupCountY = 1 + ((newNumGroups - 1) / 10000);
+					workgroupCountX = newNumGroups / workgroupCountY;
 				}
 			}
 

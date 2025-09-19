@@ -117,7 +117,7 @@ int main(int argc, char* argv[])
 			pd,  // physicalDevice
 			vk::DeviceCreateInfo{  // pCreateInfo
 				.flags = {},
-				.queueCreateInfoCount = 1,  // at least one queue is mandatory
+				.queueCreateInfoCount = 1,
 				.pQueueCreateInfos =
 					array{
 						vk::DeviceQueueCreateInfo{

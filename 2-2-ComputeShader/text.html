@@ -249,10 +249,10 @@ We will do it by the following code when recording command buffer:</p>
 vk::cmdBindPipeline(commandBuffer, vk::PipelineBindPoint::eCompute, pipeline);
 
 // dispatch computation
-constexpr const uint32_t groupCountX = 1000;
-constexpr const uint32_t groupCountY = 100;
-constexpr const uint32_t groupCountZ = 1;
-vk::cmdDispatch(commandBuffer, groupCountX, groupCountY, groupCountZ);
+constexpr const uint32_t workgroupCountX = 1000;
+constexpr const uint32_t workgroupCountY = 100;
+constexpr const uint32_t workgroupCountZ = 1;
+vk::cmdDispatch(commandBuffer, workgroupCountX, workgroupCountY, workgroupCountZ);
 </pre>
 
 <p>First, we bind our pipeline. It is bound to the compute binding point.
@@ -351,7 +351,7 @@ else
 // print results
 double delta = chrono::duration<double>(t2 - t1).count();
 cout &lt;&lt; "Computation time: " &lt;&lt; delta * 1e3 &lt;&lt; "ms." &lt;&lt; endl;
-constexpr uint64_t numInstructions = uint64_t(20000) * 128 * groupCountX * groupCountY * groupCountZ;
+constexpr uint64_t numInstructions = uint64_t(20000) * 128 * workgroupCountX * workgroupCountY * workgroupCountZ;
 cout &lt;&lt; "Computing performance: " &lt;&lt; double(numInstructions) / delta * 1e-12 &lt;&lt; " TFLOPS." &lt;&lt; endl;
 </pre>
 

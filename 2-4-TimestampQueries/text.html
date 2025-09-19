@@ -61,7 +61,7 @@ vk::cmdWriteTimestamp(
 	0);  // query
 
 // dispatch computation
-vk::cmdDispatch(commandBuffer, groupCountX, groupCountY, groupCountZ);
+vk::cmdDispatch(commandBuffer, workgroupCountX, workgroupCountY, workgroupCountZ);
 
 // write timestamp 1
 vk::cmdWriteTimestamp(
@@ -93,10 +93,10 @@ vk::getQueryPoolResults(
 // print results
 double time = float((timestamps[1] - timestamps[0]) & timestampValidBitMask) * timestampPeriod / 1e9;
 double totalTime = chrono::duration<double>(chrono::high_resolution_clock::now() - startTime).count();
-uint64_t numInstructions = uint64_t(20000) * 128 * groupCountX * groupCountY * groupCountZ;
+uint64_t numInstructions = uint64_t(20000) * 128 * workgroupCountX * workgroupCountY * workgroupCountZ;
 cout << fixed << setprecision(2)
      << setw(9) << totalTime * 1000 << "ms       "
-     << setw(9) << groupCountX * groupCountY * groupCountZ << "        "
+     << setw(9) << workgroupCountX * workgroupCountY * workgroupCountZ << "        "
      << "     " << formatFloatSI(time) << "s   "
      << "    " << formatFloatSI(double(numInstructions) / time) << "FLOPS" << endl;
 </pre>
