@@ -9,6 +9,7 @@ set(PACKAGES
     1-5-LogicalDevice
     2-1-CommandSubmission
     2-2-ComputeShader
+    2-3-PipelineCache
     2-3-AdjustedMeasurement
     2-4-TimestampQueries
     2-5-FloatPrecision
