@@ -10755,7 +10755,7 @@ typedef struct InstanceCreateInfo {
 
 typedef struct PhysicalDeviceVulkan11Properties {
 	StructureType            sType = StructureType::ePhysicalDeviceVulkan11Properties;
-	void*                    pNext = nullptr;
+	const void*              pNext = nullptr;
 	uint8_t                  deviceUUID[UuidSize];
 	uint8_t                  driverUUID[UuidSize];
 	uint8_t                  deviceLUID[LuidSize];
@@ -10782,7 +10782,7 @@ typedef struct ConformanceVersion {
 
 typedef struct PhysicalDeviceVulkan12Properties {
 	StructureType                      sType = StructureType::ePhysicalDeviceVulkan12Properties;
-	void*                              pNext = nullptr;
+	const void*                        pNext = nullptr;
 	DriverId                           driverID;
 	char                               driverName[MaxDriverNameSize];
 	char                               driverInfo[MaxDriverInfoSize];
@@ -10839,7 +10839,7 @@ typedef struct PhysicalDeviceVulkan12Properties {
 
 typedef struct PhysicalDeviceVulkan12Features {
 	StructureType    sType = StructureType::ePhysicalDeviceVulkan12Features;
-	void*            pNext = nullptr;
+	const void*      pNext = nullptr;
 	Bool32           samplerMirrorClampToEdge;
 	Bool32           drawIndirectCount;
 	Bool32           storageBuffer8BitAccess;
@@ -10887,7 +10887,29 @@ typedef struct PhysicalDeviceVulkan12Features {
 	Bool32           shaderOutputViewportIndex;
 	Bool32           shaderOutputLayer;
 	Bool32           subgroupBroadcastDynamicId;
+	constexpr PhysicalDeviceVulkan12Features& setPNext(const void* pNext_) noexcept  { pNext = pNext_; return *this; }
 } PhysicalDeviceVulkan12Features;
+
+typedef struct PhysicalDeviceVulkan13Features {
+	StructureType    sType = StructureType::ePhysicalDeviceVulkan13Features;
+	const void*      pNext = nullptr;
+	Bool32           robustImageAccess;
+	Bool32           inlineUniformBlock;
+	Bool32           descriptorBindingInlineUniformBlockUpdateAfterBind;
+	Bool32           pipelineCreationCacheControl;
+	Bool32           privateData;
+	Bool32           shaderDemoteToHelperInvocation;
+	Bool32           shaderTerminateInvocation;
+	Bool32           subgroupSizeControl;
+	Bool32           computeFullSubgroups;
+	Bool32           synchronization2;
+	Bool32           textureCompressionASTC_HDR;
+	Bool32           shaderZeroInitializeWorkgroupMemory;
+	Bool32           dynamicRendering;
+	Bool32           shaderIntegerDotProduct;
+	Bool32           maintenance4;
+	constexpr PhysicalDeviceVulkan13Features& setPNext(const void* pNext_) noexcept  { pNext = pNext_; return *this; }
+} PhysicalDeviceVulkan13Features;
 
 typedef struct DeviceQueueCreateInfo {
 	StructureType               sType = StructureType::eDeviceQueueCreateInfo;
@@ -13125,9 +13147,11 @@ inline Result getPhysicalDeviceQueueFamilyProperties2_noThrow(vector<QueueFamily
 
 inline Queue getDeviceQueue(uint32_t queueFamilyIndex, uint32_t queueIndex) noexcept  { Queue::HandleType h; funcs.vkGetDeviceQueue(detail::_device.handle(), queueFamilyIndex, queueIndex, &h); return h; }
 
-template<typename T> void processResult(Result r, T& handle, const char* functionName)  { if(r > Result::eSuccess) { destroy(handle); handle = nullptr; } if(r != Result::eSuccess) throwResultException(r, functionName); }
+namespace detail {
+	template<typename T> void processResult(Result r, T& handle, const char* functionName)  { if(r > Result::eSuccess) { destroy(handle); handle = nullptr; } if(r != Result::eSuccess) throwResultException(r, functionName); }
+}
 
-inline CommandPool createCommandPool_throw(const CommandPoolCreateInfo& createInfo)  { CommandPool::HandleType h; Result r = funcs.vkCreateCommandPool(detail::_device.handle(), &createInfo, nullptr, &h); processResult(r, h, "vkCreateCommandPool"); return h; }
+inline CommandPool createCommandPool_throw(const CommandPoolCreateInfo& createInfo)  { CommandPool::HandleType h; Result r = funcs.vkCreateCommandPool(detail::_device.handle(), &createInfo, nullptr, &h); detail::processResult(r, h, "vkCreateCommandPool"); return h; }
 inline Result createCommandPool_noThrow(const CommandPoolCreateInfo& createInfo, CommandPool& v) noexcept  { return funcs.vkCreateCommandPool(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<CommandPool::HandleType*>(&v)); }
 inline CommandPool createCommandPool(const CommandPoolCreateInfo& createInfo)  { return createCommandPool_throw(createInfo); }
 inline UniqueCommandPool createCommandPoolUnique_throw(const CommandPoolCreateInfo& createInfo)  { return UniqueCommandPool(createCommandPool_throw(createInfo)); }
@@ -13164,7 +13188,7 @@ inline void resetCommandBuffer_throw(CommandBuffer commandBuffer, CommandBufferR
 inline Result resetCommandBuffer_noThrow(CommandBuffer commandBuffer, CommandBufferResetFlags flags) noexcept  { return funcs.vkResetCommandBuffer(commandBuffer.handle(), flags); }
 inline void resetCommandBuffer(CommandBuffer commandBuffer, CommandBufferResetFlags flags)  { resetCommandBuffer_throw(commandBuffer, flags); }
 
-inline QueryPool createQueryPool_throw(const QueryPoolCreateInfo& createInfo)  { QueryPool::HandleType h; Result r = funcs.vkCreateQueryPool(detail::_device.handle(), &createInfo, nullptr, &h); processResult(r, h, "vkCreateQueryPool"); return h; }
+inline QueryPool createQueryPool_throw(const QueryPoolCreateInfo& createInfo)  { QueryPool::HandleType h; Result r = funcs.vkCreateQueryPool(detail::_device.handle(), &createInfo, nullptr, &h); detail::processResult(r, h, "vkCreateQueryPool"); return h; }
 inline Result createQueryPool_noThrow(const QueryPoolCreateInfo& createInfo, QueryPool& v) noexcept  { return funcs.vkCreateQueryPool(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<QueryPool::HandleType*>(&v)); }
 inline QueryPool createQueryPool(const QueryPoolCreateInfo& createInfo)  { return createQueryPool_throw(createInfo); }
 inline UniqueQueryPool createQueryPoolUnique_throw(const QueryPoolCreateInfo& createInfo)  { return UniqueQueryPool(createQueryPool_throw(createInfo)); }
@@ -13178,7 +13202,7 @@ inline void getQueryPoolResults_throw(QueryPool queryPool, uint32_t firstQuery, 
 inline Result getQueryPoolResults_noThrow(QueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, size_t dataSize, void* pData, DeviceSize stride, QueryResultFlags flags) noexcept  { return funcs.vkGetQueryPoolResults(detail::_device.handle(), queryPool.handle(), firstQuery, queryCount, dataSize, pData, stride, flags); }
 inline void getQueryPoolResults(QueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, size_t dataSize, void* pData, DeviceSize stride, QueryResultFlags flags)  { return getQueryPoolResults_throw(queryPool, firstQuery, queryCount, dataSize, pData, stride, flags); }
 
-inline Fence createFence_throw(const FenceCreateInfo& createInfo)  { Fence::HandleType h; Result r = funcs.vkCreateFence(detail::_device.handle(), &createInfo, nullptr, &h); processResult(r, h, "vkCreateFence"); return h; }
+inline Fence createFence_throw(const FenceCreateInfo& createInfo)  { Fence::HandleType h; Result r = funcs.vkCreateFence(detail::_device.handle(), &createInfo, nullptr, &h); detail::processResult(r, h, "vkCreateFence"); return h; }
 inline Result createFence_noThrow(const FenceCreateInfo& createInfo, Fence& fence) noexcept  { return funcs.vkCreateFence(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<Fence::HandleType*>(&fence)); }
 inline Fence createFence(const FenceCreateInfo& createInfo)  { return createFence_throw(createInfo); }
 inline UniqueFence createFenceUnique_throw(const FenceCreateInfo& createInfo)  { return UniqueFence(createFence_throw(createInfo)); }
@@ -13230,7 +13254,7 @@ inline void deviceWaitIdle_throw()  { deviceWaitIdle_throw(device()); }
 inline Result deviceWaitIdle_noThrow() noexcept { return deviceWaitIdle_noThrow(device()); }
 inline void deviceWaitIdle()  { deviceWaitIdle(device()); }
 
-inline ShaderModule createShaderModule_throw(const ShaderModuleCreateInfo& createInfo)  { ShaderModule::HandleType h; Result r = funcs.vkCreateShaderModule(detail::_device.handle(), &createInfo, nullptr, &h); processResult(r, h, "vkCreateShaderModule"); return h; }
+inline ShaderModule createShaderModule_throw(const ShaderModuleCreateInfo& createInfo)  { ShaderModule::HandleType h; Result r = funcs.vkCreateShaderModule(detail::_device.handle(), &createInfo, nullptr, &h); detail::processResult(r, h, "vkCreateShaderModule"); return h; }
 inline Result createShaderModule_noThrow(const ShaderModuleCreateInfo& createInfo, ShaderModule& shaderModule) noexcept  { return funcs.vkCreateShaderModule(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<ShaderModule::HandleType*>(&shaderModule)); }
 inline ShaderModule createShaderModule(const ShaderModuleCreateInfo& createInfo)  { return createShaderModule_throw(createInfo); }
 inline UniqueShaderModule createShaderModuleUnique_throw(const ShaderModuleCreateInfo& createInfo)  { return UniqueShaderModule(createShaderModule_throw(createInfo)); }
@@ -13240,7 +13264,7 @@ inline UniqueShaderModule createShaderModuleUnique(const ShaderModuleCreateInfo&
 inline void destroyShaderModule(ShaderModule shaderModule) noexcept  { funcs.vkDestroyShaderModule(detail::_device.handle(), shaderModule.handle(), nullptr); }
 inline void destroy(ShaderModule shaderModule) noexcept  { funcs.vkDestroyShaderModule(detail::_device.handle(), shaderModule.handle(), nullptr); }
 
-inline PipelineLayout createPipelineLayout_throw(const vk::PipelineLayoutCreateInfo& createInfo)  { PipelineLayout::HandleType h; Result r = funcs.vkCreatePipelineLayout(detail::_device.handle(), &createInfo, nullptr, &h); processResult(r, h, "vkCreatePipelineLayout"); return h; }
+inline PipelineLayout createPipelineLayout_throw(const vk::PipelineLayoutCreateInfo& createInfo)  { PipelineLayout::HandleType h; Result r = funcs.vkCreatePipelineLayout(detail::_device.handle(), &createInfo, nullptr, &h); detail::processResult(r, h, "vkCreatePipelineLayout"); return h; }
 inline Result createPipelineLayout_noThrow(const vk::PipelineLayoutCreateInfo& createInfo, PipelineLayout& pipelineLayout) noexcept  { return funcs.vkCreatePipelineLayout(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<PipelineLayout::HandleType*>(&pipelineLayout)); }
 inline PipelineLayout createPipelineLayout(const vk::PipelineLayoutCreateInfo& createInfo)  { return createPipelineLayout_throw(createInfo); }
 inline UniquePipelineLayout createPipelineLayoutUnique_throw(const vk::PipelineLayoutCreateInfo& createInfo)  { return UniquePipelineLayout(createPipelineLayout_throw(createInfo)); }
@@ -13250,7 +13274,7 @@ inline UniquePipelineLayout createPipelineLayoutUnique(const vk::PipelineLayoutC
 inline void destroyPipelineLayout(PipelineLayout pipelineLayout) noexcept  { funcs.vkDestroyPipelineLayout(detail::_device.handle(), pipelineLayout.handle(), nullptr); }
 inline void destroy(PipelineLayout pipelineLayout) noexcept  { funcs.vkDestroyPipelineLayout(detail::_device.handle(), pipelineLayout.handle(), nullptr); }
 
-inline Pipeline createComputePipeline_throw(PipelineCache pipelineCache, const ComputePipelineCreateInfo& createInfo)  { Pipeline::HandleType h; Result r = funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), 1, &createInfo, nullptr, &h); processResult(r, h, "vkCreateComputePipelines"); return h; }
+inline Pipeline createComputePipeline_throw(PipelineCache pipelineCache, const ComputePipelineCreateInfo& createInfo)  { Pipeline::HandleType h; Result r = funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), 1, &createInfo, nullptr, &h); detail::processResult(r, h, "vkCreateComputePipelines"); return h; }
 inline Result createComputePipeline_noThrow(PipelineCache pipelineCache, const ComputePipelineCreateInfo& createInfo, Pipeline& pipeline) noexcept  { return funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), 1, &createInfo, nullptr, reinterpret_cast<Pipeline::HandleType*>(&pipeline)); }
 inline Pipeline createComputePipeline(PipelineCache pipelineCache, const ComputePipelineCreateInfo& createInfo)  { return createComputePipeline_throw(pipelineCache, createInfo); }
 inline UniquePipeline createComputePipelineUnique_throw(PipelineCache pipelineCache, const ComputePipelineCreateInfo& createInfo)  { return UniquePipeline(createComputePipeline_throw(pipelineCache, createInfo)); }
@@ -13261,7 +13285,7 @@ inline vector<Pipeline> createComputePipelines_throw(PipelineCache pipelineCache
 inline Result createComputePipelines_noThrow(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos, vector<Pipeline>& pipelineList) noexcept  { if(!pipelineList.alloc_noThrow(createInfoCount)) return vk::Result::eErrorOutOfHostMemory; return funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), createInfoCount, pCreateInfos, nullptr, reinterpret_cast<Pipeline::HandleType*>(pipelineList.data())); }
 inline vector<Pipeline> createComputePipelines(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos)  { return createComputePipelines_throw(pipelineCache, createInfoCount, pCreateInfos); }
 inline vector<UniquePipeline> createComputePipelinesUnique_throw(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos)  { vector<UniquePipeline> l; if(!l.alloc_noThrow(createInfoCount)) throw OutOfHostMemoryError("createComputePipelinesUnique_throw(): Out of host memory."); Result r = funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), createInfoCount, pCreateInfos, nullptr, reinterpret_cast<Pipeline::HandleType*>(l.data())); if(r != Result::eSuccess) throwResultException(r, "vkCreateComputePipelines"); return l; }
-inline Result createComputePipelinesUnique_noThrow(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos, vector<UniquePipeline> pipelineList) noexcept  { if(!pipelineList.alloc_noThrow(createInfoCount)) return vk::Result::eErrorOutOfHostMemory; return funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), createInfoCount, pCreateInfos, nullptr, reinterpret_cast<Pipeline::HandleType*>(pipelineList.data())); }
+inline Result createComputePipelinesUnique_noThrow(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos, vector<UniquePipeline>& pipelineList) noexcept  { if(!pipelineList.alloc_noThrow(createInfoCount)) return vk::Result::eErrorOutOfHostMemory; return funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), createInfoCount, pCreateInfos, nullptr, reinterpret_cast<Pipeline::HandleType*>(pipelineList.data())); }
 inline vector<UniquePipeline> createComputePipelinesUnique(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos)  { return createComputePipelinesUnique_throw(pipelineCache, createInfoCount, pCreateInfos); }
 
 inline void createComputePipelines_throw(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos, Pipeline* pPipelines)  { Result r = funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), createInfoCount, pCreateInfos, nullptr, reinterpret_cast<Pipeline::HandleType*>(pPipelines)); if(r != Result::eSuccess) throwResultException(r, "vkCreateComputePipelines"); }

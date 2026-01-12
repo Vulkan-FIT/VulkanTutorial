@@ -1049,6 +1049,41 @@ const char* vk::to_cstr(PhysicalDeviceType v)
 }
 
 
+const char* vk::to_cstr(DriverId v)
+{
+	switch(v) {
+	case DriverId::eAmdProprietary: return "AmdProprietary";
+	case DriverId::eAmdOpenSource: return "AmdOpenSource";
+	case DriverId::eMesaRadv: return "MesaRadv";
+	case DriverId::eNvidiaProprietary: return "NvidiaProprietary";
+	case DriverId::eIntelProprietaryWindows: return "IntelProprietaryWindows";
+	case DriverId::eIntelOpenSourceMESA: return "IntelOpenSourceMESA";
+	case DriverId::eImaginationProprietary: return "ImaginationProprietary";
+	case DriverId::eQualcommProprietary: return "QualcommProprietary";
+	case DriverId::eArmProprietary: return "ArmProprietary";
+	case DriverId::eGoogleSwiftshader: return "GoogleSwiftshader";
+	case DriverId::eGgpProprietary: return "GgpProprietary";
+	case DriverId::eBroadcomProprietary: return "BroadcomProprietary";
+	case DriverId::eMesaLlvmpipe: return "MesaLlvmpipe";
+	case DriverId::eMoltenvk: return "Moltenvk";
+	case DriverId::eCoreaviProprietary: return "CoreaviProprietary";
+	case DriverId::eJuiceProprietary: return "JuiceProprietary";
+	case DriverId::eVerisiliconProprietary: return "VerisiliconProprietary";
+	case DriverId::eMesaTurnip: return "MesaTurnip";
+	case DriverId::eMesaV3Dv: return "MesaV3Dv";
+	case DriverId::eMesaPanvk: return "MesaPanvk";
+	case DriverId::eSamsungProprietary: return "SamsungProprietary";
+	case DriverId::eMesaVenus: return "MesaVenus";
+	case DriverId::eMesaDozen: return "MesaDozen";
+	case DriverId::eMesaNvk: return "MesaNvk";
+	case DriverId::eImaginationOpenSourceMESA: return "ImaginationOpenSourceMESA";
+	case DriverId::eMesaHoneykrisp: return "MesaHoneykrisp";
+	case DriverId::eVulkanScEmulationOnVulkan: return "VulkanScEmulationOnVulkan";
+	default: return "Unknown";
+	}
+}
+
+
 vk::string_view vk::to_string_view(vk::PhysicalDeviceType v)
 {
 	switch(v) {

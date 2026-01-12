@@ -10755,7 +10755,7 @@ typedef struct InstanceCreateInfo {
 
 typedef struct PhysicalDeviceVulkan11Properties {
 	StructureType            sType = StructureType::ePhysicalDeviceVulkan11Properties;
-	void*                    pNext = nullptr;
+	const void*              pNext = nullptr;
 	uint8_t                  deviceUUID[UuidSize];
 	uint8_t                  driverUUID[UuidSize];
 	uint8_t                  deviceLUID[LuidSize];
@@ -10782,7 +10782,7 @@ typedef struct ConformanceVersion {
 
 typedef struct PhysicalDeviceVulkan12Properties {
 	StructureType                      sType = StructureType::ePhysicalDeviceVulkan12Properties;
-	void*                              pNext = nullptr;
+	const void*                        pNext = nullptr;
 	DriverId                           driverID;
 	char                               driverName[MaxDriverNameSize];
 	char                               driverInfo[MaxDriverInfoSize];
@@ -10839,7 +10839,7 @@ typedef struct PhysicalDeviceVulkan12Properties {
 
 typedef struct PhysicalDeviceVulkan12Features {
 	StructureType    sType = StructureType::ePhysicalDeviceVulkan12Features;
-	void*            pNext = nullptr;
+	const void*      pNext = nullptr;
 	Bool32           samplerMirrorClampToEdge;
 	Bool32           drawIndirectCount;
 	Bool32           storageBuffer8BitAccess;
@@ -10887,7 +10887,29 @@ typedef struct PhysicalDeviceVulkan12Features {
 	Bool32           shaderOutputViewportIndex;
 	Bool32           shaderOutputLayer;
 	Bool32           subgroupBroadcastDynamicId;
+	constexpr PhysicalDeviceVulkan12Features& setPNext(const void* pNext_) noexcept  { pNext = pNext_; return *this; }
 } PhysicalDeviceVulkan12Features;
+
+typedef struct PhysicalDeviceVulkan13Features {
+	StructureType    sType = StructureType::ePhysicalDeviceVulkan13Features;
+	const void*      pNext = nullptr;
+	Bool32           robustImageAccess;
+	Bool32           inlineUniformBlock;
+	Bool32           descriptorBindingInlineUniformBlockUpdateAfterBind;
+	Bool32           pipelineCreationCacheControl;
+	Bool32           privateData;
+	Bool32           shaderDemoteToHelperInvocation;
+	Bool32           shaderTerminateInvocation;
+	Bool32           subgroupSizeControl;
+	Bool32           computeFullSubgroups;
+	Bool32           synchronization2;
+	Bool32           textureCompressionASTC_HDR;
+	Bool32           shaderZeroInitializeWorkgroupMemory;
+	Bool32           dynamicRendering;
+	Bool32           shaderIntegerDotProduct;
+	Bool32           maintenance4;
+	constexpr PhysicalDeviceVulkan13Features& setPNext(const void* pNext_) noexcept  { pNext = pNext_; return *this; }
+} PhysicalDeviceVulkan13Features;
 
 typedef struct DeviceQueueCreateInfo {
 	StructureType               sType = StructureType::eDeviceQueueCreateInfo;
@@ -12519,6 +12541,38 @@ public:
 #endif
 
 
+// iterator class
+template<typename Type>
+class iterator {
+public:
+	using pointer = Type*;
+	using reference = Type&;
+protected:
+	pointer _p;
+public:
+	iterator() : _p(nullptr) {}
+	iterator(pointer p) : _p(p) {}
+	iterator(reference r) : _p(&r) {}
+	pointer operator->() const  { return _p; }
+	reference operator*()  { return *_p; }
+	reference operator[](std::ptrdiff_t index) const  { return *(_p+index); }
+	iterator& operator++()  { _p++; return *this; }
+	iterator& operator--()  { _p--; return *this; }
+	iterator  operator++(int)  { iterator it(*this); _p++; return it; }
+	iterator  operator--(int)  { iterator it(*this); _p--; return it; }
+	iterator& operator+=(std::ptrdiff_t n)  { _p += n; return *this; }
+	iterator& operator-=(std::ptrdiff_t n)  { _p -= n; return *this; }
+	iterator operator+(std::ptrdiff_t n) const  { return iterator(_p + n); }
+	iterator operator-(std::ptrdiff_t n) const  { return iterator(_p - n); }
+	std::ptrdiff_t operator-(iterator rhs) const  { return _p - rhs._p; }
+	bool operator<(const iterator rhs) const  { return _p < rhs._p; }
+	bool operator>(const iterator rhs) const  { return _p > rhs._p; }
+	bool operator<=(const iterator rhs) const  { return _p <= rhs._p; }
+	bool operator>=(const iterator rhs) const  { return _p >= rhs._p; }
+	bool operator==(const iterator rhs) const  { return _p == rhs._p; }
+	bool operator!=(const iterator rhs) const  { return _p != rhs._p; }
+};
+
 // vector class
 // author: PCJohn (peciva at fit.vut.cz)
 template<typename Type>
@@ -12527,6 +12581,12 @@ protected:
 	Type* _data;
 	size_t _size;
 public:
+	using value_type = Type;
+	using reference = Type&;
+	using const_reference = const Type&;
+	using iterator = vk::iterator<Type>;
+	using const_iterator = vk::iterator<Type>;
+
 	vector() noexcept : _data(nullptr), _size(0)  {}
 	vector(size_t size) : _data(new Type[size]), _size(size)  {}
 	vector(Type* data, size_t size) noexcept : _data(data), _size(size)  {}
@@ -12545,10 +12605,17 @@ public:
 	bool empty() const  { return _size == 0; }
 
 	void clear() noexcept  { if(_data == nullptr) return; delete[] _data; _data = nullptr; _size = 0; }
-	void alloc(size_t size)  { delete[] _data; _data = nullptr; _size = 0; if(size) { _data = new Type[size]; _size = size; } }
-	bool alloc_noThrow(size_t size) noexcept  { delete[] _data; if(size == 0) { _data = nullptr; _size = 0; return true; } _data = new(std::nothrow) Type[size]; if(!_data) { _size = 0; return false; } _size = size; return true; }
+	void alloc(size_t size)  { if(size != _size) { delete[] _data; _data = nullptr; _size = 0; if(size) { _data = new Type[size]; _size = size; } } else { for(size_t i=0; i<_size; i++) { _data[i].~Type(); new(&_data[i]) Type; } } }
+	bool alloc_noThrow(size_t size) noexcept  { if(size != _size) { delete[] _data; if(size == 0) { _data = nullptr; _size = 0; return true; } _data = new(std::nothrow) Type[size]; if(!_data) { _size = 0; return false; } _size = size; return true; } else { for(size_t i=0; i<_size; i++) { _data[i].~Type(); new(&_data[i]) Type; } return true; } }
 	void resize(size_t newSize);
 	bool resize_noThrow(size_t newSize) noexcept;
+
+	iterator begin() noexcept  { return iterator(_data); }
+	iterator end() noexcept  { return iterator(_data + _size); }
+	const_iterator begin() const noexcept  { return const_iterator(_data); }
+	const_iterator end() const noexcept  { return const_iterator(_data + _size); }
+	const_iterator cbegin() const noexcept  { return const_iterator(_data); }
+	const_iterator cend() const noexcept  { return const_iterator(_data + _size); }
 };
 
 
@@ -12773,6 +12840,7 @@ public:
 // conversions
 // author: PCJohn (peciva at fit.vut.cz)
 const char* to_cstr(PhysicalDeviceType v);
+const char* to_cstr(DriverId v);
 string_view to_string_view(PhysicalDeviceType v);
 
 // resultToString() returns Span that contains pointer to const char array
@@ -13079,9 +13147,11 @@ inline Result getPhysicalDeviceQueueFamilyProperties2_noThrow(vector<QueueFamily
 
 inline Queue getDeviceQueue(uint32_t queueFamilyIndex, uint32_t queueIndex) noexcept  { Queue::HandleType h; funcs.vkGetDeviceQueue(detail::_device.handle(), queueFamilyIndex, queueIndex, &h); return h; }
 
-template<typename T> void processResult(Result r, T& handle, const char* functionName)  { if(r > Result::eSuccess) { destroy(handle); handle = nullptr; } if(r != Result::eSuccess) throwResultException(r, functionName); }
+namespace detail {
+	template<typename T> void processResult(Result r, T& handle, const char* functionName)  { if(r > Result::eSuccess) { destroy(handle); handle = nullptr; } if(r != Result::eSuccess) throwResultException(r, functionName); }
+}
 
-inline CommandPool createCommandPool_throw(const CommandPoolCreateInfo& createInfo)  { CommandPool::HandleType h; Result r = funcs.vkCreateCommandPool(detail::_device.handle(), &createInfo, nullptr, &h); processResult(r, h, "vkCreateCommandPool"); return h; }
+inline CommandPool createCommandPool_throw(const CommandPoolCreateInfo& createInfo)  { CommandPool::HandleType h; Result r = funcs.vkCreateCommandPool(detail::_device.handle(), &createInfo, nullptr, &h); detail::processResult(r, h, "vkCreateCommandPool"); return h; }
 inline Result createCommandPool_noThrow(const CommandPoolCreateInfo& createInfo, CommandPool& v) noexcept  { return funcs.vkCreateCommandPool(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<CommandPool::HandleType*>(&v)); }
 inline CommandPool createCommandPool(const CommandPoolCreateInfo& createInfo)  { return createCommandPool_throw(createInfo); }
 inline UniqueCommandPool createCommandPoolUnique_throw(const CommandPoolCreateInfo& createInfo)  { return UniqueCommandPool(createCommandPool_throw(createInfo)); }
@@ -13098,9 +13168,12 @@ inline void resetCommandPool(CommandPool commandPool, CommandPoolResetFlags flag
 inline CommandBuffer allocateCommandBuffer_throw(const CommandBufferAllocateInfo& allocateInfo)  { if(allocateInfo.commandBufferCount != 1) throw OutOfHostMemoryError("vk::allocateCommandBuffer_throw(const CommandBufferAllocateInfo&): CommandBufferAllocateInfo::commandBufferCount must be 1."); CommandBuffer::HandleType h; Result r = funcs.vkAllocateCommandBuffers(detail::_device.handle(), &allocateInfo, &h); if(r > Result::eSuccess) funcs.vkFreeCommandBuffers(detail::_device.handle(), allocateInfo.commandPool.handle(), 1, &h); checkForSuccessValue(r, "vkAllocateCommandBuffers"); return h; }
 inline Result allocateCommandBuffer_noThrow(const CommandBufferAllocateInfo& allocateInfo, CommandBuffer& commandBuffer) noexcept  { return funcs.vkAllocateCommandBuffers(detail::_device.handle(), &allocateInfo, reinterpret_cast<CommandBuffer::HandleType*>(&commandBuffer)); }
 inline CommandBuffer allocateCommandBuffer(const CommandBufferAllocateInfo& allocateInfo)  { return allocateCommandBuffer_throw(allocateInfo); }
-inline vector<CommandBuffer> allocateCommandBuffers_throw(const CommandBufferAllocateInfo& allocateInfo)  { vector<CommandBuffer> l; if(!l.alloc_noThrow(allocateInfo.commandBufferCount)) throw OutOfHostMemoryError("allocateCommandBuffers_throw(): Out of host memory."); Result r = funcs.vkAllocateCommandBuffers(detail::_device.handle(), &allocateInfo, reinterpret_cast<CommandBuffer::HandleType*>(l.data())); if(r > Result::eSuccess) funcs.vkFreeCommandBuffers(detail::_device.handle(), allocateInfo.commandPool.handle(), 1, reinterpret_cast<CommandBuffer::HandleType*>(l.data())); checkForSuccessValue(r, "vkAllocateCommandBuffers"); return l; }
+inline vector<CommandBuffer> allocateCommandBuffers_throw(const CommandBufferAllocateInfo& allocateInfo)  { vector<CommandBuffer> l; if(!l.alloc_noThrow(allocateInfo.commandBufferCount)) throw OutOfHostMemoryError("allocateCommandBuffers_throw(): Out of host memory."); Result r = funcs.vkAllocateCommandBuffers(detail::_device.handle(), &allocateInfo, reinterpret_cast<CommandBuffer::HandleType*>(l.data())); if(r > Result::eSuccess) { funcs.vkFreeCommandBuffers(detail::_device.handle(), allocateInfo.commandPool.handle(), allocateInfo.commandBufferCount, reinterpret_cast<CommandBuffer::HandleType*>(l.data())); memset(l.data(), 0, allocateInfo.commandBufferCount*sizeof(CommandBuffer::HandleType)); } checkForSuccessValue(r, "vkAllocateCommandBuffers"); return l; }
 inline Result allocateCommandBuffers_noThrow(const CommandBufferAllocateInfo& allocateInfo, vector<CommandBuffer>& commandBufferList) noexcept  { if(!commandBufferList.alloc_noThrow(allocateInfo.commandBufferCount)) return vk::Result::eErrorOutOfHostMemory; return funcs.vkAllocateCommandBuffers(detail::_device.handle(), &allocateInfo, reinterpret_cast<CommandBuffer::HandleType*>(commandBufferList.data())); }
 inline vector<CommandBuffer> allocateCommandBuffers(const CommandBufferAllocateInfo& allocateInfo)  { return allocateCommandBuffers_throw(allocateInfo); }
+inline void allocateCommandBuffers_throw(const CommandBufferAllocateInfo& allocateInfo, CommandBuffer* pCommandBuffers)  { Result r = funcs.vkAllocateCommandBuffers(detail::_device.handle(), &allocateInfo, reinterpret_cast<CommandBuffer::HandleType*>(pCommandBuffers)); if(r > Result::eSuccess) { funcs.vkFreeCommandBuffers(detail::_device.handle(), allocateInfo.commandPool.handle(), allocateInfo.commandBufferCount, reinterpret_cast<CommandBuffer::HandleType*>(pCommandBuffers)); memset(pCommandBuffers, 0, allocateInfo.commandBufferCount*sizeof(CommandBuffer::HandleType)); } checkForSuccessValue(r, "vkAllocateCommandBuffers"); }
+inline Result allocateCommandBuffers_noThrow(const CommandBufferAllocateInfo& allocateInfo, CommandBuffer* pCommandBuffers) noexcept  { return funcs.vkAllocateCommandBuffers(detail::_device.handle(), &allocateInfo, reinterpret_cast<CommandBuffer::HandleType*>(pCommandBuffers)); }
+inline void allocateCommandBuffers(const CommandBufferAllocateInfo& allocateInfo, CommandBuffer* pCommandBuffers)  { allocateCommandBuffers_throw(allocateInfo, pCommandBuffers); }
 
 inline void freeCommandBuffer(CommandPool commandPool, const CommandBuffer commandBuffer) noexcept  { funcs.vkFreeCommandBuffers(detail::_device.handle(), commandPool.handle(), 1, reinterpret_cast<const CommandBuffer::HandleType*>(&commandBuffer)); }
 inline void free(CommandPool commandPool, const CommandBuffer commandBuffer) noexcept  { funcs.vkFreeCommandBuffers(detail::_device.handle(), commandPool.handle(), 1, reinterpret_cast<const CommandBuffer::HandleType*>(&commandBuffer)); }
@@ -13115,7 +13188,7 @@ inline void resetCommandBuffer_throw(CommandBuffer commandBuffer, CommandBufferR
 inline Result resetCommandBuffer_noThrow(CommandBuffer commandBuffer, CommandBufferResetFlags flags) noexcept  { return funcs.vkResetCommandBuffer(commandBuffer.handle(), flags); }
 inline void resetCommandBuffer(CommandBuffer commandBuffer, CommandBufferResetFlags flags)  { resetCommandBuffer_throw(commandBuffer, flags); }
 
-inline QueryPool createQueryPool_throw(const QueryPoolCreateInfo& createInfo)  { QueryPool::HandleType h; Result r = funcs.vkCreateQueryPool(detail::_device.handle(), &createInfo, nullptr, &h); processResult(r, h, "vkCreateQueryPool"); return h; }
+inline QueryPool createQueryPool_throw(const QueryPoolCreateInfo& createInfo)  { QueryPool::HandleType h; Result r = funcs.vkCreateQueryPool(detail::_device.handle(), &createInfo, nullptr, &h); detail::processResult(r, h, "vkCreateQueryPool"); return h; }
 inline Result createQueryPool_noThrow(const QueryPoolCreateInfo& createInfo, QueryPool& v) noexcept  { return funcs.vkCreateQueryPool(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<QueryPool::HandleType*>(&v)); }
 inline QueryPool createQueryPool(const QueryPoolCreateInfo& createInfo)  { return createQueryPool_throw(createInfo); }
 inline UniqueQueryPool createQueryPoolUnique_throw(const QueryPoolCreateInfo& createInfo)  { return UniqueQueryPool(createQueryPool_throw(createInfo)); }
@@ -13129,7 +13202,7 @@ inline void getQueryPoolResults_throw(QueryPool queryPool, uint32_t firstQuery, 
 inline Result getQueryPoolResults_noThrow(QueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, size_t dataSize, void* pData, DeviceSize stride, QueryResultFlags flags) noexcept  { return funcs.vkGetQueryPoolResults(detail::_device.handle(), queryPool.handle(), firstQuery, queryCount, dataSize, pData, stride, flags); }
 inline void getQueryPoolResults(QueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, size_t dataSize, void* pData, DeviceSize stride, QueryResultFlags flags)  { return getQueryPoolResults_throw(queryPool, firstQuery, queryCount, dataSize, pData, stride, flags); }
 
-inline Fence createFence_throw(const FenceCreateInfo& createInfo)  { Fence::HandleType h; Result r = funcs.vkCreateFence(detail::_device.handle(), &createInfo, nullptr, &h); processResult(r, h, "vkCreateFence"); return h; }
+inline Fence createFence_throw(const FenceCreateInfo& createInfo)  { Fence::HandleType h; Result r = funcs.vkCreateFence(detail::_device.handle(), &createInfo, nullptr, &h); detail::processResult(r, h, "vkCreateFence"); return h; }
 inline Result createFence_noThrow(const FenceCreateInfo& createInfo, Fence& fence) noexcept  { return funcs.vkCreateFence(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<Fence::HandleType*>(&fence)); }
 inline Fence createFence(const FenceCreateInfo& createInfo)  { return createFence_throw(createInfo); }
 inline UniqueFence createFenceUnique_throw(const FenceCreateInfo& createInfo)  { return UniqueFence(createFence_throw(createInfo)); }
@@ -13181,7 +13254,7 @@ inline void deviceWaitIdle_throw()  { deviceWaitIdle_throw(device()); }
 inline Result deviceWaitIdle_noThrow() noexcept { return deviceWaitIdle_noThrow(device()); }
 inline void deviceWaitIdle()  { deviceWaitIdle(device()); }
 
-inline ShaderModule createShaderModule_throw(const ShaderModuleCreateInfo& createInfo)  { ShaderModule::HandleType h; Result r = funcs.vkCreateShaderModule(detail::_device.handle(), &createInfo, nullptr, &h); processResult(r, h, "vkCreateShaderModule"); return h; }
+inline ShaderModule createShaderModule_throw(const ShaderModuleCreateInfo& createInfo)  { ShaderModule::HandleType h; Result r = funcs.vkCreateShaderModule(detail::_device.handle(), &createInfo, nullptr, &h); detail::processResult(r, h, "vkCreateShaderModule"); return h; }
 inline Result createShaderModule_noThrow(const ShaderModuleCreateInfo& createInfo, ShaderModule& shaderModule) noexcept  { return funcs.vkCreateShaderModule(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<ShaderModule::HandleType*>(&shaderModule)); }
 inline ShaderModule createShaderModule(const ShaderModuleCreateInfo& createInfo)  { return createShaderModule_throw(createInfo); }
 inline UniqueShaderModule createShaderModuleUnique_throw(const ShaderModuleCreateInfo& createInfo)  { return UniqueShaderModule(createShaderModule_throw(createInfo)); }
@@ -13191,7 +13264,7 @@ inline UniqueShaderModule createShaderModuleUnique(const ShaderModuleCreateInfo&
 inline void destroyShaderModule(ShaderModule shaderModule) noexcept  { funcs.vkDestroyShaderModule(detail::_device.handle(), shaderModule.handle(), nullptr); }
 inline void destroy(ShaderModule shaderModule) noexcept  { funcs.vkDestroyShaderModule(detail::_device.handle(), shaderModule.handle(), nullptr); }
 
-inline PipelineLayout createPipelineLayout_throw(const vk::PipelineLayoutCreateInfo& createInfo)  { PipelineLayout::HandleType h; Result r = funcs.vkCreatePipelineLayout(detail::_device.handle(), &createInfo, nullptr, &h); processResult(r, h, "vkCreatePipelineLayout"); return h; }
+inline PipelineLayout createPipelineLayout_throw(const vk::PipelineLayoutCreateInfo& createInfo)  { PipelineLayout::HandleType h; Result r = funcs.vkCreatePipelineLayout(detail::_device.handle(), &createInfo, nullptr, &h); detail::processResult(r, h, "vkCreatePipelineLayout"); return h; }
 inline Result createPipelineLayout_noThrow(const vk::PipelineLayoutCreateInfo& createInfo, PipelineLayout& pipelineLayout) noexcept  { return funcs.vkCreatePipelineLayout(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<PipelineLayout::HandleType*>(&pipelineLayout)); }
 inline PipelineLayout createPipelineLayout(const vk::PipelineLayoutCreateInfo& createInfo)  { return createPipelineLayout_throw(createInfo); }
 inline UniquePipelineLayout createPipelineLayoutUnique_throw(const vk::PipelineLayoutCreateInfo& createInfo)  { return UniquePipelineLayout(createPipelineLayout_throw(createInfo)); }
@@ -13201,7 +13274,7 @@ inline UniquePipelineLayout createPipelineLayoutUnique(const vk::PipelineLayoutC
 inline void destroyPipelineLayout(PipelineLayout pipelineLayout) noexcept  { funcs.vkDestroyPipelineLayout(detail::_device.handle(), pipelineLayout.handle(), nullptr); }
 inline void destroy(PipelineLayout pipelineLayout) noexcept  { funcs.vkDestroyPipelineLayout(detail::_device.handle(), pipelineLayout.handle(), nullptr); }
 
-inline Pipeline createComputePipeline_throw(PipelineCache pipelineCache, const ComputePipelineCreateInfo& createInfo)  { Pipeline::HandleType h; Result r = funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), 1, &createInfo, nullptr, &h); processResult(r, h, "vkCreateComputePipelines"); return h; }
+inline Pipeline createComputePipeline_throw(PipelineCache pipelineCache, const ComputePipelineCreateInfo& createInfo)  { Pipeline::HandleType h; Result r = funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), 1, &createInfo, nullptr, &h); detail::processResult(r, h, "vkCreateComputePipelines"); return h; }
 inline Result createComputePipeline_noThrow(PipelineCache pipelineCache, const ComputePipelineCreateInfo& createInfo, Pipeline& pipeline) noexcept  { return funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), 1, &createInfo, nullptr, reinterpret_cast<Pipeline::HandleType*>(&pipeline)); }
 inline Pipeline createComputePipeline(PipelineCache pipelineCache, const ComputePipelineCreateInfo& createInfo)  { return createComputePipeline_throw(pipelineCache, createInfo); }
 inline UniquePipeline createComputePipelineUnique_throw(PipelineCache pipelineCache, const ComputePipelineCreateInfo& createInfo)  { return UniquePipeline(createComputePipeline_throw(pipelineCache, createInfo)); }
@@ -13209,11 +13282,18 @@ inline Result createComputePipelineUnique_noThrow(PipelineCache pipelineCache, c
 inline UniquePipeline createComputePipelineUnique(PipelineCache pipelineCache, const ComputePipelineCreateInfo& createInfo)  { return createComputePipelineUnique_throw(pipelineCache, createInfo); }
 
 inline vector<Pipeline> createComputePipelines_throw(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos)  { vector<Pipeline> l; if(!l.alloc_noThrow(createInfoCount)) throw OutOfHostMemoryError("createComputePipelines_throw(): Out of host memory."); Result r = funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), createInfoCount, pCreateInfos, nullptr, reinterpret_cast<Pipeline::HandleType*>(l.data())); if(r != Result::eSuccess) { for(size_t i=0; i<createInfoCount; i++) funcs.vkDestroyPipeline(detail::_device.handle(), l[i].handle(), nullptr); throwResultException(r, "vkCreateComputePipelines"); } return l; }
-inline Result createComputePipelines_noThrow(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos, Pipeline* pPipelines) noexcept  { return funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), createInfoCount, pCreateInfos, nullptr, reinterpret_cast<Pipeline::HandleType*>(pPipelines)); }
+inline Result createComputePipelines_noThrow(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos, vector<Pipeline>& pipelineList) noexcept  { if(!pipelineList.alloc_noThrow(createInfoCount)) return vk::Result::eErrorOutOfHostMemory; return funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), createInfoCount, pCreateInfos, nullptr, reinterpret_cast<Pipeline::HandleType*>(pipelineList.data())); }
 inline vector<Pipeline> createComputePipelines(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos)  { return createComputePipelines_throw(pipelineCache, createInfoCount, pCreateInfos); }
 inline vector<UniquePipeline> createComputePipelinesUnique_throw(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos)  { vector<UniquePipeline> l; if(!l.alloc_noThrow(createInfoCount)) throw OutOfHostMemoryError("createComputePipelinesUnique_throw(): Out of host memory."); Result r = funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), createInfoCount, pCreateInfos, nullptr, reinterpret_cast<Pipeline::HandleType*>(l.data())); if(r != Result::eSuccess) throwResultException(r, "vkCreateComputePipelines"); return l; }
-inline Result createComputePipelinesUnique_noThrow(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos, UniquePipeline* pPipelines) noexcept  { for(uint32_t i=0; i<createInfoCount; i++) pPipelines[i].reset(); return funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), createInfoCount, pCreateInfos, nullptr, reinterpret_cast<Pipeline::HandleType*>(pPipelines)); }
+inline Result createComputePipelinesUnique_noThrow(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos, vector<UniquePipeline>& pipelineList) noexcept  { if(!pipelineList.alloc_noThrow(createInfoCount)) return vk::Result::eErrorOutOfHostMemory; return funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), createInfoCount, pCreateInfos, nullptr, reinterpret_cast<Pipeline::HandleType*>(pipelineList.data())); }
 inline vector<UniquePipeline> createComputePipelinesUnique(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos)  { return createComputePipelinesUnique_throw(pipelineCache, createInfoCount, pCreateInfos); }
+
+inline void createComputePipelines_throw(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos, Pipeline* pPipelines)  { Result r = funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), createInfoCount, pCreateInfos, nullptr, reinterpret_cast<Pipeline::HandleType*>(pPipelines)); if(r != Result::eSuccess) throwResultException(r, "vkCreateComputePipelines"); }
+inline Result createComputePipelines_noThrow(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos, Pipeline* pPipelines) noexcept  { return funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), createInfoCount, pCreateInfos, nullptr, reinterpret_cast<Pipeline::HandleType*>(pPipelines)); }
+inline void createComputePipelines(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos, Pipeline* pPipelines)  { createComputePipelines_throw(pipelineCache, createInfoCount, pCreateInfos, pPipelines); }
+inline void createComputePipelinesUnique_throw(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos, UniquePipeline* pPipelines)  { for(uint32_t i=0; i<createInfoCount; i++) pPipelines[i].reset(); Result r = funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), createInfoCount, pCreateInfos, nullptr, reinterpret_cast<Pipeline::HandleType*>(pPipelines)); if(r != Result::eSuccess) throwResultException(r, "vkCreateComputePipelines"); }
+inline Result createComputePipelinesUnique_noThrow(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos, UniquePipeline* pPipelines) noexcept  { for(uint32_t i=0; i<createInfoCount; i++) pPipelines[i].reset(); return funcs.vkCreateComputePipelines(detail::_device.handle(), pipelineCache.handle(), createInfoCount, pCreateInfos, nullptr, reinterpret_cast<Pipeline::HandleType*>(pPipelines)); }
+inline void createComputePipelinesUnique(PipelineCache pipelineCache, uint32_t createInfoCount, const ComputePipelineCreateInfo* pCreateInfos, UniquePipeline* pPipelines)  { createComputePipelinesUnique_throw(pipelineCache, createInfoCount, pCreateInfos, pPipelines); }
 
 inline void destroyPipeline(Pipeline pipeline) noexcept  { funcs.vkDestroyPipeline(detail::_device.handle(), pipeline.handle(), nullptr); }
 inline void destroy(Pipeline pipeline) noexcept  { funcs.vkDestroyPipeline(detail::_device.handle(), pipeline.handle(), nullptr); }
