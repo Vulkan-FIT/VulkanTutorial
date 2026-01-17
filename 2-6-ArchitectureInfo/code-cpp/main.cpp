@@ -2,6 +2,7 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <cstring>
 #include <iostream>
 #include <vector>
 
@@ -88,62 +89,63 @@ static auto formatFloatSI(float v)
 }
 
 
-static void shaderInvocation(unsigned globalInvocationIdX, unsigned globalInvocationIdY, unsigned globalInvocationIdZ)
+template<typename T> static void shaderInvocation1(
+	unsigned globalInvocationIdX, unsigned globalInvocationIdY, unsigned globalInvocationIdZ)
 {
-#define FMA10 \
-	x = x*y+z; \
-	x = x*y+z; \
-	x = x*y+z; \
-	x = x*y+z; \
-	x = x*y+z; \
-	x = x*y+z; \
-	x = x*y+z; \
-	x = x*y+z; \
-	x = x*y+z; \
-	x = x*y+z
+#define FMA1_10 \
+	x = x * y + z; \
+	x = x * y + z; \
+	x = x * y + z; \
+	x = x * y + z; \
+	x = x * y + z; \
+	x = x * y + z; \
+	x = x * y + z; \
+	x = x * y + z; \
+	x = x * y + z; \
+	x = x * y + z
 
-#define FMA100 \
-	FMA10; \
-	FMA10; \
-	FMA10; \
-	FMA10; \
-	FMA10; \
-	FMA10; \
-	FMA10; \
-	FMA10; \
-	FMA10; \
-	FMA10
+#define FMA1_100 \
+	FMA1_10; \
+	FMA1_10; \
+	FMA1_10; \
+	FMA1_10; \
+	FMA1_10; \
+	FMA1_10; \
+	FMA1_10; \
+	FMA1_10; \
+	FMA1_10; \
+	FMA1_10
 
-#define FMA1000 \
-	FMA100; \
-	FMA100; \
-	FMA100; \
-	FMA100; \
-	FMA100; \
-	FMA100; \
-	FMA100; \
-	FMA100; \
-	FMA100; \
-	FMA100
+#define FMA1_1000 \
+	FMA1_100; \
+	FMA1_100; \
+	FMA1_100; \
+	FMA1_100; \
+	FMA1_100; \
+	FMA1_100; \
+	FMA1_100; \
+	FMA1_100; \
+	FMA1_100; \
+	FMA1_100
 
-#define FMA10000 \
-	FMA1000; \
-	FMA1000; \
-	FMA1000; \
-	FMA1000; \
-	FMA1000; \
-	FMA1000; \
-	FMA1000; \
-	FMA1000; \
-	FMA1000; \
-	FMA1000
+#define FMA1_10000 \
+	FMA1_1000; \
+	FMA1_1000; \
+	FMA1_1000; \
+	FMA1_1000; \
+	FMA1_1000; \
+	FMA1_1000; \
+	FMA1_1000; \
+	FMA1_1000; \
+	FMA1_1000; \
+	FMA1_1000
 
 	// initial values of x, y and z
-	float x = globalInvocationIdX;
-	float y = globalInvocationIdY;
-	float z = globalInvocationIdZ;
+	T x = globalInvocationIdX;
+	T y = globalInvocationIdY;
+	T z = globalInvocationIdZ;
 
-	FMA10000;
+	FMA1_10000;
 
 	// condition that will never be true in reality
 	// (this avoids optimizer to consider the results of previous computations as unused
@@ -151,18 +153,169 @@ static void shaderInvocation(unsigned globalInvocationIdX, unsigned globalInvoca
 	if(x == 0.1f) {
 		// write to artificially generated address
 		// (the write will never happen in reality)
-		static_cast<float*>(nullptr)[0] = y;
+		*reinterpret_cast<T*>(globalInvocationIdZ) = y;
 	}
 }
 
 
-static void workgroupInvocation(unsigned workgroupIdX, unsigned workgroupIdY, unsigned workgroupIdZ)
+template<typename T> static void shaderInvocation2(
+	unsigned globalInvocationIdX, unsigned globalInvocationIdY, unsigned globalInvocationIdZ)
+{
+#define FMA2_10 \
+	x1 = x1 * y1 + z; \
+	x2 = x2 * y2 + z; \
+	x1 = x1 * y1 + z; \
+	x2 = x2 * y2 + z; \
+	x1 = x1 * y1 + z; \
+	x2 = x2 * y2 + z; \
+	x1 = x1 * y1 + z; \
+	x2 = x2 * y2 + z; \
+	x1 = x1 * y1 + z; \
+	x2 = x2 * y2 + z
+
+#define FMA2_100 \
+	FMA2_10; \
+	FMA2_10; \
+	FMA2_10; \
+	FMA2_10; \
+	FMA2_10; \
+	FMA2_10; \
+	FMA2_10; \
+	FMA2_10; \
+	FMA2_10; \
+	FMA2_10
+
+#define FMA2_1000 \
+	FMA2_100; \
+	FMA2_100; \
+	FMA2_100; \
+	FMA2_100; \
+	FMA2_100; \
+	FMA2_100; \
+	FMA2_100; \
+	FMA2_100; \
+	FMA2_100; \
+	FMA2_100
+
+#define FMA2_10000 \
+	FMA2_1000; \
+	FMA2_1000; \
+	FMA2_1000; \
+	FMA2_1000; \
+	FMA2_1000; \
+	FMA2_1000; \
+	FMA2_1000; \
+	FMA2_1000; \
+	FMA2_1000; \
+	FMA2_1000
+
+	// initial values of x, y and z
+	T x1 = globalInvocationIdX;
+	T y1 = globalInvocationIdY;
+	T z = globalInvocationIdZ;
+	T x2 = x1 + 0.5f;
+	T y2 = y1 + 0.5f;
+
+	FMA2_10000;
+
+	// condition that will never be true in reality
+	// (this avoids optimizer to consider the results of previous computations as unused
+	// and to optimize the final shader code by their removal)
+	if(x1 == 0.1f || x2 == 0.1f) {
+		// write to artificially generated address
+		// (the write will never happen in reality)
+		*reinterpret_cast<T*>(globalInvocationIdZ) = y1 + y2;
+	}
+}
+
+
+template<typename T> static void shaderInvocation4(
+	unsigned globalInvocationIdX, unsigned globalInvocationIdY, unsigned globalInvocationIdZ)
+{
+#define FMA4_8 \
+	x1 = x1 * y1 + z; \
+	x2 = x2 * y2 + z; \
+	x3 = x3 * y3 + z; \
+	x4 = x4 * y4 + z; \
+	x1 = x1 * y1 + z; \
+	x2 = x2 * y2 + z; \
+	x3 = x3 * y3 + z; \
+	x4 = x4 * y4 + z;
+
+#define FMA4_100 \
+	FMA4_8; \
+	FMA4_8; \
+	FMA4_8; \
+	FMA4_8; \
+	FMA4_8; \
+	FMA4_8; \
+	FMA4_8; \
+	FMA4_8; \
+	FMA4_8; \
+	FMA4_8; \
+	FMA4_8; \
+	FMA4_8; \
+	x1 = x1 * y1 + z; \
+	x2 = x2 * y2 + z; \
+	x3 = x3 * y3 + z; \
+	x4 = x4 * y4 + z;
+
+#define FMA4_1000 \
+	FMA4_100; \
+	FMA4_100; \
+	FMA4_100; \
+	FMA4_100; \
+	FMA4_100; \
+	FMA4_100; \
+	FMA4_100; \
+	FMA4_100; \
+	FMA4_100; \
+	FMA4_100
+
+#define FMA4_10000 \
+	FMA4_1000; \
+	FMA4_1000; \
+	FMA4_1000; \
+	FMA4_1000; \
+	FMA4_1000; \
+	FMA4_1000; \
+	FMA4_1000; \
+	FMA4_1000; \
+	FMA4_1000; \
+	FMA4_1000
+
+	// initial values of x, y and z
+	T x1 = globalInvocationIdX;
+	T y1 = globalInvocationIdY;
+	T z = globalInvocationIdZ;
+	T x2 = x1 + 0.5f;
+	T y2 = y1 + 0.5f;
+	T x3 = x1 + 0.25f;
+	T y3 = y1 + 0.25f;
+	T x4 = x1 + 0.75f;
+	T y4 = y1 + 0.75f;
+
+	FMA4_10000;
+
+	// condition that will never be true in reality
+	// (this avoids optimizer to consider the results of previous computations as unused
+	// and to optimize the final shader code by their removal)
+	if(x1 == 0.1f || x2 == 0.1f || x3 == 0.1f || x4 == 0.1f) {
+		// write to artificially generated address
+		// (the write will never happen in reality)
+		*reinterpret_cast<T*>(globalInvocationIdZ) = y1 + y2 + y3 + y4;
+	}
+}
+
+
+static void workgroupInvocation(void (*func)(unsigned, unsigned, unsigned),
+	unsigned workgroupIdX, unsigned workgroupIdY, unsigned workgroupIdZ)
 {
 	// call 128 shader invocations
 	// each processing 20'000 floating instructions
 	for(unsigned y=0; y<4; y++)
 		for(unsigned x=0; x<32; x++)
-			shaderInvocation(
+			func(
 				workgroupIdX*32 + x,
 				workgroupIdY*4 + y,
 				workgroupIdZ
@@ -213,7 +366,7 @@ int main(int argc, char* argv[])
 		        " < missing >" << endl;
 
 		auto performTest =
-			[&](size_t numWorkgroups) -> float {
+			[&](void (*shaderInvocationFunc)(unsigned, unsigned, unsigned), size_t numWorkgroups) -> float {
 
 				// compute workgroup grid dimensions
 				// (avoid any dimension to go over 10000)
@@ -239,7 +392,7 @@ int main(int argc, char* argv[])
 				for(unsigned z=0; z<workgroupCountZ; z++)
 					for(unsigned y=0; y<workgroupCountY; y++)
 						for(unsigned x=0; x<workgroupCountX; x++)
-							workgroupInvocation(x, y, z);
+							workgroupInvocation(shaderInvocationFunc, x, y, z);
 				uint64_t ts2 = getCpuTimestamp();
 
 				// return time as float in seconds
@@ -274,23 +427,23 @@ int main(int argc, char* argv[])
 				}
 			};
 
-		size_t floatNumWorkgroups = 1;
-		size_t doubleNumWorkgroups = 1;
-		float floatTime;
-		float doubleTime;
-		vector<float> floatPerformanceList;
-		vector<float> doublePerformanceList;
+		array<size_t,6> numWorkgroups = { 1,1,1, 1,1,1 };
+		array<vector<float>,6> performanceList;
 		cpuTimestampPeriod = getCpuTimestampPeriod();
 		chrono::time_point startTime = chrono::high_resolution_clock::now();
 		do {
 
 			// perform tests
-			cout << "Float: " << floatNumWorkgroups << ", doubles: " << doubleNumWorkgroups << endl;
-			floatTime = performTest(floatNumWorkgroups);
-			processResult(floatTime, floatNumWorkgroups, floatPerformanceList);
-			doubleTime = performTest(doubleNumWorkgroups);
-			cout << "Time: " << floatTime << ", " << doubleTime << endl;
-			processResult(doubleTime, doubleNumWorkgroups, doublePerformanceList);
+			array<float,6> t;
+			t[0] = performTest(shaderInvocation1<float>, numWorkgroups[0]);
+			t[1] = performTest(shaderInvocation2<float>, numWorkgroups[1]);
+			t[2] = performTest(shaderInvocation4<float>, numWorkgroups[2]);
+			t[3] = performTest(shaderInvocation1<double>, numWorkgroups[3]);
+			t[4] = performTest(shaderInvocation2<double>, numWorkgroups[4]);
+			t[5] = performTest(shaderInvocation4<double>, numWorkgroups[5]);
+			cout << "Time " << t[0] << " for " << numWorkgroups[0] << endl;
+			for(size_t i=0; i<6; i++)
+				processResult(t[i], numWorkgroups[i], performanceList[i]);
 
 			// stop measurements after three seconds
 			double totalTime = chrono::duration<double>(chrono::high_resolution_clock::now() - startTime).count();
@@ -298,14 +451,14 @@ int main(int argc, char* argv[])
 				break;
 
 			// compute new numWorkgroups
-			floatNumWorkgroups = computeNumWorkgroups(floatNumWorkgroups, floatTime);
-			doubleNumWorkgroups = computeNumWorkgroups(doubleNumWorkgroups, doubleTime);
+			for(size_t i=0; i<6; i++)
+				numWorkgroups[i] = computeNumWorkgroups(numWorkgroups[i], t[i]);
 
 		} while(true);
 
 		// sort the results
-		sort(floatPerformanceList.begin(), floatPerformanceList.end());
-		sort(doublePerformanceList.begin(), doublePerformanceList.end());
+		for(size_t i=0; i<6; i++)
+			sort(performanceList[i].begin(), performanceList[i].end());
 
 		// print results
 		auto printResult =
@@ -329,8 +482,12 @@ int main(int argc, char* argv[])
 				else
 					cout << "not supported" << endl;
 			};
-		printResult("Float (float32) performance:   ", true, floatPerformanceList);
-		printResult("Double (float64) performance:  ", true, doublePerformanceList);
+		printResult("Float (float32) performance1:   ", true, performanceList[0]);
+		printResult("Float (float32) performance2:   ", true, performanceList[1]);
+		printResult("Float (float32) performance4:   ", true, performanceList[2]);
+		printResult("Double (float64) performance1:  ", true, performanceList[3]);
+		printResult("Double (float64) performance2:  ", true, performanceList[4]);
+		printResult("Double (float64) performance4:  ", true, performanceList[5]);
 
 	// catch exceptions
 	} catch(exception& e) {
