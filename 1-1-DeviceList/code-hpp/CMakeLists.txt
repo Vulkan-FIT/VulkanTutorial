@@ -1,4 +1,4 @@
-set(APP_NAME 01-deviceList)
+set(APP_NAME 1-1-DeviceList-hpp)
 
 project(${APP_NAME})
 

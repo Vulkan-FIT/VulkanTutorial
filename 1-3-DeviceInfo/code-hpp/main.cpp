@@ -28,7 +28,7 @@ int main(int, char**)
 				vk::InstanceCreateInfo{
 					vk::InstanceCreateFlags(),  // flags
 					&(const vk::ApplicationInfo&)vk::ApplicationInfo{
-						"04-deviceInfo",         // application name
+						"1-3-DeviceInfo-hpp",    // application name
 						VK_MAKE_VERSION(0,0,0),  // application version
 						nullptr,                 // engine name
 						VK_MAKE_VERSION(0,0,0),  // engine version

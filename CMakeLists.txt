@@ -17,7 +17,12 @@ set(PACKAGES
    )
 
 foreach(pkg ${PACKAGES})
-	add_subdirectory(${pkg}/code)
+	add_subdirectory(${pkg}/code/)
 endforeach()
+
+# additional projects disabled by default
+# add_subdirectory(1-1-DeviceList/code-hpp/)
+# add_subdirectory(1-3-DeviceInfo/code-hpp/)
+# add_subdirectory(2-6-ArchitectureInfo/code-cpp/)
 
 set_directory_properties(PROPERTIES VS_STARTUP_PROJECT 1-1-DeviceList)
