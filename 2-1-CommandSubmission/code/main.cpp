@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <cstdlib>
 #include <iostream>
 #include <tuple>
 #include <vector>
@@ -199,11 +200,18 @@ int main(int argc, char* argv[])
 		vk::Result r =
 			vk::waitForFence_noThrow(
 				computingFinishedFence,
-				uint64_t(3e9)  // timeout (3s)
+				uint64_t(1.5e9)  // timeout (1.5 seconds)
 			);
-		if(r == vk::Result::eTimeout)
-			throw std::runtime_error("GPU timeout. Task is probably hanging.");
-		else
+		if(r == vk::Result::eTimeout) {
+			cout << "Vulkan device timeout. Task is probably hanging." << endl;
+			// use std::quick_exit() to terminate the application
+			// (Do not throw, do not return, do not call std::exit().
+			// The device is still busy and it uses number of handles such as
+			// computingFinishedFence or device handle itself.
+			// Destruction of the handles in use or the unallowed access to them
+			// is forbidden by Vulkan specification.
+			quick_exit(-1);
+		} else
 			vk::checkForSuccessValue(r, "vkWaitForFences");
 
 		cout << "Done." << endl;
@@ -217,5 +225,6 @@ int main(int argc, char* argv[])
 		cout << "Failed because of unspecified exception." << endl;
 	}
 
+	vk::cleanUp();
 	return 0;
 }

@@ -13245,14 +13245,14 @@ inline void queueSubmit(Queue queue, const SubmitInfo& submit, Fence fence)  { q
 
 inline void queueWaitIdle_throw(Queue queue)  { Result r = funcs.vkQueueWaitIdle(queue.handle()); checkForSuccessValue(r, "vkQueueWaitIdle"); }
 inline Result queueWaitIdle_noThrow(Queue queue) noexcept { return funcs.vkQueueWaitIdle(queue.handle()); }
-inline void queueWaitIdle(Queue queue)  { queueWaitIdle(queue); }
+inline void queueWaitIdle(Queue queue)  { queueWaitIdle_throw(queue); }
 
 inline void deviceWaitIdle_throw(Device device)  { Result r = funcs.vkDeviceWaitIdle(device.handle()); checkForSuccessValue(r, "vkDeviceWaitIdle"); }
 inline Result deviceWaitIdle_noThrow(Device device) noexcept { return funcs.vkDeviceWaitIdle(device.handle()); }
-inline void deviceWaitIdle(Device device)  { deviceWaitIdle(device); }
+inline void deviceWaitIdle(Device device)  { deviceWaitIdle_throw(device); }
 inline void deviceWaitIdle_throw()  { deviceWaitIdle_throw(device()); }
 inline Result deviceWaitIdle_noThrow() noexcept { return deviceWaitIdle_noThrow(device()); }
-inline void deviceWaitIdle()  { deviceWaitIdle(device()); }
+inline void deviceWaitIdle()  { deviceWaitIdle_throw(device()); }
 
 inline ShaderModule createShaderModule_throw(const ShaderModuleCreateInfo& createInfo)  { ShaderModule::HandleType h; Result r = funcs.vkCreateShaderModule(detail::_device.handle(), &createInfo, nullptr, &h); detail::processResult(r, h, "vkCreateShaderModule"); return h; }
 inline Result createShaderModule_noThrow(const ShaderModuleCreateInfo& createInfo, ShaderModule& shaderModule) noexcept  { return funcs.vkCreateShaderModule(detail::_device.handle(), &createInfo, nullptr, reinterpret_cast<ShaderModule::HandleType*>(&shaderModule)); }
