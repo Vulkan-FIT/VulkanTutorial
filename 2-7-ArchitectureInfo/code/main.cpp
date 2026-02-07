@@ -2,6 +2,7 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <iostream>
 #include <tuple>
 #include <vector>
@@ -26,6 +27,7 @@ static const uint32_t performanceDoubleSpirv[] = {
 };
 
 
+vk::UniqueFence computingFinishedFence;
 // Convert float value to c-string.
 //
 // It prints float followed by SI suffix, such as K, M, G, m, u, n, etc.
@@ -566,7 +568,8 @@ int main(int argc, char* argv[])
 			);
 
 		// fence
-		vk::UniqueFence computingFinishedFence =
+		//vk::UniqueFence computingFinishedFence =
+		computingFinishedFence =
 			vk::createFenceUnique(
 				vk::FenceCreateInfo{
 					.flags = {}
@@ -652,14 +655,15 @@ int main(int argc, char* argv[])
 				vk::Result r =
 					vk::waitForFence_noThrow(
 						computingFinishedFence,
-						uint64_t(3e9)  // timeout (3s)
+						uint64_t(3e6)  // timeout (3s)
 					);
 				if(r == vk::Result::eTimeout) {
 					cout << "GPU timeout. Task is probably hanging." << endl;
 					// use exit() to terminate application
 					// (reason: device is still busy and we cannot safely destroy it;
 					// so, let's not destroy any Vulkan objects)
-					exit(-1);
+					quick_exit(-1);
+					//throw std::runtime_error("123");
 				} else
 					vk::checkForSuccessValue(r, "vkWaitForFences");
 

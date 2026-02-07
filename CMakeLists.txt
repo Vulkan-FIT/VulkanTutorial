@@ -10,19 +10,19 @@ set(PACKAGES
     2-1-CommandSubmission
     2-2-ComputeShader
     2-3-PipelineCache
-    2-3-AdjustedMeasurement
-    2-4-TimestampQueries
-    2-5-FloatPrecision
-    2-6-ArchitectureInfo
+    2-4-AdjustedMeasurement
+    2-5-TimestampQueries
+    2-6-FloatPrecision
+    2-7-ArchitectureInfo
    )
 
 foreach(pkg ${PACKAGES})
 	add_subdirectory(${pkg}/code/)
 endforeach()
 
-# additional projects disabled by default
+# additional projects disabled by default (uncomment to enable)
 # add_subdirectory(1-1-DeviceList/code-hpp/)
 # add_subdirectory(1-3-DeviceInfo/code-hpp/)
-# add_subdirectory(2-6-ArchitectureInfo/code-cpp/)
+# add_subdirectory(2-7-ArchitectureInfo/code-cpp/)
 
 set_directory_properties(PROPERTIES VS_STARTUP_PROJECT 1-1-DeviceList)

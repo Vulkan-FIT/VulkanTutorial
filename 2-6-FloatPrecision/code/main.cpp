@@ -168,7 +168,7 @@ int main(int argc, char* argv[])
 			}
 		);
 
-		// get compatible devices
+		// get compatible and incompatible devices
 		vk::vector<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
 		vector<tuple<vk::PhysicalDevice, uint32_t, vk::PhysicalDeviceProperties,
 			vk::QueueFamilyProperties>> compatibleDevices;

@@ -153,7 +153,7 @@ template<typename T> static void shaderInvocation1(
 	if(x == 0.1f) {
 		// write to artificially generated address
 		// (the write will never happen in reality)
-		*reinterpret_cast<T*>(globalInvocationIdZ) = y;
+		*reinterpret_cast<T*>(size_t(globalInvocationIdZ)) = y;
 	}
 }
 
@@ -224,7 +224,7 @@ template<typename T> static void shaderInvocation2(
 	if(x1 == 0.1f || x2 == 0.1f) {
 		// write to artificially generated address
 		// (the write will never happen in reality)
-		*reinterpret_cast<T*>(globalInvocationIdZ) = y1 + y2;
+		*reinterpret_cast<T*>(size_t(globalInvocationIdZ)) = y1 + y2;
 	}
 }
 
@@ -300,7 +300,7 @@ template<typename T> static void shaderInvocation3(
 	if(x1 == 0.1f || x2 == 0.1f || x3 == 0.1f) {
 		// write to artificially generated address
 		// (the write will never happen in reality)
-		*reinterpret_cast<T*>(globalInvocationIdZ) = y1 + y2 + y3;
+		*reinterpret_cast<T*>(size_t(globalInvocationIdZ)) = y1 + y2 + y3;
 	}
 }
 
@@ -379,7 +379,7 @@ template<typename T> static void shaderInvocation4(
 	if(x1 == 0.1f || x2 == 0.1f || x3 == 0.1f || x4 == 0.1f) {
 		// write to artificially generated address
 		// (the write will never happen in reality)
-		*reinterpret_cast<T*>(globalInvocationIdZ) = y1 + y2 + y3 + y4;
+		*reinterpret_cast<T*>(size_t(globalInvocationIdZ)) = y1 + y2 + y3 + y4;
 	}
 }
 

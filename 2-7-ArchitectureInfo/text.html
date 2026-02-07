@@ -28,20 +28,21 @@ consisting of almost 10'000 64-core CPUs and almost 40'000 GPUs.
 As we can see, the performance increases roughly 1000 times each 12 years, or 10 times each 4 years.</p>
 
 <p>Is this growth of supercomputers power based on growing performance of CPUs? To find an answer, let's measure the performance of CPUs.
-We can use our application we are developing in this article series. All we need is to use llvmpipe Vulkan device that runs entirely on CPU.
+We can use our application that we are developing in this article series.
+All we need is to use llvmpipe Vulkan device that runs entirely on the CPU.
 The llvmpipe device is usually available on Linux by default.
 On Windows, we need to install llvmpipe driver. The procedure is described in
 the second article of this tutorial called <a href="../1-2-DevelopmentTools/text.html">Development Tools</a>
 in the section describing Windows Sandbox and its use for Vulkan application testing (<a href="../1-2-DevelopmentTools/text.html#lavapipe">link</a>).</p>
 
-<p>We want to measure the performance of single core and all cores.
+<p>We want to measure the performance of single core and all cores of the CPU.
 The environment variable LP_NUM_THREADS can be used for the purpose.
  Running <code>LP_NUM_THREADS=1 ./2-6-ArchitectureInfo llvmpipe</code>
 will measure the performance of single threaded computation.
 On Windows, we can use command line and type <code>set LP_NUM_THREADS=1 && 2-6-ArchitectureInfo.exe llvmpipe</code>
 or set the environment variable inside Visual Studio.
 On four cores capable of executing eight threads, we can set LP_NUM_THREADS to 8.
-Using 16 on such machine might still bring improvement on some platforms, but might also bring the reduction in performance on others.</p>
+Using 16 on such machine might still bring small improvement on some platforms, but might also bring the reduction of performance on others.</p>
 
 <p>The single threaded performance of various CPUs is shown on the following figure:</p>
 
@@ -90,7 +91,7 @@ Let's see if GPUs could provide better solution:</p>
 multi-core processors and almost ten thousand times when using single-thread CPU performance.
 Compared to stagnating single threaded CPU performance, GPU performance is still growing.
 This surely means constant improvements to their architecture.
-So, what is the architecture of nowadays GPUs?</p>
+So, what is the architecture of GPUs of today?</p>
 
 <h3>GPU Architecture</h3>
 
@@ -127,18 +128,17 @@ but usually stays the same in main principles.
 So, we will introduce these principles on GeForce RTX 4090 and
 Radeon RX 7900 XTX including particular numbers from these chips.</p>
 
-<p>AMD divides each WGP into two Compute Units (CU). Each CU has two SIMD32's.
-Each SIMD32 contains a scalar ALU and vector ALU.
-The vector ALU contains 32 SP.
-Thus, each time single instruction is scheduled for particular SIMD and its vector ALU,
+<p>AMD divides each WGP into two Compute Units (CU). Each CU has two vector ALUs.
+The vector ALU contains 32 Shader Processors (SP).
+Thus, each time single instruction is scheduled for particular vector ALU,
 it is executed at once for 32 threads in 32 SP.
 The group of 32 threads is called Warp or wave or wavefront.
-All threads in warp are executed in parallel in SIMD.
-AMD supports warps of 64 threads as well by joining two SIMD together.</p>
+All threads in warp are executed in parallel.
+AMD supports warps of 64 threads as well by joining two CUs together.</p>
 
-<p>On Nvidia, each SM is partitioned into four processing blocks.
+<p>On Nvidia, each Shader Multiprocessor (SM) is partitioned into four processing blocks.
 Each processing block contains 32 CUDA cores, also called Shader Processors (SP).
-When instruction is scheduled for particular processing block,
+When an instruction is scheduled for particular processing block,
 it is executed for 32 threads on 32 SP. The group of 32 threads is called Warp.</p>
 
 <p>From high-level view, GPU is composed of many SMs or WGPs.
@@ -173,15 +173,15 @@ Float (float32) performance:   26.8 TFLOPS  (Q1: 26.7 TFLOPS Q3: 26.9 TFLOPS)
 Double (float64) performance:  1.10 TFLOPS  (Q1: 1.10 TFLOPS Q3: 1.10 TFLOPS)
 </pre>
 
-<p>Vulkan info part prints the data from vk::PhysicalDeviceProperties and
+<p>The output starting with "Vulkan info:" prints the data from vk::PhysicalDeviceProperties and
 vk::PhysicalDeviceVulkan12Properties. Device architecture info is retrieved
 using VK_AMD_shader_core_properties and VK_AMD_shader_core_properties2 extensions.</p>
 
 <p>The information in bold is of our interest at the moment.
 AMD uses Shader Engine (SE) as high-level organizational unit.
 Radeon RX 7900 XTX contains 6 of them. Each SE contains two Shader Arrays (SA).
-Each SA contains 8 CU. In total, Radeon RX 9070 XT contains 6x2x8 = 96 CU, or 48 WGP.
-Then, each CU contains 2 SIMD. And each SIMD contains 32 SP.
+Each SA contains 8 Compute Units (CU). In total, Radeon RX 9070 XT contains 6x2x8 = 96 CU, or 48 Work-group Processors (WGP).
+Then, each CU contains 2 Vector ALUs. And each Vector ALU is composed of 32 Shader Processors (SP).
 Thus, we have 96x2x32 = 6144 SP inside RX 7900 XTX.</p>
 
 <p>Let's take a look on Nvidia:</p>
@@ -218,7 +218,7 @@ Double (float64) performance:  1.41 TFLOPS  (Q1: 1.41 TFLOPS Q3: 1.41 TFLOPS)
 
 <p>As we can see, Nvidia is not sharing too much info through its VK_NV_shader_sm_builtins
 Vulkan extension, unfortunately.
-We see that GeForce RTX 4090 contains 128 SMs. For more information, we need to look elsewhere.
+We see that GeForce RTX 4090 contains 128 Streaming Multiprocessors (SMs). For more information, we need to look elsewhere.
 Nvidia Ada Gpu Architecture document provides much more insight.
 Nvidia uses Graphics Processing Cluster (GPC) as high-level building block.
 GeForce RTX 4090 chip contains 12 of them, but since some might be defective
@@ -226,7 +226,7 @@ by lithography and manufacturing process, only 11 is active.
 Each GPC contains rasterizer unit and 6 Texture Processing Clusters (TPC).
 Each TPC is composed of two SM. So, we have 11x6x2 = 132 SM in total.
 Again, some TPCs might be defective. So there is only 128 SM active out of 132.
-Each SM is partitioned into four processing blocks and each block contains 32 SP (or cores).
+Each SM is partitioned into four processing blocks and each block contains 32 Shader Processors (SP), also called cores.
 So, we get 128x4x32 = 16'384 SP.</p>
 
 
@@ -234,10 +234,11 @@ So, we get 128x4x32 = 16'384 SP.</p>
 
 <p>Compute shaders are dispatched in global workgroups (also called grids).
 Each dispatch command (vkCmdDispatch and similar ones) starts single global workgroup.
-Each global workgroup is composed of local workgroups (also called blocks or thread blocks).
+Each global workgroup is composed of local workgroups (also called just workgroups or blocks or thread blocks).
 The number of local workgroups inside global workgroup is given parameters passed in dispatch command.
 Local workgroups are usually distributed among available SMs or CUs.
-In other words, a local workgroup cannot be split between two SMs or CUs, but must reside on one SM or CU.
+In other words, a local workgroup cannot be split between two SMs or CUs, but must reside on one SM or CU
+(or on WGP in some special cases on AMD).
 Each local workgroup is composed of shader invocations (in other APIs, shader invocations are also called kernels or threads).
 The shader invocations are divided into groups called warps. Standard warp size is 32.
 These warps are then executed in lock-step on SPs.
@@ -245,7 +246,7 @@ Each SP is executing one shader invocation.</p>
 
 <p>Other shader types, like vertex and fragment shaders, for instance, execute in the similar way.
 We just do not see the work distribution into local workgroups, into the warps, and so on.
-But it happens in the similar way.</p>
+But it happens behind the scene and in the similar way.</p>
 
 
 </body>
