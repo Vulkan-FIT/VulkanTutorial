@@ -57,9 +57,7 @@ int main(int argc, char* argv[])
 		// print device list
 		cout << "Vulkan devices:\n";
 		vk::vector<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
-		for(size_t i=0; i<deviceList.size(); i++) {
-
-			vk::PhysicalDevice pd = deviceList[i];
+		for(vk::PhysicalDevice pd : deviceList) {
 
 			// get device properties
 			vk::PhysicalDeviceProperties2 properties2;
@@ -290,6 +288,7 @@ int main(int argc, char* argv[])
 						cout << ", " << extensionList[i].extensionName;
 				}
 				cout << endl;
+
 		}
 
 	// catch exceptions
@@ -301,5 +300,6 @@ int main(int argc, char* argv[])
 		cout << "Failed because of unspecified exception." << endl;
 	}
 
+	vk::cleanUp();
 	return 0;
 }

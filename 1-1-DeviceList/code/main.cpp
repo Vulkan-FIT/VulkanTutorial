@@ -34,8 +34,8 @@ int main(int, char**)
 		// print device list
 		vk::vector<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
 		cout << "Physical devices:" << endl;
-		for(size_t i=0; i<deviceList.size(); i++) {
-			vk::PhysicalDeviceProperties p = vk::getPhysicalDeviceProperties(deviceList[i]);
+		for(vk::PhysicalDevice pd : deviceList) {
+			vk::PhysicalDeviceProperties p = vk::getPhysicalDeviceProperties(pd);
 			cout << "   " << p.deviceName << endl;
 		}
 
@@ -48,5 +48,6 @@ int main(int, char**)
 		cout << "Failed because of unspecified exception." << endl;
 	}
 
+	vk::cleanUp();
 	return 0;
 }

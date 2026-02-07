@@ -10782,7 +10782,7 @@ typedef struct ConformanceVersion {
 
 typedef struct PhysicalDeviceVulkan12Properties {
 	StructureType                      sType = StructureType::ePhysicalDeviceVulkan12Properties;
-	const void*                        pNext = nullptr;
+	void*                              pNext = nullptr;
 	DriverId                           driverID;
 	char                               driverName[MaxDriverNameSize];
 	char                               driverInfo[MaxDriverInfoSize];
