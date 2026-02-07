@@ -2,7 +2,7 @@
 <html lang="en">
 
 <head>
-<title>2-6-ArchitectureInfo</title>
+<title>2-7-ArchitectureInfo</title>
 <meta charset="utf-8">
 <link rel="stylesheet" href="../common/vulkanStyle.css">
 <style media="screen" type="text/css">
@@ -13,7 +13,7 @@
 
 <h1>Vulkan Tutorial</h1>
 
-<h3>2-6 - Architecture Info</h3>
+<h3>2-7 - Architecture Info</h3>
 
 <p>GPU architecture and GPU performance are closely related topics. We will deal with both of them in this article.</p>
 
@@ -37,9 +37,9 @@ in the section describing Windows Sandbox and its use for Vulkan application tes
 
 <p>We want to measure the performance of single core and all cores of the CPU.
 The environment variable LP_NUM_THREADS can be used for the purpose.
- Running <code>LP_NUM_THREADS=1 ./2-6-ArchitectureInfo llvmpipe</code>
+ Running <code>LP_NUM_THREADS=1 ./2-7-ArchitectureInfo llvmpipe</code>
 will measure the performance of single threaded computation.
-On Windows, we can use command line and type <code>set LP_NUM_THREADS=1 && 2-6-ArchitectureInfo.exe llvmpipe</code>
+On Windows, we can use command line and type <code>set LP_NUM_THREADS=1 && 2-7-ArchitectureInfo.exe llvmpipe</code>
 or set the environment variable inside Visual Studio.
 On four cores capable of executing eight threads, we can set LP_NUM_THREADS to 8.
 Using 16 on such machine might still bring small improvement on some platforms, but might also bring the reduction of performance on others.</p>
@@ -187,7 +187,7 @@ Thus, we have 96x2x32 = 6144 SP inside RX 7900 XTX.</p>
 <p>Let's take a look on Nvidia:</p>
 
 <pre>
-$ ./2-6-ArchitectureInfo
+$ ./2-7-ArchitectureInfo
 Compatible devices:
    1: NVIDIA GeForce RTX 4090 (compute queue: 0, type: DiscreteGpu)
    2: NVIDIA GeForce RTX 4090 (compute queue: 2, type: DiscreteGpu)

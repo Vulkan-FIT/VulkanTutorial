@@ -14,10 +14,11 @@ Command Submission, Pipelines and Queries
 
 6. [Command Submission](https://vulkan-fit.github.io/VulkanTutorial/2-1-CommandSubmission/text.html)
 7. [Compute Shader](https://vulkan-fit.github.io/VulkanTutorial/2-2-ComputeShader/text.html)
-8. [Adjusted Measurement](https://vulkan-fit.github.io/VulkanTutorial/2-3-AdjustedMeasurement/text.html)
-9. [Timestamp Queries](https://vulkan-fit.github.io/VulkanTutorial/2-4-TimestampQueries/text.html)
-10. [Float Precision](https://vulkan-fit.github.io/VulkanTutorial/2-5-FloatPrecision/text.html)
-11. [Architecture Info](https://vulkan-fit.github.io/VulkanTutorial/2-6-ArchtectureInfo/text.html)
+8. [Pipeline Cache](https://vulkan-fit.github.io/VulkanTutorial/2-3-PipelineCache/text.html)
+9. [Adjusted Measurement](https://vulkan-fit.github.io/VulkanTutorial/2-4-AdjustedMeasurement/text.html)
+10. [Timestamp Queries](https://vulkan-fit.github.io/VulkanTutorial/2-5-TimestampQueries/text.html)
+11. [Float Precision](https://vulkan-fit.github.io/VulkanTutorial/2-6-FloatPrecision/text.html)
+12. [Architecture Info](https://vulkan-fit.github.io/VulkanTutorial/2-7-ArchtectureInfo/text.html)
 
 Rendering Basics
 
