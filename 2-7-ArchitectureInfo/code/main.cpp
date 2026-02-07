@@ -27,7 +27,6 @@ static const uint32_t performanceDoubleSpirv[] = {
 };
 
 
-vk::UniqueFence computingFinishedFence;
 // Convert float value to c-string.
 //
 // It prints float followed by SI suffix, such as K, M, G, m, u, n, etc.
@@ -568,8 +567,7 @@ int main(int argc, char* argv[])
 			);
 
 		// fence
-		//vk::UniqueFence computingFinishedFence =
-		computingFinishedFence =
+		vk::UniqueFence computingFinishedFence =
 			vk::createFenceUnique(
 				vk::FenceCreateInfo{
 					.flags = {}
@@ -663,7 +661,6 @@ int main(int argc, char* argv[])
 					// (reason: device is still busy and we cannot safely destroy it;
 					// so, let's not destroy any Vulkan objects)
 					quick_exit(-1);
-					//throw std::runtime_error("123");
 				} else
 					vk::checkForSuccessValue(r, "vkWaitForFences");
 
