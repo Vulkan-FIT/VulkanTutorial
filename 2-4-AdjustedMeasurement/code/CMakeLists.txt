@@ -1,4 +1,4 @@
-set(APP_NAME 2-3-AdjustedMeasurement)
+set(APP_NAME 2-4-AdjustedMeasurement)
 
 project(${APP_NAME})
 

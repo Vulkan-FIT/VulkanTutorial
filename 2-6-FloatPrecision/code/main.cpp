@@ -11,7 +11,7 @@ using namespace std;
 
 
 // constants
-constexpr const char* appName = "2-5-FloatPrecision";
+constexpr const char* appName = "2-6-FloatPrecision";
 
 
 // shader code as SPIR-V binary

@@ -1,4 +1,4 @@
-set(APP_NAME 2-5-FloatPrecision)
+set(APP_NAME 2-6-FloatPrecision)
 
 project(${APP_NAME})
 

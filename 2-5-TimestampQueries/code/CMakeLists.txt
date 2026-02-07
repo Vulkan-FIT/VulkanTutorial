@@ -1,4 +1,4 @@
-set(APP_NAME 2-4-TimestampQueries)
+set(APP_NAME 2-5-TimestampQueries)
 
 project(${APP_NAME})
 

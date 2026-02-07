@@ -12,7 +12,7 @@ using namespace std;
 
 
 // constants
-constexpr const char* appName = "2-6-ArchitectureInfo";
+constexpr const char* appName = "2-7-ArchitectureInfo";
 
 
 // shader code as SPIR-V binary

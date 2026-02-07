@@ -12,7 +12,7 @@ using namespace std;
 
 
 // constants
-constexpr const char* appName = "2-4-TimestampQueries";
+constexpr const char* appName = "2-5-TimestampQueries";
 
 
 // shader code as SPIR-V binary

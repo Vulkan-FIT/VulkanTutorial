@@ -1,4 +1,4 @@
-set(APP_NAME 2-6-ArchitectureInfo)
+set(APP_NAME 2-7-ArchitectureInfo)
 
 project(${APP_NAME})
 
