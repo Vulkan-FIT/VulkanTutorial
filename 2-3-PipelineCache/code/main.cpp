@@ -9,6 +9,11 @@
 
 using namespace std;
 
+
+// constants
+constexpr const char* appName = "2-3-PipelineCache";
+
+
 // shader code as SPIR-V binary
 static const uint32_t performanceSpirv[] = {
 #include "performance.comp.spv"
@@ -21,6 +26,53 @@ int main(int argc, char* argv[])
 	// (vk functions throw if they fail)
 	try {
 
+		// parse command-line arguments
+		bool printHelp = false;
+		size_t selectedDeviceIndex = 0;
+		char* deviceFilterString = nullptr;
+		for(int i=1; i<argc; i++) {
+
+			// parse options starting with '-'
+			if(argv[i][0] == '-') {
+
+				// print help
+				if(strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
+					printHelp = true;
+					continue;
+				}
+
+				// parse device index
+				if(argv[i][1] >= '0' && argv[i][1] <= '9') {
+					char* endp = nullptr;
+					selectedDeviceIndex = strtoull(&argv[i][1], &endp, 10);
+					if(selectedDeviceIndex == 0 || endp == &argv[i][1] || (endp && *endp != 0))
+						printHelp = true;
+					continue;
+				}
+
+				printHelp = true;
+				continue;
+			}
+
+			// parse device filter string
+			deviceFilterString = argv[i];
+
+		}
+
+		// print help
+		if(printHelp) {
+			cout << appName << " prints the performance of a Vulkan device\n"
+			        "\n"
+			        "Usage: " << appName << " [-<deviceIndex>] [deviceNameFilter]\n"
+			        "   -<deviceIndex> - for example -1 or -3, specifies the index\n"
+			        "      of the device used for the performance test; it might be\n"
+			        "      useful when more devices are present in the system;\n"
+			        "      devices are numbered starting from one\n"
+			        "   deviceNameFilter - only devices matching the given string\n"
+			        "      will be considered; for example AMD, GeForce, Intel\n" << endl;
+			return 99;
+		}
+
 		// load Vulkan library
 		vk::loadLib();
 
@@ -30,7 +82,7 @@ int main(int argc, char* argv[])
 				.flags = {},
 				.pApplicationInfo =
 					&(const vk::ApplicationInfo&)vk::ApplicationInfo{
-						.pApplicationName = "2-3-PipelineCache",
+						.pApplicationName = appName,
 						.applicationVersion = 0,
 						.pEngineName = nullptr,
 						.engineVersion = 0,
@@ -97,34 +149,76 @@ int main(int argc, char* argv[])
 			return 0;
 		}
 
-		// choose the best device
-		auto bestDevice = compatibleDevices.begin();
-		constexpr const array deviceTypeScore = {
-			10,  // vk::PhysicalDeviceType::eOther         - lowest score
-			40,  // vk::PhysicalDeviceType::eIntegratedGpu - high score
-			50,  // vk::PhysicalDeviceType::eDiscreteGpu   - highest score
-			30,  // vk::PhysicalDeviceType::eVirtualGpu    - normal score
-			20,  // vk::PhysicalDeviceType::eCpu           - low score
-			10,  // unknown vk::PhysicalDeviceType
-		};
-		int bestScore = deviceTypeScore[clamp(int(get<2>(*bestDevice).deviceType), 0, int(deviceTypeScore.size())-1)];
-		for(auto it=compatibleDevices.begin()+1; it!=compatibleDevices.end(); it++) {
-			int score = deviceTypeScore[clamp(int(get<2>(*it).deviceType), 0, int(deviceTypeScore.size())-1)];
-			if(score > bestScore) {
-				bestDevice = it;
-				bestScore = score;
+		// select the device
+		decltype(compatibleDevices)::iterator selectedDevice;
+		if(deviceFilterString)
+		{
+			// select the device by name and index:
+			// (1) filter devices by name and
+			// (2) on the resulting list, choose the device on the index selectedDeviceIndex-1
+			size_t counter = 1;
+			for(size_t i=0, c=compatibleDevices.size(); i<c; i++) {
+				if(strstr(get<2>(compatibleDevices[i]).deviceName, deviceFilterString)) {
+					if(counter == selectedDeviceIndex || selectedDeviceIndex == 0) {
+						selectedDevice = compatibleDevices.begin() + i;
+						goto deviceFound;
+					}
+					counter++;
+				}
+			}
+
+			// if no device was selected, print error and exit
+			if(counter == 1)
+				cout << "No device selected. Invalid filter string: " << deviceFilterString << "." << endl;
+			else
+				cout << "Invalid device index.\n"
+				     << "Index value: " << selectedDeviceIndex << ", filter string: "
+				     << deviceFilterString << "." << endl;
+			return 99;
+
+		deviceFound:;
+		}
+		else if(selectedDeviceIndex > 0)
+		{
+			// select the device by index
+			if(selectedDeviceIndex > compatibleDevices.size()) {
+				cout << "Invalid device index." << endl;
+				return 99;
+			}
+			selectedDevice = compatibleDevices.begin() + selectedDeviceIndex - 1;
+		}
+		else
+		{
+			// choose the device automatically
+			// using score heuristic
+			selectedDevice = compatibleDevices.begin();
+			constexpr const array deviceTypeScore = {
+				10,  // vk::PhysicalDeviceType::eOther         - lowest score
+				40,  // vk::PhysicalDeviceType::eIntegratedGpu - high score
+				50,  // vk::PhysicalDeviceType::eDiscreteGpu   - highest score
+				30,  // vk::PhysicalDeviceType::eVirtualGpu    - normal score
+				20,  // vk::PhysicalDeviceType::eCpu           - low score
+				10,  // unknown vk::PhysicalDeviceType
+			};
+			int score = deviceTypeScore[clamp(int(get<2>(*selectedDevice).deviceType), 0, int(deviceTypeScore.size())-1)];
+			for(auto it=compatibleDevices.begin()+1; it!=compatibleDevices.end(); it++) {
+				int newScore = deviceTypeScore[clamp(int(get<2>(*it).deviceType), 0, int(deviceTypeScore.size())-1)];
+				if(newScore > score) {
+					selectedDevice = it;
+					score = newScore;
+				}
 			}
 		}
 
 		// device to use
 		cout << "Using device:\n"
-		        "   " << get<2>(*bestDevice).deviceName << endl;
-		vk::PhysicalDevice pd = get<0>(*bestDevice);
-		uint32_t queueFamily = get<1>(*bestDevice);
+		        "   " << get<2>(*selectedDevice).deviceName << endl;
+		vk::PhysicalDevice pd = get<0>(*selectedDevice);
+		uint32_t queueFamily = get<1>(*selectedDevice);
 
 		// get pipeline creation cache control support
 		bool pipelineCacheControlSupport = false;
-		bool vulkan13Support = get<2>(*bestDevice).apiVersion >= vk::ApiVersion13;
+		bool vulkan13Support = get<2>(*selectedDevice).apiVersion >= vk::ApiVersion13;
 		if(vulkan13Support) {
 			vk::PhysicalDeviceVulkan13Features f13;
 			vk::PhysicalDeviceFeatures2 f = {
@@ -201,7 +295,7 @@ int main(int argc, char* argv[])
 				}
 			);
 
-		// pipeline - the attempt to load it from a cache
+		// load pipeline from a cache
 		cout << "Creating pipeline..." << flush;
 		chrono::time_point compileStart = chrono::high_resolution_clock::now();
 		vk::UniquePipeline pipeline;
@@ -235,7 +329,7 @@ int main(int argc, char* argv[])
 				vk::throwResultException(r, "vkCreateComputePipelines");
 		}
 
-		// pipeline - the attempt to compile it
+		// compile pipeline
 		if(!pipeline) {
 			pipeline =
 				vk::createComputePipelineUnique(
