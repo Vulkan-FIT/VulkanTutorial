@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <iomanip>
 #include <iostream>
 #include <tuple>
@@ -155,7 +156,7 @@ int main(int argc, char* argv[])
 						.applicationVersion = 0,
 						.pEngineName = nullptr,
 						.engineVersion = 0,
-						.apiVersion = vk::ApiVersion12,  // highest api version used by the application
+						.apiVersion = vk::ApiVersion13,  // highest api version used by the application
 					},
 				.enabledLayerCount = 0,
 				.ppEnabledLayerNames = nullptr,
@@ -285,6 +286,18 @@ int main(int argc, char* argv[])
 		vk::PhysicalDevice pd = get<0>(*selectedDevice);
 		uint32_t queueFamily = get<1>(*selectedDevice);
 
+		// get pipeline creation cache control support
+		bool pipelineCacheControlSupport = false;
+		bool vulkan13Support = get<2>(*selectedDevice).apiVersion >= vk::ApiVersion13;
+		if(vulkan13Support) {
+			vk::PhysicalDeviceVulkan13Features f13;
+			vk::PhysicalDeviceFeatures2 f = {
+				.pNext = &f13,
+			};
+			vk::getPhysicalDeviceFeatures2(pd, f);
+			pipelineCacheControlSupport = f13.pipelineCreationCacheControl;
+		}
+
 		// release resources
 		compatibleDevices.clear();
 		incompatibleDevices.clear();
@@ -312,10 +325,18 @@ int main(int argc, char* argv[])
 					&(const vk::PhysicalDeviceFeatures&)vk::PhysicalDeviceFeatures{
 						.shaderInt64 = true,
 					},
-			}.setPNext(
+			}
+			.setPNext(
 				&(const vk::PhysicalDeviceVulkan12Features&)vk::PhysicalDeviceVulkan12Features{
 					.bufferDeviceAddress = true,
 				}
+				.setPNext(
+					vulkan13Support
+						? &(const vk::PhysicalDeviceVulkan13Features&)vk::PhysicalDeviceVulkan13Features{
+							  .pipelineCreationCacheControl = pipelineCacheControlSupport,
+						  }
+						: nullptr
+				)
 			)
 		);
 
@@ -344,25 +365,69 @@ int main(int argc, char* argv[])
 				}
 			);
 
-		// pipeline
-		vk::UniquePipeline pipeline =
-			vk::createComputePipelineUnique(
-				nullptr,
-				vk::ComputePipelineCreateInfo{
-					.flags = {},
-					.stage =
-						vk::PipelineShaderStageCreateInfo{
-							.flags = {},
-							.stage = vk::ShaderStageFlagBits::eCompute,
-							.module = shaderModule,
-							.pName = "main",
-							.pSpecializationInfo = nullptr,
-						},
-					.layout = pipelineLayout,
-					.basePipelineHandle = nullptr,
-					.basePipelineIndex = -1,
-				}
-			);
+		// load pipeline from a cache
+		cout << "Creating pipeline..." << flush;
+		chrono::time_point compileStart = chrono::high_resolution_clock::now();
+		vk::UniquePipeline pipeline;
+		if(pipelineCacheControlSupport) {
+			vk::Result r =
+				vk::createComputePipelineUnique_noThrow(
+					nullptr,
+					vk::ComputePipelineCreateInfo{
+						.flags = vk::PipelineCreateFlagBits::eFailOnPipelineCompileRequired,
+						.stage =
+							vk::PipelineShaderStageCreateInfo{
+								.flags = {},
+								.stage = vk::ShaderStageFlagBits::eCompute,
+								.module = shaderModule,
+								.pName = "main",
+								.pSpecializationInfo = nullptr,
+							},
+						.layout = pipelineLayout,
+						.basePipelineHandle = nullptr,
+						.basePipelineIndex = -1,
+					},
+					pipeline
+				);
+			chrono::time_point compileEnd = chrono::high_resolution_clock::now();
+			double delta = chrono::duration<double>(compileEnd - compileStart).count();
+			if(r == vk::Result::eSuccess)
+				cout << " done.\n   The pipeline was retrieved from a cache in " << delta * 1e3 << "ms." << endl;
+			else if(r == vk::Result::ePipelineCompileRequired)
+				;  // compile the pipeline in the following code block
+			else
+				vk::throwResultException(r, "vkCreateComputePipelines");
+		}
+
+		// compile pipeline
+		if(!pipeline) {
+			pipeline =
+				vk::createComputePipelineUnique(
+					nullptr,
+					vk::ComputePipelineCreateInfo{
+						.flags = {},
+						.stage =
+							vk::PipelineShaderStageCreateInfo{
+								.flags = {},
+								.stage = vk::ShaderStageFlagBits::eCompute,
+								.module = shaderModule,
+								.pName = "main",
+								.pSpecializationInfo = nullptr,
+							},
+						.layout = pipelineLayout,
+						.basePipelineHandle = nullptr,
+						.basePipelineIndex = -1,
+					}
+				);
+			chrono::time_point compileEnd = chrono::high_resolution_clock::now();
+			double delta = chrono::duration<double>(compileEnd - compileStart).count();
+			if(pipelineCacheControlSupport)
+				// pipeline was compiled - we know it from pipeline cache control
+				cout << " done.\n   The pipeline was compiled in " << delta * 1e3 << "ms." << endl;
+			else
+				// pipeline was created from cache or by compilation - no pipeline cache control support to know more
+				cout << " done.\n   The pipeline was created in " << delta * 1e3 << "ms." << endl;
+		}
 
 		// command pool
 		vk::UniqueCommandPool commandPool =
