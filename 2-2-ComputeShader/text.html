@@ -26,6 +26,10 @@ A shader contains stream of instructions.
 Pipelines control how graphics or compute work is executed on the device.
 A pipeline includes one or more shaders and state controlling any non-programmable stages of the pipeline.</p>
 
+<p>Pipeline construction might take a time, especially for very large shaders, such as the one in this example.
+So, let's be patient when running the application. We will deal with the issue in the next article.
+For now, let's focus on pipeline itself.</p>
+
 
 <h3>Shader code</h3>
 
@@ -35,8 +39,8 @@ x = x * y + z;
 </pre>
 
 <p>This equation uses two math operations: multiplication and addition.
-Interestingly, many computing devices provide single instruction,
-usually called FMA (Fused Multiply Addition) that encodes multiply and addition operations.</p>
+Interestingly, many computing devices provide instruction,
+usually called FMA (Fused Multiply Addition), that encodes multiply and addition operations by single instruction.</p>
 
 <p>Now, we need to repeat the equation 10'000 times.
 We will use macros for it:</p>
