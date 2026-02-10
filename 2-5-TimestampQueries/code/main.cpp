@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <iomanip>
 #include <iostream>
 #include <tuple>
@@ -155,7 +156,7 @@ int main(int argc, char* argv[])
 						.applicationVersion = 0,
 						.pEngineName = nullptr,
 						.engineVersion = 0,
-						.apiVersion = vk::ApiVersion12,  // highest api version used by the application
+						.apiVersion = vk::ApiVersion13,  // highest api version used by the application
 					},
 				.enabledLayerCount = 0,
 				.ppEnabledLayerNames = nullptr,
@@ -169,11 +170,10 @@ int main(int argc, char* argv[])
 		vector<tuple<vk::PhysicalDevice, uint32_t, vk::PhysicalDeviceProperties,
 			vk::QueueFamilyProperties>> compatibleDevices;
 		vector<vk::PhysicalDeviceProperties> incompatibleDevices;
-		for(size_t i=0,c=deviceList.size(); i<c; i++) {
+		for(vk::PhysicalDevice pd : deviceList) {
 
 			// device version 1.2+
 			// (we need it for bufferDeviceAddress)
-			vk::PhysicalDevice pd = deviceList[i];
 			vk::PhysicalDeviceProperties props = vk::getPhysicalDeviceProperties(pd);
 			if(props.apiVersion < vk::ApiVersion12) {
 				incompatibleDevices.emplace_back(props);
@@ -197,7 +197,7 @@ int main(int argc, char* argv[])
 			}
 
 			// append incompatible devices
-			// (reason: lack of compute queue or lack of timestamp support)
+			// (incompatibility reason: no Vulkan 1.2, lack of compute queue or lack of timestamp support)
 			if(!found)
 				incompatibleDevices.emplace_back(props);
 
@@ -292,6 +292,18 @@ int main(int argc, char* argv[])
 		uint64_t timestampValidBitMask = (timestampValidBits >= 64) ? ~uint64_t(0) : (uint64_t(1) << timestampValidBits) - 1;
 		float timestampPeriod = get<2>(*selectedDevice).limits.timestampPeriod;
 
+		// get pipeline creation cache control support
+		bool pipelineCacheControlSupport = false;
+		bool vulkan13Support = get<2>(*selectedDevice).apiVersion >= vk::ApiVersion13;
+		if(vulkan13Support) {
+			vk::PhysicalDeviceVulkan13Features f13;
+			vk::PhysicalDeviceFeatures2 f = {
+				.pNext = &f13,
+			};
+			vk::getPhysicalDeviceFeatures2(pd, f);
+			pipelineCacheControlSupport = f13.pipelineCreationCacheControl;
+		}
+
 		// release resources
 		compatibleDevices.clear();
 		incompatibleDevices.clear();
@@ -319,10 +331,18 @@ int main(int argc, char* argv[])
 					&(const vk::PhysicalDeviceFeatures&)vk::PhysicalDeviceFeatures{
 						.shaderInt64 = true,
 					},
-			}.setPNext(
+			}
+			.setPNext(
 				&(const vk::PhysicalDeviceVulkan12Features&)vk::PhysicalDeviceVulkan12Features{
 					.bufferDeviceAddress = true,
 				}
+				.setPNext(
+					vulkan13Support
+						? &(const vk::PhysicalDeviceVulkan13Features&)vk::PhysicalDeviceVulkan13Features{
+							  .pipelineCreationCacheControl = pipelineCacheControlSupport,
+						  }
+						: nullptr
+				)
 			)
 		);
 
@@ -351,25 +371,69 @@ int main(int argc, char* argv[])
 				}
 			);
 
-		// pipeline
-		vk::UniquePipeline pipeline =
-			vk::createComputePipelineUnique(
-				nullptr,
-				vk::ComputePipelineCreateInfo{
-					.flags = {},
-					.stage =
-						vk::PipelineShaderStageCreateInfo{
-							.flags = {},
-							.stage = vk::ShaderStageFlagBits::eCompute,
-							.module = shaderModule,
-							.pName = "main",
-							.pSpecializationInfo = nullptr,
-						},
-					.layout = pipelineLayout,
-					.basePipelineHandle = nullptr,
-					.basePipelineIndex = -1,
-				}
-			);
+		// load pipeline from a cache
+		cout << "Creating pipeline..." << flush;
+		chrono::time_point compileStart = chrono::high_resolution_clock::now();
+		vk::UniquePipeline pipeline;
+		if(pipelineCacheControlSupport) {
+			vk::Result r =
+				vk::createComputePipelineUnique_noThrow(
+					nullptr,
+					vk::ComputePipelineCreateInfo{
+						.flags = vk::PipelineCreateFlagBits::eFailOnPipelineCompileRequired,
+						.stage =
+							vk::PipelineShaderStageCreateInfo{
+								.flags = {},
+								.stage = vk::ShaderStageFlagBits::eCompute,
+								.module = shaderModule,
+								.pName = "main",
+								.pSpecializationInfo = nullptr,
+							},
+						.layout = pipelineLayout,
+						.basePipelineHandle = nullptr,
+						.basePipelineIndex = -1,
+					},
+					pipeline
+				);
+			chrono::time_point compileEnd = chrono::high_resolution_clock::now();
+			double delta = chrono::duration<double>(compileEnd - compileStart).count();
+			if(r == vk::Result::eSuccess)
+				cout << " done.\n   The pipeline was retrieved from a cache in " << delta * 1e3 << "ms." << endl;
+			else if(r == vk::Result::ePipelineCompileRequired)
+				;  // compile the pipeline in the following code block
+			else
+				vk::throwResultException(r, "vkCreateComputePipelines");
+		}
+
+		// compile pipeline
+		if(!pipeline) {
+			pipeline =
+				vk::createComputePipelineUnique(
+					nullptr,
+					vk::ComputePipelineCreateInfo{
+						.flags = {},
+						.stage =
+							vk::PipelineShaderStageCreateInfo{
+								.flags = {},
+								.stage = vk::ShaderStageFlagBits::eCompute,
+								.module = shaderModule,
+								.pName = "main",
+								.pSpecializationInfo = nullptr,
+							},
+						.layout = pipelineLayout,
+						.basePipelineHandle = nullptr,
+						.basePipelineIndex = -1,
+					}
+				);
+			chrono::time_point compileEnd = chrono::high_resolution_clock::now();
+			double delta = chrono::duration<double>(compileEnd - compileStart).count();
+			if(pipelineCacheControlSupport)
+				// pipeline was compiled - we know it from pipeline cache control
+				cout << " done.\n   The pipeline was compiled in " << delta * 1e3 << "ms." << endl;
+			else
+				// pipeline was created from cache or by compilation - no pipeline cache control support to know more
+				cout << " done.\n   The pipeline was created in " << delta * 1e3 << "ms." << endl;
+		}
 
 		// timestamp pool
 		vk::UniqueQueryPool timestampPool =
@@ -415,9 +479,9 @@ int main(int argc, char* argv[])
 		        " Measurement        Number of         Computation     Performance\n"
 		        "  time stamp     local workgroups         time" << endl;
 
-		uint32_t groupCountX = 1;
-		uint32_t groupCountY = 1;
-		uint32_t groupCountZ = 1;
+		uint32_t workgroupCountX = 1;
+		uint32_t workgroupCountY = 1;
+		uint32_t workgroupCountZ = 1;
 		chrono::time_point startTime = chrono::high_resolution_clock::now();
 		do {
 
@@ -448,7 +512,7 @@ int main(int argc, char* argv[])
 				0);  // query
 
 			// dispatch computation
-			vk::cmdDispatch(commandBuffer, groupCountX, groupCountY, groupCountZ);
+			vk::cmdDispatch(commandBuffer, workgroupCountX, workgroupCountY, workgroupCountZ);
 
 			// write timestamp 1
 			vk::cmdWriteTimestamp(
@@ -512,10 +576,10 @@ int main(int argc, char* argv[])
 			// print results
 			double time = float((timestamps[1] - timestamps[0]) & timestampValidBitMask) * timestampPeriod / 1e9;
 			double totalTime = chrono::duration<double>(chrono::high_resolution_clock::now() - startTime).count();
-			uint64_t numInstructions = uint64_t(20000) * 128 * groupCountX * groupCountY * groupCountZ;
+			uint64_t numInstructions = uint64_t(20000) * 128 * workgroupCountX * workgroupCountY * workgroupCountZ;
 			cout << fixed << setprecision(2)
 			     << setw(9) << totalTime * 1000 << "ms       "
-			     << setw(9) << groupCountX * groupCountY * groupCountZ << "        "
+			     << setw(9) << workgroupCountX * workgroupCountY * workgroupCountZ << "        "
 			     << "     " << formatFloatSI(time) << "s   "
 			     << "    " << formatFloatSI(double(numInstructions) / time) << "FLOPS" << endl;
 
@@ -527,28 +591,28 @@ int main(int argc, char* argv[])
 			// to reach computation time of about 20ms
 			constexpr double targetTime = 0.02;
 			if(time < targetTime / 10.) {
-				if(groupCountX <= 1000)
-					groupCountX *= 10;
-				else if(groupCountY <= 1000)
-					groupCountY *= 10;
-				else if(groupCountZ <= 1000)
-					groupCountZ *= 10;
+				if(workgroupCountX <= 1000)
+					workgroupCountX *= 10;
+				else if(workgroupCountY <= 1000)
+					workgroupCountY *= 10;
+				else if(workgroupCountZ <= 1000)
+					workgroupCountZ *= 10;
 			}
 			else {
 				double ratio = targetTime / time;
-				uint64_t newNumGroups = uint64_t(ratio * (uint64_t(groupCountX) * groupCountY * groupCountZ));
+				uint64_t newNumGroups = uint64_t(ratio * (uint64_t(workgroupCountX) * workgroupCountY * workgroupCountZ));
 				if(newNumGroups > 10000 * 10000) {
-					groupCountZ = 1 + ((newNumGroups - 1) / (10000 * 10000));
-					uint64_t remainder = newNumGroups / groupCountZ;
-					groupCountY = 1 + ((remainder - 1) / 10000);
-					groupCountX = remainder / groupCountY;
+					workgroupCountZ = 1 + ((newNumGroups - 1) / (10000 * 10000));
+					uint64_t remainder = newNumGroups / workgroupCountZ;
+					workgroupCountY = 1 + ((remainder - 1) / 10000);
+					workgroupCountX = remainder / workgroupCountY;
 				}
 				else {
 					if(newNumGroups == 0)
 						newNumGroups = 1;
-					groupCountZ = 1;
-					groupCountY = 1 + ((newNumGroups - 1) / 10000);
-					groupCountX = newNumGroups / groupCountY;
+					workgroupCountZ = 1;
+					workgroupCountY = 1 + ((newNumGroups - 1) / 10000);
+					workgroupCountX = newNumGroups / workgroupCountY;
 				}
 			}
 

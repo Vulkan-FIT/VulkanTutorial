@@ -41,10 +41,9 @@ int main(int argc, char* argv[])
 		vk::vector<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
 		vector<tuple<vk::PhysicalDevice, uint32_t, vk::PhysicalDeviceProperties>> compatibleDevices;
 		vector<vk::PhysicalDeviceProperties> incompatibleDevices;
-		for(size_t i=0; i<deviceList.size(); i++) {
+		for(vk::PhysicalDevice pd : deviceList) {
 
 			// append compatible queue families
-			vk::PhysicalDevice pd = deviceList[i];
 			vk::PhysicalDeviceProperties props = vk::getPhysicalDeviceProperties(pd);
 			vk::vector<vk::QueueFamilyProperties> queueFamilyPropList = vk::getPhysicalDeviceQueueFamilyProperties(pd);
 			bool found = false;

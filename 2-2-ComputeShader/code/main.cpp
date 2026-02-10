@@ -47,11 +47,10 @@ int main(int argc, char* argv[])
 		vk::vector<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
 		vector<tuple<vk::PhysicalDevice, uint32_t, vk::PhysicalDeviceProperties>> compatibleDevices;
 		vector<vk::PhysicalDeviceProperties> incompatibleDevices;
-		for(size_t i=0,c=deviceList.size(); i<c; i++) {
+		for(vk::PhysicalDevice pd : deviceList) {
 
 			// device version 1.2+
 			// (we need it for bufferDeviceAddress)
-			vk::PhysicalDevice pd = deviceList[i];
 			vk::PhysicalDeviceProperties props = vk::getPhysicalDeviceProperties(pd);
 			if(props.apiVersion < vk::ApiVersion12) {
 				incompatibleDevices.emplace_back(props);
