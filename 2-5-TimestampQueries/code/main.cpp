@@ -165,7 +165,11 @@ int main(int argc, char* argv[])
 			}
 		);
 
-		// get compatible devices
+		// get compatible and incompatible devices
+		//
+		// required functionality: Vulkan 1.2, shaderInt64, bufferDeviceAddress,
+		//                         compute queue, timestamp support
+		// optional functionality: Vulkan 1.3, pipelineCreationCacheControl
 		vk::vector<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
 		vector<tuple<vk::PhysicalDevice, uint32_t, vk::PhysicalDeviceProperties,
 			vk::QueueFamilyProperties>> compatibleDevices;
@@ -176,6 +180,17 @@ int main(int argc, char* argv[])
 			// (we need it for bufferDeviceAddress)
 			vk::PhysicalDeviceProperties props = vk::getPhysicalDeviceProperties(pd);
 			if(props.apiVersion < vk::ApiVersion12) {
+				incompatibleDevices.emplace_back(props);
+				continue;
+			}
+
+			// shaderInt64 and bufferDeviceAddress are required
+			vk::PhysicalDeviceVulkan12Features features12;
+			vk::PhysicalDeviceFeatures2 features10 {
+				.pNext = &features12
+			};
+			vk::getPhysicalDeviceFeatures2(pd, features10);
+			if(features10.features.shaderInt64 == false || features12.bufferDeviceAddress == false) {
 				incompatibleDevices.emplace_back(props);
 				continue;
 			}
@@ -197,7 +212,6 @@ int main(int argc, char* argv[])
 			}
 
 			// append incompatible devices
-			// (incompatibility reason: no Vulkan 1.2, lack of compute queue or lack of timestamp support)
 			if(!found)
 				incompatibleDevices.emplace_back(props);
 
@@ -293,16 +307,17 @@ int main(int argc, char* argv[])
 		float timestampPeriod = get<2>(*selectedDevice).limits.timestampPeriod;
 
 		// get pipeline creation cache control support
-		bool pipelineCacheControlSupport = false;
 		bool vulkan13Support = get<2>(*selectedDevice).apiVersion >= vk::ApiVersion13;
+		bool pipelineCacheControlSupport;
 		if(vulkan13Support) {
-			vk::PhysicalDeviceVulkan13Features f13;
-			vk::PhysicalDeviceFeatures2 f = {
-				.pNext = &f13,
+			vk::PhysicalDeviceVulkan13Features features13;
+			vk::PhysicalDeviceFeatures2 features = {
+				.pNext = &features13,
 			};
-			vk::getPhysicalDeviceFeatures2(pd, f);
-			pipelineCacheControlSupport = f13.pipelineCreationCacheControl;
-		}
+			vk::getPhysicalDeviceFeatures2(pd, features);
+			pipelineCacheControlSupport = features13.pipelineCreationCacheControl;
+		} else
+			pipelineCacheControlSupport = false;
 
 		// release resources
 		compatibleDevices.clear();

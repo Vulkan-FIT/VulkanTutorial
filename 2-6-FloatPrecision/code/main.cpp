@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <tuple>
 #include <vector>
@@ -160,7 +161,7 @@ int main(int argc, char* argv[])
 						.applicationVersion = 0,
 						.pEngineName = nullptr,
 						.engineVersion = 0,
-						.apiVersion = vk::ApiVersion12,  // highest api version used by the application
+						.apiVersion = vk::ApiVersion13,  // highest api version used by the application
 					},
 				.enabledLayerCount = 0,
 				.ppEnabledLayerNames = nullptr,
@@ -170,17 +171,31 @@ int main(int argc, char* argv[])
 		);
 
 		// get compatible and incompatible devices
+		//
+		// required functionality: Vulkan 1.2, shaderInt64, bufferDeviceAddress,
+		//                         compute queue, timestamp support
+		// optional functionality: Vulkan 1.3, pipelineCreationCacheControl
 		vk::vector<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
 		vector<tuple<vk::PhysicalDevice, uint32_t, vk::PhysicalDeviceProperties,
 			vk::QueueFamilyProperties>> compatibleDevices;
 		vector<vk::PhysicalDeviceProperties> incompatibleDevices;
-		for(size_t i=0,c=deviceList.size(); i<c; i++) {
+		for(vk::PhysicalDevice pd : deviceList) {
 
 			// device version 1.2+
 			// (we need it for shaderFloat16 and bufferDeviceAddress)
-			vk::PhysicalDevice pd = deviceList[i];
 			vk::PhysicalDeviceProperties props = vk::getPhysicalDeviceProperties(pd);
 			if(props.apiVersion < vk::ApiVersion12) {
+				incompatibleDevices.emplace_back(props);
+				continue;
+			}
+
+			// shaderInt64 and bufferDeviceAddress are required
+			vk::PhysicalDeviceVulkan12Features features12;
+			vk::PhysicalDeviceFeatures2 features10 {
+				.pNext = &features12
+			};
+			vk::getPhysicalDeviceFeatures2(pd, features10);
+			if(features10.features.shaderInt64 == false || features12.bufferDeviceAddress == false) {
 				incompatibleDevices.emplace_back(props);
 				continue;
 			}
@@ -202,7 +217,6 @@ int main(int argc, char* argv[])
 			}
 
 			// append incompatible devices
-			// (reason: lack of compute queue or lack of timestamp support)
 			if(!found)
 				incompatibleDevices.emplace_back(props);
 
@@ -297,16 +311,27 @@ int main(int argc, char* argv[])
 		uint64_t timestampValidBitMask = (timestampValidBits >= 64) ? ~uint64_t(0) : (uint64_t(1) << timestampValidBits) - 1;
 		float timestampPeriod = get<2>(*selectedDevice).limits.timestampPeriod;
 
+		// get supported features
+		bool vulkan13Support = get<2>(*selectedDevice).apiVersion >= vk::ApiVersion13;
+		auto [ pipelineCacheControlSupport, float64Support, float16Support ] =
+			[&]()
+			{
+				vk::PhysicalDeviceVulkan13Features features13;
+				vk::PhysicalDeviceVulkan12Features features12 =
+					{ .pNext = vulkan13Support ? &features13 : nullptr };
+				vk::PhysicalDeviceFeatures2 features10 = { .pNext = &features12 };
+				vk::getPhysicalDeviceFeatures2(pd, features10);
+				return
+					tuple{
+						vulkan13Support && features13.pipelineCreationCacheControl,
+						features10.features.shaderFloat64,
+						features12.shaderFloat16,
+					};
+			}();
+
 		// release resources
 		compatibleDevices.clear();
 		incompatibleDevices.clear();
-
-		// get supported features
-		vk::PhysicalDeviceVulkan12Features features12;
-		vk::PhysicalDeviceFeatures2 features10 = { .pNext = &features12 };
-		vk::getPhysicalDeviceFeatures2(pd, features10);
-		bool float64Supported = features10.features.shaderFloat64;
-		bool float16Supported = features12.shaderFloat16;
 
 		// create device
 		vk::initDevice(
@@ -329,14 +354,22 @@ int main(int argc, char* argv[])
 				.ppEnabledExtensionNames = nullptr,
 				.pEnabledFeatures =
 					&(const vk::PhysicalDeviceFeatures&)vk::PhysicalDeviceFeatures{
-						.shaderFloat64 = float64Supported,
+						.shaderFloat64 = float64Support,
 						.shaderInt64 = true,
 					},
-			}.setPNext(
+			}
+			.setPNext(
 				&(const vk::PhysicalDeviceVulkan12Features&)vk::PhysicalDeviceVulkan12Features{
-					.shaderFloat16 = float16Supported,
+					.shaderFloat16 = float16Support,
 					.bufferDeviceAddress = true,
 				}
+				.setPNext(
+					vulkan13Support
+						? &(const vk::PhysicalDeviceVulkan13Features&)vk::PhysicalDeviceVulkan13Features{
+							  .pipelineCreationCacheControl = pipelineCacheControlSupport,
+						  }
+						: nullptr
+				)
 			)
 		);
 
@@ -345,7 +378,7 @@ int main(int argc, char* argv[])
 
 		// shader module
 		array<vk::UniqueShaderModule, 3> shaderModuleList;
-		if(float16Supported)
+		if(float16Support)
 			shaderModuleList[0] =
 				vk::createShaderModuleUnique(
 					vk::ShaderModuleCreateInfo{
@@ -362,7 +395,7 @@ int main(int argc, char* argv[])
 					.pCode = performanceFloatSpirv,
 				}
 			);
-		if(float64Supported)
+		if(float64Support)
 			shaderModuleList[2] =
 				vk::createShaderModuleUnique(
 					vk::ShaderModuleCreateInfo{
@@ -384,21 +417,26 @@ int main(int argc, char* argv[])
 				}
 			);
 
-		// create pipelines
+		// load pipelines from a cache
+		cout << "Creating pipelines..." << flush;
+		chrono::time_point creationStart = chrono::high_resolution_clock::now();
 		array<vk::UniquePipeline, 3> pipelineList =
-			[&]() {
+			[&]()
+			{
+				array<vk::UniquePipeline, 3> pipelineList1;
+				array<vk::ComputePipelineCreateInfo, 3> createInfos;
 
 				// prepare vk::ComputePipelineCreateInfo list
-				// (the list is dense; no null records allowed)
-				array<vk::UniquePipeline, 3> pipelineList;
-				array<vk::ComputePipelineCreateInfo, 3> createInfos;
-				uint32_t numPipelines = 0;
+				vk::PipelineCreateFlags flags = (pipelineCacheControlSupport)
+					? vk::PipelineCreateFlagBits::eFailOnPipelineCompileRequired
+					: vk::PipelineCreateFlags();
+				uint32_t numPipelines1 = 0;
 				size_t i;
 				for(i=0; i<shaderModuleList.size(); i++)
 					if(shaderModuleList[i])
-						createInfos[numPipelines++] = 
+						createInfos[numPipelines1++] = 
 							vk::ComputePipelineCreateInfo{
-								.flags = {},
+								.flags = flags,
 								.stage =
 									vk::PipelineShaderStageCreateInfo{
 										.flags = {},
@@ -412,25 +450,99 @@ int main(int argc, char* argv[])
 								.basePipelineIndex = -1,
 							};
 
-				// create pipelines
+				// create pipelines using cache
+				vk::Result r =
+					vk::createComputePipelinesUnique_noThrow(
+						nullptr,
+						numPipelines1,
+						createInfos.data(),
+						pipelineList1.data()
+					);
+				chrono::time_point creationEnd = chrono::high_resolution_clock::now();
+				if(r == vk::Result::eSuccess)
+				{
+					// print time
+					double delta = chrono::duration<double>(creationEnd - creationStart).count();
+					if(pipelineCacheControlSupport)
+						// all pipelines were found in cache
+						cout << " done.\n   All pipelines were retrieved from a cache in " << delta * 1e3 << "ms." << endl;
+					else
+						// no cache info, but all pipelines were successfully created
+						cout << " done.\n   All pipelines were created in " << delta * 1e3 << "ms." << endl;
+
+					// move pipelines to their proper indices
+					// (unpack dense list)
+					while(i>numPipelines1) {
+						i--;
+						if(shaderModuleList[i]) {
+							numPipelines1--;
+							pipelineList1[i] = move(pipelineList1[numPipelines1]);
+						}
+					}
+
+					return pipelineList1;
+				}
+				if(r != vk::Result::ePipelineCompileRequired)
+					vk::throwResultException(r, "vkCreateComputePipelines");
+
+				// prepare new vk::ComputePipelineCreateInfo list
+				// just for pipelines that failed to be created
+				array<vk::UniquePipeline, 3> pipelineList2;
+				size_t numPipelines2 = 0;
+				for(i=0; i<numPipelines1; i++)
+					if(!pipelineList1[i]) {
+						createInfos[numPipelines2].flags = {};
+						numPipelines2++;
+					} else
+						break;
+				for(; i<numPipelines1; i++)
+					if(!pipelineList1[i]) {
+						createInfos[numPipelines2] = createInfos[i];
+						createInfos[numPipelines2].flags = {};
+						numPipelines2++;
+					}
+
+				// create pipelines without using cache
 				vk::createComputePipelinesUnique(
 					nullptr,
-					numPipelines,
+					numPipelines2,
 					createInfos.data(),
-					pipelineList.data()
+					pipelineList2.data()
 				);
+				chrono::time_point compileEnd = chrono::high_resolution_clock::now();
+
+				// print time
+				double delta = chrono::duration<double>(creationEnd - creationStart).count();
+				if(numPipelines2 == numPipelines1)
+					cout << " done.\n   All pipelines were compiled in " << delta * 1e3 << "ms." << endl;
+				else
+					cout << " done.\n"
+					        "   All pipeines were successfully created. Some were retireved from cache\n"
+					        "   and others compiled in " << delta * 1e3 << "ms." << endl;
 
 				// move pipelines to their proper indices
 				// (the dense list is unpacked here)
-				while(i>numPipelines) {
+				for(i=shaderModuleList.size(); i>numPipelines1;) {
 					i--;
 					if(shaderModuleList[i]) {
-						numPipelines--;
-						pipelineList[i] = move(pipelineList[numPipelines]);
+						numPipelines1--;
+						if(pipelineList1[numPipelines1])
+							pipelineList1[i] = move(pipelineList1[numPipelines1]);
+						else {
+							numPipelines2--;
+							pipelineList1[i] = move(pipelineList2[numPipelines2]);
+						}
+					}
+				}
+				while(i > 0) {
+					i--;
+					if(!pipelineList1[i]) {
+						numPipelines2--;
+						pipelineList1[i] = move(pipelineList2[numPipelines2]);
 					}
 				}
 
-				return pipelineList;
+				return pipelineList1;
 			}();
 
 		// timestamp pool
@@ -625,13 +737,13 @@ int main(int argc, char* argv[])
 		do {
 
 			// perform tests
-			if(float16Supported) {
+			if(float16Support) {
 				halfTime = performTest(pipelineList[0], halfNumWorkgroups);
 				processResult(halfTime, halfNumWorkgroups, halfPerformanceList);
 			}
 			floatTime = performTest(pipelineList[1], floatNumWorkgroups);
 			processResult(floatTime, floatNumWorkgroups, floatPerformanceList);
-			if(float64Supported) {
+			if(float64Support) {
 				doubleTime = performTest(pipelineList[2], doubleNumWorkgroups);
 				processResult(doubleTime, doubleNumWorkgroups, doublePerformanceList);
 			}
@@ -642,10 +754,10 @@ int main(int argc, char* argv[])
 				break;
 
 			// compute new numWorkgroups
-			if(float16Supported)
+			if(float16Support)
 				halfNumWorkgroups = computeNumWorkgroups(halfNumWorkgroups, halfTime);
 			floatNumWorkgroups = computeNumWorkgroups(floatNumWorkgroups, floatTime);
-			if(float64Supported)
+			if(float64Support)
 				doubleNumWorkgroups = computeNumWorkgroups(doubleNumWorkgroups, doubleTime);
 
 		} while(true);
@@ -677,9 +789,9 @@ int main(int argc, char* argv[])
 				else
 					cout << "not supported" << endl;
 			};
-		printResult("Half (float16) performance:    ", float16Supported, halfPerformanceList);
+		printResult("Half (float16) performance:    ", float16Support, halfPerformanceList);
 		printResult("Float (float32) performance:   ", true, floatPerformanceList);
-		printResult("Double (float64) performance:  ", float64Supported, doublePerformanceList);
+		printResult("Double (float64) performance:  ", float64Support, doublePerformanceList);
 
 	// catch exceptions
 	} catch(vk::Error& e) {
