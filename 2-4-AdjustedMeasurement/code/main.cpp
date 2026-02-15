@@ -298,9 +298,13 @@ int main(int argc, char* argv[])
 		        "   " << get<2>(*selectedDevice).deviceName << endl;
 		vk::PhysicalDevice pd = get<0>(*selectedDevice);
 		uint32_t queueFamily = get<1>(*selectedDevice);
+		bool vulkan13Support = get<2>(*selectedDevice).apiVersion >= vk::ApiVersion13;
+
+		// release resources
+		compatibleDevices.clear();
+		incompatibleDevices.clear();
 
 		// get pipeline creation cache control support
-		bool vulkan13Support = get<2>(*selectedDevice).apiVersion >= vk::ApiVersion13;
 		bool pipelineCacheControlSupport;
 		if(vulkan13Support) {
 			vk::PhysicalDeviceVulkan13Features features13;
@@ -311,10 +315,6 @@ int main(int argc, char* argv[])
 			pipelineCacheControlSupport = features13.pipelineCreationCacheControl;
 		} else
 			pipelineCacheControlSupport = false;
-
-		// release resources
-		compatibleDevices.clear();
-		incompatibleDevices.clear();
 
 		// create device
 		vk::initDevice(

@@ -305,9 +305,13 @@ int main(int argc, char* argv[])
 		uint32_t timestampValidBits = get<3>(*selectedDevice).timestampValidBits;
 		uint64_t timestampValidBitMask = (timestampValidBits >= 64) ? ~uint64_t(0) : (uint64_t(1) << timestampValidBits) - 1;
 		float timestampPeriod = get<2>(*selectedDevice).limits.timestampPeriod;
+		bool vulkan13Support = get<2>(*selectedDevice).apiVersion >= vk::ApiVersion13;
+
+		// release resources
+		compatibleDevices.clear();
+		incompatibleDevices.clear();
 
 		// get pipeline creation cache control support
-		bool vulkan13Support = get<2>(*selectedDevice).apiVersion >= vk::ApiVersion13;
 		bool pipelineCacheControlSupport;
 		if(vulkan13Support) {
 			vk::PhysicalDeviceVulkan13Features features13;
@@ -318,10 +322,6 @@ int main(int argc, char* argv[])
 			pipelineCacheControlSupport = features13.pipelineCreationCacheControl;
 		} else
 			pipelineCacheControlSupport = false;
-
-		// release resources
-		compatibleDevices.clear();
-		incompatibleDevices.clear();
 
 		// create device
 		vk::initDevice(

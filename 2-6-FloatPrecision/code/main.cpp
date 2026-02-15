@@ -310,9 +310,13 @@ int main(int argc, char* argv[])
 		uint32_t timestampValidBits = get<3>(*selectedDevice).timestampValidBits;
 		uint64_t timestampValidBitMask = (timestampValidBits >= 64) ? ~uint64_t(0) : (uint64_t(1) << timestampValidBits) - 1;
 		float timestampPeriod = get<2>(*selectedDevice).limits.timestampPeriod;
+		bool vulkan13Support = get<2>(*selectedDevice).apiVersion >= vk::ApiVersion13;
+
+		// release resources
+		compatibleDevices.clear();
+		incompatibleDevices.clear();
 
 		// get supported features
-		bool vulkan13Support = get<2>(*selectedDevice).apiVersion >= vk::ApiVersion13;
 		auto [ pipelineCacheControlSupport, float64Support, float16Support ] =
 			[&]()
 			{
@@ -328,10 +332,6 @@ int main(int argc, char* argv[])
 						features12.shaderFloat16,
 					};
 			}();
-
-		// release resources
-		compatibleDevices.clear();
-		incompatibleDevices.clear();
 
 		// create device
 		vk::initDevice(
@@ -427,6 +427,7 @@ int main(int argc, char* argv[])
 				array<vk::ComputePipelineCreateInfo, 3> createInfos;
 
 				// prepare vk::ComputePipelineCreateInfo list
+				// (the list is dense; no null shader modules allowed)
 				vk::PipelineCreateFlags flags = (pipelineCacheControlSupport)
 					? vk::PipelineCreateFlagBits::eFailOnPipelineCompileRequired
 					: vk::PipelineCreateFlags();
@@ -521,7 +522,7 @@ int main(int argc, char* argv[])
 					        "   and others compiled in " << delta * 1e3 << "ms." << endl;
 
 				// move pipelines to their proper indices
-				// (the dense list is unpacked here)
+				// (unpack dense list)
 				for(i=shaderModuleList.size(); i>numPipelines1;) {
 					i--;
 					if(shaderModuleList[i]) {
