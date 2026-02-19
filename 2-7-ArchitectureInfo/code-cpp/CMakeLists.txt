@@ -1,4 +1,4 @@
-set(APP_NAME 2-6-ArchitectureInfo-cpp)
+set(APP_NAME 2-7-ArchitectureInfo-cpp)
 
 project(${APP_NAME})
 

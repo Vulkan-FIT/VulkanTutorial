@@ -10,7 +10,7 @@ using namespace std;
 
 
 // constants
-constexpr const char* appName = "2-6-ArchitectureInfo-cpp";
+constexpr const char* appName = "2-7-ArchitectureInfo-cpp";
 
 
 // forward declarations
