@@ -14,6 +14,10 @@ using namespace std;
 
 // constants
 constexpr const char* appName = "2-7-ArchitectureInfo";
+constexpr const float totalMeasuringTime = 3.f;  // total time in seconds for which measurements are made and median time of the measurements is taken at the end
+constexpr const float singleMeasurementTargetTime = 0.02f;  // single measurement time in seconds; the load will be continually adjusted to target this time
+constexpr const float minTimeOfValidMeasurement = 0.005f;  // minimal measurement time to consider it valid measurement
+constexpr const float maxNumWorkgroupsMultiplier = 10.f;  // limits number of workgroups in the next measurement to not be more than 10 times higher then in the current measurement
 
 
 // shader code as SPIR-V binary
@@ -567,7 +571,7 @@ int main(int argc, char* argv[])
 				if(r == vk::Result::eSuccess)
 				{
 					// print time
-					double delta = chrono::duration<double>(creationEnd - creationStart).count();
+					float delta = chrono::duration<float>(creationEnd - creationStart).count();
 					if(pipelineCacheControlSupport)
 						// all pipelines were found in cache
 						cout << " done.\n   All pipelines were retrieved from a cache in " << delta * 1e3 << "ms." << endl;
@@ -617,7 +621,7 @@ int main(int argc, char* argv[])
 				chrono::time_point compileEnd = chrono::high_resolution_clock::now();
 
 				// print time
-				double delta = chrono::duration<double>(creationEnd - creationStart).count();
+				float delta = chrono::duration<float>(creationEnd - creationStart).count();
 				if(numPipelines2 == numPipelines1)
 					cout << " done.\n   All pipelines were compiled in " << delta * 1e3 << "ms." << endl;
 				else
@@ -804,7 +808,7 @@ int main(int argc, char* argv[])
 
 		auto processResult =
 			[](float time, size_t numWorkgroups, vector<float>& performanceList) {
-				if(time >= 0.01f) {
+				if(time >= minTimeOfValidMeasurement) {
 					uint64_t numInstructions = uint64_t(20000) * 128 * numWorkgroups;
 					float performance = float(numInstructions) / time;
 					performanceList.push_back(performance);
@@ -816,14 +820,13 @@ int main(int argc, char* argv[])
 		auto computeNumWorkgroups =
 			[](size_t lastNumWorkgroups, float lastTime) -> size_t
 			{
-				constexpr float targetTime = 0.02;
-				if(lastTime < (targetTime / 10.f)) {
-					// multiply numWorkgroups by 10
-					return lastNumWorkgroups * 10;
+				if(lastTime < (singleMeasurementTargetTime / maxNumWorkgroupsMultiplier)) {
+					// multiply numWorkgroups by maxNumWorkgroupsMultiplier
+					return lastNumWorkgroups * maxNumWorkgroupsMultiplier;
 				}
 				else {
 					// multiply numWorkgroups by ratio
-					float ratio = targetTime / lastTime;
+					float ratio = singleMeasurementTargetTime / lastTime;
 					size_t newNumWorkgroups = size_t(lastNumWorkgroups * ratio);
 					return (newNumWorkgroups >= 1) ? newNumWorkgroups : 1;
 				}
@@ -853,9 +856,9 @@ int main(int argc, char* argv[])
 				processResult(doubleTime, doubleNumWorkgroups, doublePerformanceList);
 			}
 
-			// stop measurements after three seconds
-			double totalTime = chrono::duration<double>(chrono::high_resolution_clock::now() - startTime).count();
-			if(totalTime >= 3.)
+			// stop measurements after totalMeasuringTime passed
+			float totalTime = chrono::duration<float>(chrono::high_resolution_clock::now() - startTime).count();
+			if(totalTime >= totalMeasuringTime)
 				break;
 
 			// compute new numWorkgroups
@@ -886,8 +889,9 @@ int main(int argc, char* argv[])
 
 						// print dispersion using IQR (Interquartile Range);
 						// Q1 is the value in 25% and Q3 in 75%
-						cout << "  (Q1: " << formatFloatSI(performanceList[performanceList.size()/4]) << "FLOPS";
-						cout << " Q3: " << formatFloatSI(performanceList[performanceList.size()/4*3]) << "FLOPS)";
+						cout << "  (Q1: " << formatFloatSI(performanceList[performanceList.size()/4]) << "FLOPS,"
+						        " Q3: " << formatFloatSI(performanceList[performanceList.size()/4*3]) << "FLOPS,"
+						        " num measurements: " << performanceList.size() << ")";
 						cout << endl;
 					}
 				}

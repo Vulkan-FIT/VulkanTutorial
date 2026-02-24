@@ -15,6 +15,8 @@ using namespace std;
 
 // constants
 constexpr const char* appName = "2-4-AdjustedMeasurement";
+constexpr const float totalMeasuringTime = 3.f;  // total time in seconds for which measurements are made and median time of the measurements is taken at the end
+constexpr const float singleMeasurementTargetTime = 0.02f;  // single measurement time in seconds; the load will be continually adjusted to target this time
 
 
 // shader code as SPIR-V binary
@@ -404,7 +406,7 @@ int main(int argc, char* argv[])
 					pipeline
 				);
 			chrono::time_point compileEnd = chrono::high_resolution_clock::now();
-			double delta = chrono::duration<double>(compileEnd - compileStart).count();
+			float delta = chrono::duration<float>(compileEnd - compileStart).count();
 			if(r == vk::Result::eSuccess)
 				cout << " done.\n   The pipeline was retrieved from a cache in " << delta * 1e3 << "ms." << endl;
 			else if(r == vk::Result::ePipelineCompileRequired)
@@ -434,7 +436,7 @@ int main(int argc, char* argv[])
 					}
 				);
 			chrono::time_point compileEnd = chrono::high_resolution_clock::now();
-			double delta = chrono::duration<double>(compileEnd - compileStart).count();
+			float delta = chrono::duration<float>(compileEnd - compileStart).count();
 			if(pipelineCacheControlSupport)
 				// pipeline was compiled - we know it from pipeline cache control
 				cout << " done.\n   The pipeline was compiled in " << delta * 1e3 << "ms." << endl;
@@ -540,23 +542,23 @@ int main(int argc, char* argv[])
 			vk::resetFence(computingFinishedFence);
 
 			// print results
-			double time = chrono::duration<double>(t2 - t1).count();
-			double totalTime = chrono::duration<double>(t2 - startTime).count();
+			float time = chrono::duration<float>(t2 - t1).count();
+			float totalTime = chrono::duration<float>(t2 - startTime).count();
 			uint64_t numInstructions = uint64_t(20000) * 128 * workgroupCountX * workgroupCountY * workgroupCountZ;
 			cout << fixed << setprecision(2)
 			     << setw(9) << totalTime * 1000 << "ms       "
 			     << setw(9) << workgroupCountX * workgroupCountY * workgroupCountZ << "        "
 			     << "     " << formatFloatSI(time) << "s   "
-			     << "    " << formatFloatSI(double(numInstructions) / time) << "FLOPS" << endl;
+			     << "    " << formatFloatSI(float(numInstructions) / time) << "FLOPS" << endl;
 
-			// stop measurements after three seconds
-			if(totalTime >= 3.)
+			// stop measurements after totalMeasuringTime passed
+			if(totalTime >= totalMeasuringTime)
 				break;
 
 			// update number of local workgroups
-			// to reach computation time of about 20ms
-			constexpr double targetTime = 0.02;
-			if(time < targetTime / 10.) {
+			// to reach computation time given by singleMeasurementTargetTime;
+			// just do not increase number of local workgroups more than ten times
+			if(time < singleMeasurementTargetTime / 10.f) {
 				if(workgroupCountX <= 1000)
 					workgroupCountX *= 10;
 				else if(workgroupCountY <= 1000)
@@ -565,7 +567,7 @@ int main(int argc, char* argv[])
 					workgroupCountZ *= 10;
 			}
 			else {
-				double ratio = targetTime / time;
+				float ratio = singleMeasurementTargetTime / time;
 				uint64_t newNumGroups = uint64_t(ratio * (uint64_t(workgroupCountX) * workgroupCountY * workgroupCountZ));
 				if(newNumGroups > 10000 * 10000) {
 					workgroupCountZ = 1 + ((newNumGroups - 1) / (10000 * 10000));

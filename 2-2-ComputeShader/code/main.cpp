@@ -302,10 +302,10 @@ int main(int argc, char* argv[])
 		cout << "Done." << endl;
 
 		// print results
-		double delta = chrono::duration<double>(t2 - t1).count();
+		float delta = chrono::duration<float>(t2 - t1).count();
 		cout << "Computation time: " << delta * 1e3 << "ms." << endl;
 		constexpr uint64_t numInstructions = uint64_t(20000) * 128 * workgroupCountX * workgroupCountY * workgroupCountZ;
-		cout << "Computing performance: " << double(numInstructions) / delta * 1e-12 << " TFLOPS." << endl;
+		cout << "Computing performance: " << float(numInstructions) / delta * 1e-12 << " TFLOPS." << endl;
 
 	// catch exceptions
 	} catch(vk::Error& e) {
