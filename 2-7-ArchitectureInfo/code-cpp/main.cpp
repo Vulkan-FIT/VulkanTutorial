@@ -5,6 +5,11 @@
 #include <cstring>
 #include <iostream>
 #include <vector>
+#define NO_MULTITHREADING
+#if !defined(NO_MULTITHREADING)
+#include <latch>
+#include <thread>
+#endif
 
 using namespace std;
 
@@ -19,6 +24,7 @@ static inline uint64_t getCpuTimestamp();
 
 
 // global variables
+static unsigned numThreads = 1;
 static float cpuTimestampPeriod;
 
 
@@ -408,6 +414,15 @@ int main(int argc, char* argv[])
 		bool printHelp = false;
 		for(int i=1; i<argc; i++) {
 
+			// parse number of threads
+			if(argv[i][0] >= '0' && argv[i][0] <= '9') {
+				char* endp = nullptr;
+				numThreads = strtoul(argv[i], &endp, 10);
+				if(numThreads == 0 || endp == argv[i] || ((endp != nullptr) && (*endp != 0)))
+					printHelp = true;
+				continue;
+			}
+
 			// parse options starting with '-'
 			if(argv[i][0] == '-') {
 
@@ -427,20 +442,35 @@ int main(int argc, char* argv[])
 		if(printHelp) {
 			cout << appName << " prints the performance of your CPU\n"
 			        "\n"
-			        "Only single-threaded measurement is performed.\n"
-			        "To measure the maximum performance, make sure that this binary\n"
+			        "Usage: " << appName << " [numThreads]\n"
+			        "\n"
+			        "numThreads - run test using specified number of threads.\n"
+			        "             Print the total performance of all the threads.\n"
+			        "             If omitted, single threaded test is used.\n"
+			        "\n"
+			        "To measure the maximum performance, make sure that this application\n"
 			        "is compiled in release mode with optimizations turned on and\n"
 			        "with the features your processor supports. For instance,\n"
-			        "omission to compile with SSE support while CPU supports it\n"
-			        "would lead to lower performance results as SSE instructions\n"
+			        "omission to compile with SSE or AVX support while CPU supports it\n"
+			        "would lead to lower performance results as SSE or AVX instructions\n"
 			        "will not be used." << endl;
 			return 99;
 		}
 
+		// only single thread if NO_MULTITHREADING
+	#if defined(NO_MULTITHREADING)
+		if(numThreads != 1) {
+			cout << "Requested " << numThreads << " threads, but the application was compiled\n"
+			        "without multithreading support. Terminating." << endl;
+			return 99;
+		}
+	#endif
+
 		// processor info
 		cout << "Processor info:\n"
-		        " < missing >" << endl;
+		        " < missing >\n" << endl;
 
+		// perform computation of all workgroups
 		auto performTest =
 			[&](void (*shaderInvocationFunc)(unsigned, unsigned, unsigned), size_t numWorkgroups) -> float {
 
@@ -464,18 +494,70 @@ int main(int argc, char* argv[])
 				}
 
 				// perform computation
-				uint64_t ts1 = getCpuTimestamp();
-				for(unsigned z=0; z<workgroupCountZ; z++)
-					for(unsigned y=0; y<workgroupCountY; y++)
-						for(unsigned x=0; x<workgroupCountX; x++)
-							workgroupInvocation(shaderInvocationFunc, x, y, z);
-				uint64_t ts2 = getCpuTimestamp();
+				uint64_t ts1, ts2;
+				if(numThreads == 1) {
+					ts1 = getCpuTimestamp();
+					for(unsigned z=0; z<workgroupCountZ; z++)
+						for(unsigned y=0; y<workgroupCountY; y++)
+							for(unsigned x=0; x<workgroupCountX; x++)
+								workgroupInvocation(shaderInvocationFunc, x, y, z);
+					ts2 = getCpuTimestamp();
+				}
+				else {
+
+				#if !defined(NO_MULTITHREADING)
+
+					latch l1(1);
+					latch l2(numThreads);
+					auto worker =
+						[&](unsigned id) {
+							l1.wait();
+							unsigned x = id;
+							unsigned y = 0;
+							unsigned z = 0;
+							do {
+								while(x >= workgroupCountX) {
+									x -= workgroupCountX;
+									y++;
+									if(y >= workgroupCountY) {
+										y -= workgroupCountY;
+										z++;
+										if(z >= workgroupCountZ)
+											goto workerDone;
+									}
+								}
+								workgroupInvocation(shaderInvocationFunc, x, y, z);
+								x += numThreads;
+							}
+							while(true);
+						workerDone:
+							l2.arrive_and_wait();
+						};
+					vector<thread> threadList;
+					threadList.reserve(numThreads - 1);
+					unsigned i = 1;
+					while(i < numThreads) {
+						threadList.emplace_back(worker, i);
+						i++;
+					}
+
+					ts1 = getCpuTimestamp();
+					l1.count_down();
+					worker(0);
+					ts2 = getCpuTimestamp();
+					for(auto& t : threadList)
+						t.join();
+
+				#endif
+
+				}
 
 				// return time as float in seconds
 				return float(ts2 - ts1) * cpuTimestampPeriod;
 
 			};
 
+		// record the performance in the list
 		auto processResult =
 			[](float time, size_t numWorkgroups, vector<float>& performanceList) {
 				if(time >= 0.01f) {
@@ -503,6 +585,10 @@ int main(int argc, char* argv[])
 				}
 			};
 
+		// run tests
+		cout << "Running tests using ";
+		if(numThreads == 1)  cout << "1 thread..." << endl;
+		else  cout << numThreads << " threads..." << endl;
 		constexpr const size_t arraySize = 8;
 		array<size_t,arraySize> numWorkgroups = { 1,1,1,1, 1,1,1,1 };
 		array<vector<float>,arraySize> performanceList;
