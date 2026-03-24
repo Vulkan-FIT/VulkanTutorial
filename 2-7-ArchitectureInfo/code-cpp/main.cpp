@@ -5,7 +5,7 @@
 #include <cstring>
 #include <iostream>
 #include <vector>
-#define NO_MULTITHREADING
+#include "cpu.h"
 #if !defined(NO_MULTITHREADING)
 #include <latch>
 #include <thread>
@@ -467,8 +467,8 @@ int main(int argc, char* argv[])
 	#endif
 
 		// processor info
-		cout << "Processor info:\n"
-		        " < missing >\n" << endl;
+		cout << "Processor info:" << endl;
+		printCpuInfo();
 
 		// perform computation of all workgroups
 		auto performTest =

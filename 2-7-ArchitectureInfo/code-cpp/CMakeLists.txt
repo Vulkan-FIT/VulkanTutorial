@@ -4,9 +4,11 @@ project(${APP_NAME})
 
 set(APP_SOURCES
     main.cpp
+    cpu.cpp
    )
 
 set(APP_INCLUDES
+    cpu.h
    )
 
 # executable
