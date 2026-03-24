@@ -3,6 +3,9 @@
 #if _M_X64
 #include <intrin.h>
 #endif
+#if defined(__arm__) || defined(__aarch64__)
+#include <fstream>
+#endif
 
 using namespace std;
 
@@ -215,10 +218,10 @@ void printCpuInfo()
 	else
 		vendor = "unknown";
 
-	cout << "   Implementer: " << implementer << " (" << vendor << ")"
-	        "   Architecture: " << architecture <<
-	        "   Variant:  " << variant <<
-	        "   Partno:   " << partno <<
+	cout << "   Implementer: " << implementer << " (" << vendor << ")\n"
+	        "   Architecture: " << architecture << "\n"
+	        "   Variant:  " << variant << "\n"
+	        "   Partno:   " << partno << "\n"
 	        "   Revision: " << revision << endl;
 
 #else
