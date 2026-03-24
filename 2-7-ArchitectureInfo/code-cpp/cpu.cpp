@@ -9,6 +9,220 @@ using namespace std;
 
 void printCpuInfo()
 {
+#if defined(__arm__) || defined(__aarch64__)
+
+	//
+	// ARM uses Implementer, Variant, Architecture, Partno and Revision
+	// for cpu identification. We can not access them using
+	//
+	//   mrc p15, 0, %[result], c0, c0, 0
+	//
+	// as this can be done in privileged mode only (even root user seems to not use
+	// privileged mode). We have to parse /proc/cpuinfo instead. Example of the
+	// file on N9 follows:
+	//
+	//   /home/developer $ cat /proc/cpuinfo 
+	//   Processor       : ARMv7 Processor rev 2 (v7l)
+	//   BogoMIPS        : 298.32
+	//   Features        : swp half thumb fastmult vfp edsp neon vfpv3 
+	//   CPU implementer : 0x41
+	//   CPU architecture: 7
+	//   CPU variant     : 0x3
+	//   CPU part        : 0xc08
+	//   CPU revision    : 2
+	//
+	//   Hardware        : Nokia RM-696 board
+	//   Revision        : 1601
+	//   Serial          : 0000000000000000
+	//   SoC Info        : OMAP3630 ES1.2-hs
+	//         IDCODE  : 2b89102f
+	//         Pr. ID  : 00000000 00000000 000000cc cafeb891
+	//
+	// List of cpuid's:
+	//
+	// Cortex-A15 (r2p0) 0x412FC0F0
+	// Cortex-A9  (r3p0) 0x413FC090
+	//            (r2p2) 0x412FC092
+	//            (r2p1) 0x412FC091
+	//            (r2p0) 0x412FC090
+	// Cortex-A8  (r3p2) 0x413FCO82
+	//            (r3p1) 0x413FC081
+	//            (r3p0) 0x413FC080
+	//            (r2p3) 0x412FC083
+	//            (r2p2) 0x412FC082
+	//            (r1p1) 0x411FC081
+	// Cortex-A5  (r0p1) 0x410FCO51
+	//            (r0p0) 0x410FCO50
+	//
+	// Cortex-R5  (r1p2) 0x411FC152
+	//            (r1p1) 0x411FC151
+	// Cortex-R4  (r1p4) 0x411FC144
+	//            (r1p3) 0x411FC143
+	//
+	// Cortex-M4  (r0p1) 0x410FC241
+	//            (r0p0) 0x410FC240
+	// Cortex-M3  (r2p1) 0x412FC231
+	//            (r2p0) 0x412FC230
+	//            (r1p1) 0x411FC231
+	// Cortex-M1  (r1p0) 0x411CC210
+	//            (r0p1) 0x410CC211
+	// Cortex-M0  (r0p0) 0x410CC200
+	//
+	// ARM1136    (r1p5) 0x4117B365
+	//            (r1p3) 0x4117B363
+	//            (r1p3) 0x4117B361
+	// ARM1156           0x410FB564
+	//                   0x410FB560
+	// ARM1176           0x410FB767
+	//                   0x410FB760
+	// ARM11 MPCore      0x410FB024
+	//
+	// Comments:
+	//    r is major revision, p is minor revision
+	//    bits 31..24 - implementer,
+	//    bits 23..20 - variant,
+	//    bits 19..16 - architecture,
+	//    bits 15..4  - primary part number
+	//    bits  3..0  - revision
+	//
+	// Implementer:
+	//    0x41 ('A') - ARM
+	//    0x44 ('D') - DEC
+	//    0x54 ('T') - TI
+	//    0x69 ('i') - Intel
+	//
+	// Variant:
+	//    major revision number
+	//
+	// Architecture:
+	//    0xF - Cortex-A*, Cortex-R*, Cortex-M3,M4, ARM1156, ARM1176, ARM11 MPCore
+	//    0xC - Cortex-M0,M1
+	//    0x7 - ARM1136
+	//
+	// Primary part number:
+	//    0xC0F - Cortex-A15
+	//    0xC09 - Cortex-A9
+	//    0xC08 - Cortex-A8
+	//    0xC05 - Cortex-A5
+	//    0xC15 - Cortex-R5
+	//    0xC14 - Cortex-R4
+	//    0xC24 - Cortex-M4
+	//    0xC23 - Cortex-M3
+	//    0xC21 - Cortex-M1
+	//    0xC20 - Cortex-M0
+	//    0xB36 - ARM1136
+	//    0xB56 - ARM1156
+	//    0xB76 - ARM1176
+	//
+
+	string implementer, architecture, variant, partno, revision;
+
+	ifstream fs("/proc/cpuinfo", ios::in);
+	string line;
+
+	// read all lines in the file and look for "model name" text
+	// that is used on x86 and amd64 architecture
+	while (fs.good()) {
+
+		getline(fs, line);
+		string::size_type l = line.length();
+
+		if(line.find("CPU") != string::npos ||
+		   line.find("cpu") != string::npos)
+		{
+
+			// implementer:
+			//   0x41 ('A') - ARM
+			//   0x44 ('D') - DEC
+			//   0x54 ('T') - TI
+			//   0x69 ('i') - Intel
+			//
+			if(line.find("implementer") != string::npos ||
+			   line.find("Implementer") != string::npos)
+			{
+				string::size_type i = line.find(":");
+				if(i != string::npos) {
+					i++;
+					while(i<l && line[i] == ' ')
+						i++;
+					implementer = line.substr(i);
+				}
+			}
+
+			// architecture
+			if(line.find("architecture") != string::npos ||
+			   line.find("Architecture") != string::npos)
+			{
+				string::size_type i = line.find(":");
+				if(i != string::npos) {
+					i++;
+					while(i<l && line[i] == ' ')
+						i++;
+					architecture = line.substr(i);
+				}
+			}
+
+			// variant
+			if(line.find("variant") != string::npos ||
+			   line.find("Variant") != string::npos)
+			{
+				string::size_type i = line.find(":");
+				if (i != string::npos) {
+					i++;
+					while(i<l && line[i] == ' ')
+						i++;
+					variant = line.substr(i);
+				}
+			}
+
+			// primary part number
+			if(line.find("part") != string::npos ||
+			   line.find("Part") != string::npos)
+			{
+				string::size_type i = line.find(":");
+				if(i != string::npos) {
+					i++;
+					while(i<l && line[i] == ' ')
+						i++;
+					partno = line.substr(i);
+				}
+			}
+
+			// revision
+			if(line.find("revision") != string::npos ||
+			   line.find("Revision") != string::npos)
+			{
+				string::size_type i = line.find(":");
+				if(i != string::npos) {
+					i++;
+					while(i<l && line[i] == ' ')
+						i++;
+					revision = line.substr(i);
+				}
+			}
+		}
+	}
+
+	string vendor;
+	if(implementer == "0x41") // 'A'
+		vendor = "ARM";
+	else if(implementer == "0x44") // 'D'
+		vendor = "DEC";
+	else if(implementer == "0x54") // 'T'
+		vendor = "TI";
+	else if(implementer == "0x69") // 'i'
+		vendor = "Intel";
+	else
+		vendor = "unknown";
+
+	cout << "   Implementer: " << implementer << " (" << vendor << ")"
+	        "   Architecture: " << architecture <<
+	        "   Variant:  " << variant <<
+	        "   Partno:   " << partno <<
+	        "   Revision: " << revision << endl;
+
+#else
+
 	bool cpuidSupported = true;
 	if(cpuidSupported) {
 
@@ -601,4 +815,6 @@ void printCpuInfo()
 		cout << flush;
 
 	}
+
+#endif
 }
