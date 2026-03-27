@@ -19,7 +19,7 @@
 in TFLOPS (Tera FLoating-point Operations Per Second).
 We will create simple compute shader that will contain stream of 10'000 instructions,
 we will execute the shader many times on particular device,
-we will measure the execution time and print the measured performance.</p>
+we will measure the execution time, and print the measured performance.</p>
 
 <p>In this article, we will learn to use shaders and pipelines.
 A shader contains stream of instructions.
@@ -40,7 +40,7 @@ x = x * y + z;
 
 <p>This equation uses two math operations: multiplication and addition.
 Interestingly, many computing devices provide instruction,
-usually called FMA (Fused Multiply Addition), that encodes multiply and addition operations by single instruction.</p>
+usually called FMA (Fused Multiply Addition), that encodes multiply and addition operations in single instruction.</p>
 
 <p>Now, we need to repeat the equation 10'000 times.
 We will use macros for it:</p>
@@ -100,7 +100,7 @@ void main()
 <p>First, we assign initial values to x, y and z values.
 Compute shaders usually run many invocations in parallel.
 gl_GlobalInvocationID is uvec3 that contains index of shader invocation
-in x, y and z dimension. We convert it to float and use for our x, y and z variables.</p>
+in x, y and z dimension. We convert it to floats and use for our x, y and z variables.</p>
 
 <p>After the computation of 10'000 FMA instructions, there is one danger.
 If we do not use the results of our computation, some optimizer might jump in
@@ -125,7 +125,7 @@ layout(buffer_reference) restrict writeonly buffer OutputDataRef {
 };
 </pre>
 
-<p>It is written in GLSL language version 4.6 and it uses
+<p>The shader is written in GLSL language version 4.6 and it uses
 GL_EXT_buffer_reference and GL_ARB_gpu_shader_int64 extensions.
 Both are necessary for our fictive write to address zero.</p>
 
@@ -157,7 +157,7 @@ set_property(TARGET ${APP_NAME} PROPERTY CXX_STANDARD 20)
 <b>target_include_directories(${APP_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})</b>
 </pre>
 
-<p>The macro vkg_add_shaders() will process all shaders and generate their SPIR-V counterparts.
+<p>The macro vkg_add_shaders() will process all the shaders and generate their SPIR-V counterparts.
 APP_SHADER_DEPS variable will contain dependencies that we need to append to our executable.
 Finally, we need to append include directory to CMake's binary dir
 because that is where the SPIR-V shaders are generated and we need to include them from our source code.
@@ -269,13 +269,13 @@ In the command, the number of workgroups in X, Y and Z dimension are recorded.
 We record 1000 workgroups in X dimension, 100 in Y dimension and 1 in Z dimension.
 In total, it is 1000x100x1 = 100'000 workgroups.
 These workgroups are called local workgroups, while all 100'000 local workgroups together will form one global workgroup
-because it was provoked by single dispatch call. If we speak just about workgroups, we will mean local workgroups
-that will be much more important for us.</p>
+because it was provoked by single dispatch call. If we speak just about workgroups, we will mean local workgroups.
+They will be much more important for us.</p>
 
 <p>A local workgroup is composed of compute shader invocations.
 Their number is specified on the beginning of our compute shader as
 <code>layout(local_size_x=32, local_size_y=4, local_size_z=1) in;</code>.
-So, it is 32 x 4 x 1 of them. In total, 128 compute shader invocations.
+So, it is 32 x 4 x 1 of them. 128 compute shader invocations in total.
 If we multiply it by 100'000 local workgroups that we recorded into command buffer,
 it is 12'800'000 compute shader invocations.</p>
 
@@ -340,23 +340,30 @@ the fence is signalled, and we take the current time again (in bold):</p>
 vk::Result r =
 	vk::waitForFence_noThrow(
 		computingFinishedFence,
-		uint64_t(3e9)  // timeout (3s)
+		uint64_t(1.5e9)  // timeout (1.5 seconds)
 	);
 <b>chrono::time_point t2 = chrono::high_resolution_clock::now();</b>
-if(r == vk::Result::eTimeout)
-	throw std::runtime_error("GPU timeout. Task is probably hanging.");
-else
+if(r == vk::Result::eTimeout) {
+	cout << "Vulkan device timeout. Task is probably hanging." << endl;
+	// use std::quick_exit() to terminate the application
+	// (Do not throw, do not return, do not call std::exit().
+	// The device is still busy and it uses number of handles such as
+	// computingFinishedFence and device handle itself.
+	// Destruction of the handles in use or the unallowed access to them
+	// is forbidden by Vulkan specification.
+	quick_exit(-1);
+} else
 	vk::checkForSuccessValue(r, "vkWaitForFences");
 </pre>
 
-<p>Now, we can print the computation time and performance:</p>
+<p>Now, we can print the computation time and the performance:</p>
 
 <pre>
 // print results
-double delta = chrono::duration<double>(t2 - t1).count();
+float delta = chrono::duration&lt;float&gt;(t2 - t1).count();
 cout &lt;&lt; "Computation time: " &lt;&lt; delta * 1e3 &lt;&lt; "ms." &lt;&lt; endl;
 constexpr uint64_t numInstructions = uint64_t(20000) * 128 * workgroupCountX * workgroupCountY * workgroupCountZ;
-cout &lt;&lt; "Computing performance: " &lt;&lt; double(numInstructions) / delta * 1e-12 &lt;&lt; " TFLOPS." &lt;&lt; endl;
+cout &lt;&lt; "Computing performance: " &lt;&lt; float(numInstructions) / delta * 1e-12 &lt;&lt; " TFLOPS." &lt;&lt; endl;
 </pre>
 
 <p>For computing the performance in TFLOPS, we need number of executed instructions.
@@ -368,7 +375,7 @@ Their number is specified on the beginning of the compute shader as
 So, it is 32x4x1 of them. 128 in total.
 When combined with number of local workgroups, we have 128 x 100'000 = 12'800'000 shader invocations.
 Finally, each compute shader invocation executes 10'000 multiplications and 10'000 additions.
-It is 20'000 floating operations.
+It is 20'000 floating point operations.
 So, the whole computation is composed of 20'000 x 12'800'000 = 256'000'000'000 floating point operations.
 We can write 256 giga operations, or 0.256 tera operations.
 Now, if we divide it by execution time, we get the performance in GFLOPS/TFLOPS

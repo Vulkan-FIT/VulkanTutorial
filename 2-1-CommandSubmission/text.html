@@ -25,20 +25,22 @@ The programmer might face the question: Which one should I use? If I take the fi
 will I get the high performant one? Or, will I be unlucky and get slow integrated graphics
 or software-based CPU device?</p>
 
-<p>We will try to answer the question from the beginning. First, we will get the list of
-the physical devices in the system. Then, we filter out those
-that does not support all the functionalities we require.
+<p>We will try to answer the question, but let's start from the beginning.
+First, we will get the list of the physical devices in the system.
+Then, we filter out those that do not support all the functionalities we require.
 Those that satisfy our requirements are stored in compatibleDevices variable:</p>
 
 <pre>
-// get compatible devices
+// get compatible and incompatible devices
+//
+// required functionality: compute queue
+// optional functionality: none
 vk::vector&lt;vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
 vector&lt;tuple&lt;vk::PhysicalDevice, uint32_t, vk::PhysicalDeviceProperties>> compatibleDevices;
 vector&lt;vk::PhysicalDeviceProperties> incompatibleDevices;
-for(size_t i=0; i&lt;deviceList.size(); i++) {
+for(vk::PhysicalDevice pd : deviceList) {
 
 	// append compatible queue families
-	vk::PhysicalDevice pd = deviceList[i];
 	vk::PhysicalDeviceProperties props = vk::getPhysicalDeviceProperties(pd);
 	vk::vector&lt;vk::QueueFamilyProperties> queueFamilyPropList = vk::getPhysicalDeviceQueueFamilyProperties(pd);
 	bool found = false;
@@ -74,14 +76,16 @@ for(size_t i=0, c=incompatibleDevices.size(); i&lt;c; i++) {
 </pre>
 
 <p>We iterate over all physical devices and store them in compatibleDevices or incompatibleDevices lists.
-How we decide whether the device is compatible or not? In our case, we require compute capability on any queue.
-So for each device, we get list of queue families and iterate over them. We look for compute capability.
-If we found one, we make a record in compatibleDevices list. Otherwise, we put the device into incompatibleDevice list.
+How we decide whether the device is compatible or not? In our case, we need compute capability.
+More precisely, we look for devices that have a queue with compute capability.
+So for each device, we get list of queue families and iterate over them.
+If we found one with compute capability, we make a record in compatibleDevices list.
+Otherwise, we put the device into incompatibleDevice list.
 Finally, we print all the compatible devices followed by the incompatible ones.</p>
 
 <p>The next step is the selection of the most suitable device.
-Often, we want the most performant device.
-But running a benchmark might not be the best solution because we also want our application to start quickly.
+Often, we want the device with highest performance.
+Running a benchmark might not be the best solution because we want our application to start quickly.
 So, we will use different approach. We will select the device based on its type.
 We will prefer discrete graphics over integrated, virtual GPU over CPU based and over all other types.
 We just assign the score to each device type and choose the device with the highest score:</p>
@@ -138,7 +142,7 @@ vk::initDevice(
 );
 </pre>
 
-<p>We also need command pool and command buffer.
+<p>We also need a command pool and a command buffer.
 The command buffer is used for recording the work to be done.
 After recording, it can be submitted to the device for execution.</p>
 
@@ -185,7 +189,7 @@ vk::beginCommandBuffer(
 vk::endCommandBuffer(commandBuffer);
 </pre>
 
-<p>Then, we create a fence and we can submit the command buffer for the execution:</p>
+<p>Then, we create a fence and we submit the command buffer for the execution:</p>
 
 <pre>
 // fence
@@ -213,11 +217,11 @@ vk::queueSubmit(
 );
 </pre>
 
-<p>A fence is a synchronization primitive that can be used to wait for the device to finish submitted work.
+<p>A fence is synchronization primitive that can be used to wait for the device to finish submitted work.
 Fences have two states - signaled and unsignaled.
 When we specify the fence during queue submit operation, it must be unsignalled.
 Once the device finishes all the work of the particular submit operation, it signals the fence.
-If our application is waiting on the fence, its work is resumed:</p>
+If our application is waiting on the fence, its execution is resumed:</p>
 
 <pre>
 // wait for the work
@@ -225,27 +229,53 @@ cout &lt;&lt; "Waiting for the work..." &lt;&lt; endl;
 vk::Result r =
 	vk::waitForFence_noThrow(
 		computingFinishedFence,
-		uint64_t(3e9)  // timeout (3s)
+		uint64_t(1.5e9)  // timeout (1.5 seconds)
 	);
-if(r == vk::Result::eTimeout)
-	throw std::runtime_error("GPU timeout. Task is probably hanging.");
-else
+if(r == vk::Result::eTimeout) {
+	cout << "Vulkan device timeout. Task is probably hanging." << endl;
+	// use std::quick_exit() to terminate the application
+	// (Do not throw, do not return, do not call std::exit().
+	// The device is still busy and it uses number of handles such as
+	// computingFinishedFence and device handle itself.
+	// Destruction of the handles in use or the unallowed access to them
+	// is forbidden by Vulkan specification.
+	quick_exit(-1);
+} else
 	vk::checkForSuccessValue(r, "vkWaitForFences");
 
 cout &lt;&lt; "Done." &lt;&lt; endl;
 </pre>
 
-<p>As we can see, we wait for the fence using timeout of three seconds.
-We call noThrow variant of the function, because we do not want to throw in the case of error.
+<p>As we can see, we wait for the fence using timeout of one and half seconds.
+One and half second is usually more than enough for a typical GPU task.
+A programmer mistake or other circumstances might result in frozen GPU task, for example,
+the task stuck in endless loop.
+The frozen tasks might, depending on the device architecture, result in frozen unresponsive screen.
+Thus, some drives resorted to GPU resets if some tasks did not finish in certain time frame.
+Particularly, some Nvidia drivers kill tasks if they are not able to finish in two seconds.
+Other drivers might take much longer time.
+Even if frozen tasks does not cause unresponsive screen on particular device,
+we do not want to wait tens of seconds or even indefinitely inside waitForFence call.
+Thus, timeout of 1.5 seconds to make the application reponsive from the point of the user.</p>
+
+<p>Another issue is handling of timeout. Basically, we cannot just throw exception, because
+it would cause destruction of many Vulkan handles including the device itself before the aplication would be terminated.
+Vulkan does not allow destruction of handles that are in use by the device, including the device itself.
+Neither we can return for the same reason, nor call std::exit().
+We resort to call std::quick_exit() and leave the release of all Vulkan handles on operating system.</p>
+
+<p>Concerning vk::waitForFence() - we use noThrow variant of the function,
+because we do not want to throw in the case of error.
 Instead, we handle vk::Result::eTimeout by ourselves.
 On all other return codes, we let vk::checkForSuccessValue() check for us if the result is vk::Result::eSuccess.
 If not, it will throw. It will throw even on non-error return codes.
 Such solution for non-error codes is used for two reasons: First, Vulkan function vkWaitForFences()
 is not expected to return any other success values than we already handled, e.g. eSuccess and eTimeout.
-And for the second, even if some future extension or Vulkan version appends a new success value,
+And the second reason, even if some future Vulkan extension or Vulkan core version appends a new success value,
 such success value does not mean we have got our job done. The vk::Result::eTimeout is also non-error return code
 and does not mean that the job was done.
-So, this is the reason that we are not happy with any other non-error return codes and we throw.</p>
+So, this is the reason that we are not happy with anything other than vk::Result::eSuccess and vk::Result::eTimeout
+and handle it by throwing exception.</p>
 
 </body>
 </html>

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<title>2-3-PipelineCache</title>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../common/vulkanStyle.css">
+<style media="screen" type="text/css">
+</style>
+</head>
+
+<body>
+
+<h1>Vulkan Tutorial</h1>
+
+<h3>2-3 - Pipeline Cache</h3>
+
+<p>Pipeline construction may be time consuming operation. We definitely do not want to wait
+seconds or tens of seconds before the application compiles shaders and creates all its pipelines.
+Therefore, caches are used. We will learn more about them in this article.</p>
+
+<p>The shader used in the previous article is very big one.
+It is composed of 10'000 multiplications and 10'000 additions.
+Unless caches are used, construction of the pipeline might take quite a time.
+Following table shows my measurements of the pipeline construction time on some graphics cards:</p>
+
+<table style="background-color: rgba(96,96,96,0.75)">
+<tr><td>GPU name</td><td>&nbsp;</td><td style="text-align: center;">Compile time<br>(ms)</td><td>&nbsp;</td><td style="text-align: center;">Cache retrieval time<br>(ms)</td></tr>
+<tr><td>Quadro RTX 3000 (Windows)</td><td>&nbsp;</td><td style="text-align: center;">1'700</td><td>&nbsp;</td><td style="text-align: center;">6.80</td></tr>
+<tr><td>Radeon RX 6950 XT (Linux)</td><td>&nbsp;</td><td style="text-align: center;">96.7</td><td>&nbsp;</td><td style="text-align: center;">0.325</td></tr>
+<tr><td>Radeon RX 6950 XT (Windows)</td><td>&nbsp;</td><td style="text-align: center;">12'500</td><td>&nbsp;</td><td style="text-align: center;">0.266</td></tr>
+<tr><td>Intel UHD Graphics 630/CML (Windows)</td><td>&nbsp;</td><td style="text-align: center;">1'950</td><td>&nbsp;</td><td style="text-align: center;">7.23</td></tr>
+<tr><td>Radeon RX 590 (Windows)</td><td>&nbsp;</td><td style="text-align: center;">6'250</td><td>&nbsp;</td><td style="text-align: center;">0.486</td></tr>
+<tr><td>GeForce 1080 Ti (Linux)</td><td>&nbsp;</td><td style="text-align: center;">917</td><td>&nbsp;</td><td style="text-align: center;">1.34</td></tr>
+<tr><td>GeForce 1080 Ti (Windows)</td><td>&nbsp;</td><td style="text-align: center;">2'590</td><td>&nbsp;</td><td style="text-align: center;">1.24</td></tr>
+</table>
+
+<p>The first column shows the graphics card name and operating system.
+The second contains the pipeline construction time if shaders need to be compiled.
+We see times from about hundred of milliseconds to about twelve seconds.
+The third column shows the construction time if a cache is used.
+The cache times are quite low, ranging from hundreds of microseconds to few milliseconds.
+In summary, pipeline caches might be quite a speedup for Vulkan applications,
+especially their start up time, when pipelines are usually created.</p>
+
+<p>Let's first try to understand how Vulkan uses pipeline caches:</p>
+
+<img src="PipelineCaches.svg"/>
+
+<p>There are two pipeline caches. The first one is the application provided VkPipelineCache object
+and the second one is the driver managed implicit pipeline cache.
+
+
+<h3>VkPipelineCache object</h3>
+
+<p>The application can create its own VkPipelineCache object to manage its own pipeline cache.
+It can pass it to pipeline create function calls as an argument,
+have the cache filled with the content during pipeline construction, and save it to disk.
+On the next run, the application can initialize VkPipelineCache with the data stored on disk,
+pass the cache to pipeline create function calls and have pipelines created in the fast way
+using the cache data.</p>
+
+
+<h3>Internal pipeline cache</h3>
+
+<p>Most of Vulkan drivers provide their own pipeline cache called internal or implicit cache.
+Whenever an application wants to create a pipeline, it looks into its internal cache first.
+If it is not found, it is constructed and stored in the cache.
+Next time, it will be readily available in the cache, allowing for quick pipeline construction.</p>
+
+<p>Where the pipeline cache can be found on the disk?</p>
+
+<ul>
+<li>Nvidia on Windows: %userprofile%\AppData\Local\NVIDIA in subfolders GLCache and DXCache</li>
+<li>AMD on Windows: %userprofile%\AppData\Local\AMD in subfolders VkCache, GLCache and DXCache</li>
+<li>Intel on Windows: %userprofile%\AppData\LocalLow\Intel\ShaderCache</li>
+<li>Nvidia on Linux: ~/.cache/nvidia/</li>
+<li>AMD and Intel: ~/.cache/mesa_shader_cache</li>
+</ul>
+
+<p>If want, we can delete the cache. This way, we force the rebuild of pipelines.</p>
+
+<p>To only disable the implicit driver cache:</p>
+<ul><li>Nvidia on Windows: NVIDIA Control Panel -> Manage 3D Settings -> Shader Cache Size -> set to Disabled and click Apply</li>
+<li>AMD on Windows: Open AMD Software -> Gaming -> Graphics -> Advanced -> Reset Shader Cache ?</li>
+<li>Intel on Windows: unknown</li>
+<li>Nvidia on Linux: set __GL_SHADER_DISK_CACHE=0</li>
+<li>AMD and Intel: set MESA_SHADER_CACHE_DISABLE=true</li>
+</ul>
+
+<p>By disabling the cache, we might measure the pipeline construction time
+and find out whether the first start is not too slow.
+We might want to print some message to the user to be patient and wait.
+We will do exactly this in the code of this article.</p>
+
+<p>As an alternative to disabling the driver cache,
+we might modify the shader a little bit, for example
+by changing some constant by a very small amount.</p>
+
+
+<h3>Printing pipeline construction time</h3>
+
+<p>Vulkan 1.3 provides flag <code>vk::PipelineCreateFlagBits::eFailOnPipelineCompileRequired</code>
+that makes the pipeline construction fail if it is not found in any cache.
+We will use the flag to measure pipeline construction time when pipeline cache is used
+and when the full construction of pipeline takes place.</p>
+
+<p>In the first part of the code, we pass <code>vk::PipelineCreateFlagBits::eFailOnPipelineCompileRequired</code>
+flag and measure the time of the construction. If construction succeeds, we can print construction time when
+the cache was used:</p>
+
+<pre>
+// load pipeline from a cache
+cout << "Creating pipeline..." << flush;
+chrono::time_point compileStart = chrono::high_resolution_clock::now();
+vk::UniquePipeline pipeline;
+if(pipelineCacheControlSupport) {
+	vk::Result r =
+		vk::createComputePipelineUnique_noThrow(
+			nullptr,
+			vk::ComputePipelineCreateInfo{
+				.flags = <b>vk::PipelineCreateFlagBits::eFailOnPipelineCompileRequired</b>,
+				.stage =
+					vk::PipelineShaderStageCreateInfo{
+						.flags = {},
+						.stage = vk::ShaderStageFlagBits::eCompute,
+						.module = shaderModule,
+						.pName = "main",
+						.pSpecializationInfo = nullptr,
+					},
+				.layout = pipelineLayout,
+				.basePipelineHandle = nullptr,
+				.basePipelineIndex = -1,
+			},
+			pipeline
+		);
+	chrono::time_point compileEnd = chrono::high_resolution_clock::now();
+	float delta = chrono::duration<float>(compileEnd - compileStart).count();
+	<b>if(r == vk::Result::eSuccess)
+		cout << " done.\n   The pipeline was retrieved from a cache in " << delta * 1e3 << "ms." << endl;</b>
+	else if(r == vk::Result::ePipelineCompileRequired)
+		;  // compile the pipeline in the following code block
+	else
+		vk::throwResultException(r, "vkCreateComputePipelines");
+}
+</pre>
+
+<p>In the second part of the code, we just construct the pipeline
+and print its construction time when not found in the cache:</p>
+
+<pre>
+// compile pipeline
+if(!pipeline) {
+	pipeline =
+		vk::createComputePipelineUnique(
+			nullptr,
+			vk::ComputePipelineCreateInfo{
+				.flags = <b>{}</b>,
+				.stage =
+					vk::PipelineShaderStageCreateInfo{
+						.flags = {},
+						.stage = vk::ShaderStageFlagBits::eCompute,
+						.module = shaderModule,
+						.pName = "main",
+						.pSpecializationInfo = nullptr,
+					},
+				.layout = pipelineLayout,
+				.basePipelineHandle = nullptr,
+				.basePipelineIndex = -1,
+			}
+		);
+	chrono::time_point compileEnd = chrono::high_resolution_clock::now();
+	float delta = chrono::duration<float>(compileEnd - compileStart).count();
+	if(pipelineCacheControlSupport)
+		<b>// pipeline was compiled - we know it from pipeline cache control
+		cout << " done.\n   The pipeline was compiled in " << delta * 1e3 << "ms." << endl;</b>
+	else
+		// pipeline was created from cache or by compilation - no pipeline cache control support to know more
+		cout << " done.\n   The pipeline was created in " << delta * 1e3 << "ms." << endl;
+}
+</pre>
+
+<p>All the special cache code is guarded by <code>pipelineCacheControlSupport</code> boolean.
+We get its value from Vulkan 1.3 features:</p>
+
+<pre>
+// get pipeline creation cache control support
+bool pipelineCacheControlSupport;
+if(vulkan13Support) {
+	vk::PhysicalDeviceVulkan13Features features13;
+	vk::PhysicalDeviceFeatures2 features10 = {
+		.pNext = &features13,
+	};
+	vk::getPhysicalDeviceFeatures2(pd, features10);
+	pipelineCacheControlSupport = features13.pipelineCreationCacheControl;
+} else
+	pipelineCacheControlSupport = false;
+</pre>
+
+
+<h3>Graphics Device selection</h3>
+
+<p>There might be more compatible devices in the system.
+It might be desirable to have an option to manually choose
+which device we want to use. The available options have already
+assigned numbers:</p>
+
+<pre>
+Compatible devices:
+   1: Intel(R) UHD Graphics (compute queue: 0, type: IntegratedGpu)
+   2: Quadro RTX 3000 (compute queue: 0, type: DiscreteGpu)
+   3: Quadro RTX 3000 (compute queue: 2, type: DiscreteGpu)
+   4: llvmpipe (LLVM 20.1.5, 256 bits) (compute queue: 0, type: Cpu)
+</pre>
+
+<p>We can pass '-' followed by the number to the command line to select particular device
+and compute queue. For example, specifying -1 to command line will measure performance of
+integrated Intel GPU.</p>
+
+<p>Passing substring of device name is another way to select the device to test.
+For example, passing llvm on the command line will select llvmpipe software device that runs completely on the CPU.</p>
+
+<p>We can combine both approaches and specify RTX to get two devices while the first one would be used
+unless we specify -2 to select the second one that uses different compute queue.</p>
+
+<p>The details of the implementation can be found in article source code.</p>
+
+
+</body>
+</html>
