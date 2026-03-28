@@ -67,24 +67,26 @@ do {
 Once done, we print the results. Then, we stop the measurements if measuring for more than 3 seconds:</p>
 
 <pre>
-	// print results
-	double time = chrono::duration<double>(t2 - t1).count();
-	double totalTime = chrono::duration<double>(t2 - startTime).count();
-	uint64_t numInstructions = uint64_t(20000) * 128 * workgroupCountX * workgroupCountY * workgroupCountZ;
-	cout << fixed << setprecision(2)
-	     << setw(9) << totalTime * 1000 << "ms       "
-	     << setw(9) << workgroupCountX * workgroupCountY * workgroupCountZ << "        "
-	     << "     " << formatFloatSI(time) << "s   "
-	     << "    " << formatFloatSI(double(numInstructions) / time) << "FLOPS" << endl;
+	[...]
 
-	// stop measurements after three seconds
-	if(totalTime >= 3.)
+	// print results
+	float time = chrono::duration&lt;float&gt;(t2 - t1).count();
+	float totalTime = chrono::duration&lt;float&gt;(t2 - startTime).count();
+	uint64_t numInstructions = uint64_t(20000) * 128 * workgroupCountX * workgroupCountY * workgroupCountZ;
+	cout &lt;&lt; fixed &lt;&lt; setprecision(2)
+	     &lt;&lt; setw(9) &lt;&lt; totalTime * 1000 &lt;&lt; "ms       "
+	     &lt;&lt; setw(9) &lt;&lt; workgroupCountX * workgroupCountY * workgroupCountZ &lt;&lt; "        "
+	     &lt;&lt; "     " &lt;&lt; formatFloatSI(time) &lt;&lt; "s   "
+	     &lt;&lt; "    " &lt;&lt; formatFloatSI(float(numInstructions) / time) &lt;&lt; "FLOPS" &lt;&lt; endl;
+
+	// stop measurements after totalMeasuringTime passed
+	if(totalTime &gt;= totalMeasuringTime)
 		break;
 </pre>
 
-<p>The function formatFloatSI(float) nicely formats floating point value.
+<p>The function formatFloatSI(float value) formats floating point value.
 It prints just three most significant digits followed by SI suffix like M for mega, G for giga and T for tera.
-Only three digits are printed to keep the output as simple as possible.</p>
+Only three digits are printed to keep the output simple and easily readable for the user.</p>
 
 <p>Then, we update number of local workgroups for the next measurement.
 If the previous measurement time is shorter than 2ms, we just multiply number of local workgroups by 10.
@@ -95,20 +97,20 @@ So, we cap each dimension to 10'000 to avoid exceeding the limit:</p>
 
 <pre>
 	// update number of local workgroups
-	// to reach computation time of about 20ms
-	constexpr double targetTime = 0.02;
-	if(time < targetTime / 10.) {
-		if(workgroupCountX <= 1000)
+	// to reach computation time given by singleMeasurementTargetTime;
+	// just do not increase number of local workgroups more than ten times
+	if(time &lt; singleMeasurementTargetTime / 10.f) {
+		if(workgroupCountX &lt;= 1000)
 			workgroupCountX *= 10;
-		else if(workgroupCountY <= 1000)
+		else if(workgroupCountY &lt;= 1000)
 			workgroupCountY *= 10;
-		else if(workgroupCountZ <= 1000)
+		else if(workgroupCountZ &lt;= 1000)
 			workgroupCountZ *= 10;
 	}
 	else {
-		double ratio = targetTime / time;
+		float ratio = singleMeasurementTargetTime / time;
 		uint64_t newNumGroups = uint64_t(ratio * (uint64_t(workgroupCountX) * workgroupCountY * workgroupCountZ));
-		if(newNumGroups > 10000 * 10000) {
+		if(newNumGroups &gt; 10000 * 10000) {
 			workgroupCountZ = 1 + ((newNumGroups - 1) / (10000 * 10000));
 			uint64_t remainder = newNumGroups / workgroupCountZ;
 			workgroupCountY = 1 + ((remainder - 1) / 10000);
@@ -168,42 +170,18 @@ Using device:
 </pre>
 
 <p>In the first column, we see the timeline.
-In the second column, number of local workgroups grow from 1 in the first measurement
+In the second column, number of local workgroups grows from 1 in the first measurement
 to about 27 thousands, stays for a while and then, grows to about 52 thousands.
-The computation time reaches 20 milliseconds in the sixth measurement.
-The meaningful performance of 3.5 TFLOPS is reported already in fifth measurement.
-Strange change can be seen after 200ms since the beginning of the measurements.
+In the third column, the computation time reaches 20 milliseconds in the sixth measurement
+and mostly stays.
+In the fourth column, the meaningful performance of 3.5 TFLOPS is reported already in the fifth measurement.
+Strange change can be seen after 250ms since the beginning of the measurements.
 Suddenly, the performance starts to raise from about 3.5 to about 6.7 TFLOPS.
 It is almost doubled at that point of time and stays about 6.7 TFLOPS until the end of the measurement process.
-Undoubtedly, the graphics card is switched after 200 ms to the higher performance level
+Undoubtedly, the graphics card is switched after 250 ms to the higher performance level
 and higher power consumption.
 So, the real graphics card performance is not always seen immediately,
 but some time might be needed before highest performance level is reached.</p>
-
-
-<h3>Graphics Device selection</h3>
-
-<p>We might also want to measure another graphics card installed in the system.
-Possible options are given by the number, ranging from 1 to 4 in our case:</p>
-
-<pre>
-Compatible devices:
-   1: Intel(R) UHD Graphics (compute queue: 0, type: IntegratedGpu)
-   2: Quadro RTX 3000 (compute queue: 0, type: DiscreteGpu)
-   3: Quadro RTX 3000 (compute queue: 2, type: DiscreteGpu)
-   4: llvmpipe (LLVM 20.1.5, 256 bits) (compute queue: 0, type: Cpu)
-</pre>
-
-<p>We can pass '-' followed by the number to the command line to select particular device
-and compute queue. For example, specifying -1 to command line will measure performance of
-integrated Intel GPU.</p>
-
-<p>Passing substring of device name is another way to select the device to test.
-For example, passing llvm on the command line will select llvmpipe software device that runs completely on the CPU.</p>
-
-<p>We can combine both approaches and specify RTX to get two devices while the first one would be used
-unless we specify -2 to select the second one that uses different compute queue.</p>
-
 
 </body>
 </html>

@@ -568,7 +568,7 @@ int main(int argc, char* argv[])
 				// use std::quick_exit() to terminate the application
 				// (Do not throw, do not return, do not call std::exit().
 				// The device is still busy and it uses number of handles such as
-				// computingFinishedFence or device handle itself.
+				// computingFinishedFence and device handle itself.
 				// Destruction of the handles in use or the unallowed access to them
 				// is forbidden by Vulkan specification.
 				quick_exit(-1);
