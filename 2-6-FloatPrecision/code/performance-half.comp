@@ -62,7 +62,7 @@ layout(buffer_reference) restrict writeonly buffer OutputDataRef {
 
 void main()
 {
-	// initial values of x, y and z
+	// initial values for the computation
 	float16_t x1 = float16_t(gl_GlobalInvocationID.x);
 	float16_t y1 = float16_t(gl_GlobalInvocationID.y);
 	float16_t z  = float16_t(gl_GlobalInvocationID.z);

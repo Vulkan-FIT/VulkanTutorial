@@ -17,17 +17,19 @@
 
 <p>GPU architecture and GPU performance are closely related topics. We will deal with both of them in this article.</p>
 
-<p>First, a little of supercomputing history. The performance of 1 GFLOPS (Giga FLoating Operations Per Second) was broken by
+<p>First, a little of supercomputing history. The performance of 1 GFLOPS (Giga FLoating Operations Per Second) was overcame by
 <a href="https://en.wikipedia.org/wiki/Cray-2">Cray-2</a> supercomputer in 1985 while consuming 150-200kW.
 1 TFLOPS was reached by <a href="https://en.wikipedia.org/wiki/ASCI_Red">ASCI Red</a> in 1997
 built on the space of 1600 sq ft (150m2). It was built to replace real nuclear tests by computer simulation.
 1 PFLOPS was broken by <a href="https://en.wikipedia.org/wiki/Roadrunner_(supercomputer)">Roadrunner</a> supercomputer
 in 2008. It weighted 200'000 lbs (225'000 kg).
-1 exaFLOPS was overcome in 2022 by <a href="https://en.wikipedia.org/wiki/Frontier_(supercomputer)">Frontier</a>
+1 exaFLOPS was overcame in 2022 by <a href="https://en.wikipedia.org/wiki/Frontier_(supercomputer)">Frontier</a>
 consisting of almost 10'000 64-core CPUs and almost 40'000 GPUs.
-As we can see, the performance increases roughly 1000 times each 12 years, or 10 times each 4 years.</p>
+As we can see, the performance increases roughly 1000 times each 12 years, or 10 times each 4 years.
+So, it is growing exponentially.</p>
 
-<p>Is this growth of supercomputers power based on growing performance of CPUs? To find an answer, let's measure the performance of CPUs.
+<p>Is this growth of supercomputers power based on growing performance of CPUs?
+To find the answer, let's measure the performance of CPUs.
 We can use our application that we are developing in this article series.
 All we need is to use llvmpipe Vulkan device that runs entirely on the CPU.
 The llvmpipe device is usually available on Linux by default.
@@ -35,13 +37,13 @@ On Windows, we need to install llvmpipe driver. The procedure is described in
 the second article of this tutorial called <a href="../1-2-DevelopmentTools/text.html">Development Tools</a>
 in the section describing Windows Sandbox and its use for Vulkan application testing (<a href="../1-2-DevelopmentTools/text.html#lavapipe">link</a>).</p>
 
-<p>We want to measure the performance of single core and all cores of the CPU.
+<p>We want to measure the performance of single core and of all cores in the system.
 The environment variable LP_NUM_THREADS can be used for the purpose.
- Running <code>LP_NUM_THREADS=1 ./2-7-ArchitectureInfo llvmpipe</code>
+Running <code>LP_NUM_THREADS=1 ./2-7-ArchitectureInfo llvmpipe</code>
 will measure the performance of single threaded computation.
 On Windows, we can use command line and type <code>set LP_NUM_THREADS=1 && 2-7-ArchitectureInfo.exe llvmpipe</code>
 or set the environment variable inside Visual Studio.
-On four cores capable of executing eight threads, we can set LP_NUM_THREADS to 8.
+On four cores that are capable of executing eight threads, we can set LP_NUM_THREADS to 8.
 Using 16 on such machine might still bring small improvement on some platforms, but might also bring the reduction of performance on others.</p>
 
 <p>The single threaded performance of various CPUs is shown on the following figure:</p>
@@ -49,6 +51,7 @@ Using 16 on such machine might still bring small improvement on some platforms, 
 <img src="CpuSingleThreadedPerformance.svg"/>
 
 <p>As we can see, CPU single-threaded performance is stagnating. It even did not doubled in a decade.
+It is growing rather linearly than exponentially.
 Let's see if growing number of cores improves the situation:</p>
 
 <img src="CpuMultithreadedPerformance.svg"/>
@@ -87,23 +90,23 @@ Let's see if GPUs could provide better solution:</p>
 <tr><td>Radeon HD 7970 GHz Edition</td><td style="text-align: center">-</td><td style="text-align: center">3.87</td><td style="text-align: center">0.987</td></tr>
 </table>
 
-<p>GPUs provides roughly one hundred times better computing performance than
-multi-core processors and almost ten thousand times when using single-thread CPU performance.
-Compared to stagnating single threaded CPU performance, GPU performance is still growing.
+<p>GPUs provide roughly one hundred times better computing performance than
+multi-core processors and almost ten thousand times compared to single-thread CPU performance.
+Compared to rather linearly growing single threaded CPU performance, GPU performance is still growing exponentially.
 This surely means constant improvements to their architecture.
 So, what is the architecture of GPUs of today?</p>
 
 <h3>GPU Architecture</h3>
 
-<p>Very simplified description of GPU architecture follows:</p>
+<p>Very simplified description of GPU architecture is shown on the following picture:</p>
 
 <img src="GpuArchitecture.svg"/>
 
 <p>We see GPU in the middle and Graphics and Compute Array as one of its core components.
-It is here where all the shader computations are done.
+It is here where all the shader computations are performed.
 Around, we see Graphics Memory connected by very high speed interface to the GPU.
-We see Bus Interface connecting GPU with CPU, memory and other devices, usually using PCI Express or other bus.
-Finally, we see Display Interface sending the content to the screen.</p>
+We see Bus Interface connecting GPU with CPU, with memory and with other devices, usually using PCI Express or other bus.
+Finally, we see Display Interface sending the content to the display screen.</p>
 
 <p>Our further interest will be on Graphics and Compute Array on typical hardware today.
 The basic building block of Graphics and Compute Array is called
@@ -145,9 +148,10 @@ it is executed for 32 threads on 32 SP. The group of 32 threads is called Warp.<
 They are organized into hierarchy as well. Let's start with the output of our example:</p>
 
 <pre>
-Compatible devices:
+List of devices:
    1: AMD Radeon RX 7900 XTX (compute queue: 0, type: DiscreteGpu)
    2: AMD Radeon RX 7900 XTX (compute queue: 1, type: DiscreteGpu)
+   3: llvmpipe (LLVM 21.1.8, 256 bits) (compute queue: 0, type: Cpu)
 Using device:
    AMD Radeon RX 7900 XTX
 Vulkan info:
@@ -188,7 +192,7 @@ Thus, we have 96x2x32 = 6144 SP inside RX 7900 XTX.</p>
 
 <pre>
 $ ./2-7-ArchitectureInfo
-Compatible devices:
+List of devices:
    1: NVIDIA GeForce RTX 4090 (compute queue: 0, type: DiscreteGpu)
    2: NVIDIA GeForce RTX 4090 (compute queue: 2, type: DiscreteGpu)
    3: AMD Radeon Graphics (RADV RAPHAEL_MENDOCINO) (compute queue: 0, type: IntegratedGpu)

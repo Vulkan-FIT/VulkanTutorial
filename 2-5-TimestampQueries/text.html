@@ -17,8 +17,7 @@
 
 <p>Using chrono::high_resolution_clock::now() is the CPU way to get the current time.
 However, Vulkan provides its own way to get the current time directly on the device.
-Getting the time directly on the device avoids unnecessary overhead and
-might provide higher precision of measurements.</p>
+So, our measurements might be more precise and with less CPU-GPU synchronization overhead.</p>
 
 <p>Vulkan provides vkCmdWriteTimestamp function to request the timestamp and to write it to the memory:</p>
 
@@ -79,7 +78,7 @@ After waiting for the command buffer execution to complete, we read the timestam
 
 <pre>
 // read timestamps
-array<uint64_t, 2> timestamps;
+array&lt;uint64_t, 2&gt; timestamps;
 vk::getQueryPoolResults(
 	timestampPool,  // queryPool
 	0,  // firstQuery
@@ -91,21 +90,21 @@ vk::getQueryPoolResults(
 );
 
 // print results
-double time = float((timestamps[1] - timestamps[0]) & timestampValidBitMask) * timestampPeriod / 1e9;
-double totalTime = chrono::duration<double>(chrono::high_resolution_clock::now() - startTime).count();
+float time = float((timestamps[1] - timestamps[0]) &amp; timestampValidBitMask) * timestampPeriod / 1e9;
+float totalTime = chrono::duration<float>(chrono::high_resolution_clock::now() - startTime).count();
 uint64_t numInstructions = uint64_t(20000) * 128 * workgroupCountX * workgroupCountY * workgroupCountZ;
-cout << fixed << setprecision(2)
-     << setw(9) << totalTime * 1000 << "ms       "
-     << setw(9) << workgroupCountX * workgroupCountY * workgroupCountZ << "        "
-     << "     " << formatFloatSI(time) << "s   "
-     << "    " << formatFloatSI(double(numInstructions) / time) << "FLOPS" << endl;
+cout &lt;&lt; fixed &lt;&lt; setprecision(2)
+     &lt;&lt; setw(9) &lt;&lt; totalTime * 1000 &lt;&lt; "ms       "
+     &lt;&lt; setw(9) &lt;&lt; workgroupCountX * workgroupCountY * workgroupCountZ &lt;&lt; "        "
+     &lt;&lt; "     " &lt;&lt; formatFloatSI(time) &lt;&lt; "s   "
+     &lt;&lt; "    " &lt;&lt; formatFloatSI(float(numInstructions) / time) &lt;&lt; "FLOPS" &lt;&lt; endl;
 </pre>
 
-<p>We read two timestamps as two 64-bit integers. We substract them to get their difference,
-mask the result by timestampValidBitMask to limit the result just to valid bits,
-we multiply it by timestampPeriod that contains number of nanoseconds that pass
-to make timestamp incremented by one.
-Finally, we divide the result by 1e9 to convert final value from nanoseconds to seconds.
+<p>We read two timestamps as two 64-bit integers. We substract them to get their difference.
+We mask the result by timestampValidBitMask to limit the result just to valid bits.
+We multiply it by timestampPeriod. The timestampPeriod contains the number of nanoseconds
+it takes to be timestamp incremented by one.
+Finally, we divide the result by 1e9 to convert the final value from nanoseconds to seconds.
 At the end, the results and printed to the screen.</p>
 
 <p>The last missing piece of the code is timestamp pool creation:</p>
@@ -129,9 +128,9 @@ And we ask for two timestamps to be stored there.</p>
 <p>We can run the example and see if we got any additional precision in our simple application.
 On my Quadro RTX 3000, I see the real difference in first few measurements.
 Dispatching 1, 10 or 100 workgroups results in as short measurement times as 100 us when using Vulkan timestamps.
-Without timestamps, I see values ranging from 250 to 600 us using the code of the previous article.
-As we can see, timestamps are more precise than measuring the time on CPU.
-Higher values when using CPU is probably caused by CPU - GPU synchronization.
+Using the CPU time, I see values ranging from 250 to 600 us using the code of the previous article.
+As we can see, the device timestamps are more precise than measuring the time on the CPU.
+The higher values on the CPU are among others caused by CPU - GPU synchronization.
 This difference is usually noticeable on short measurements only.
 Anyway, I recommend to use Vulkan timestamps whenever measuring execution time on Vulkan device.</p>
 

@@ -322,7 +322,7 @@ int main(int argc, char* argv[])
 
 		// get supported features
 		auto [ pipelineCacheControlSupport, float64Support, float16Support ] =
-			[&]()
+			[&]() -> tuple<bool, bool, bool>
 			{
 				vk::PhysicalDeviceVulkan13Features features13;
 				vk::PhysicalDeviceVulkan12Features features12 =
@@ -423,7 +423,6 @@ int main(int argc, char* argv[])
 
 		// load pipelines from a cache
 		cout << "Creating pipelines..." << flush;
-		chrono::time_point creationStart = chrono::high_resolution_clock::now();
 		array<vk::UniquePipeline, 3> pipelineList =
 			[&]()
 			{
@@ -456,6 +455,7 @@ int main(int argc, char* argv[])
 							};
 
 				// create pipelines using cache
+				chrono::time_point creationStart = chrono::high_resolution_clock::now();
 				vk::Result r =
 					vk::createComputePipelinesUnique_noThrow(
 						nullptr,
@@ -514,7 +514,7 @@ int main(int argc, char* argv[])
 					createInfos.data(),
 					pipelineList2.data()
 				);
-				chrono::time_point compileEnd = chrono::high_resolution_clock::now();
+				creationEnd = chrono::high_resolution_clock::now();
 
 				// print time
 				float delta = chrono::duration<float>(creationEnd - creationStart).count();
@@ -711,8 +711,8 @@ int main(int argc, char* argv[])
 				}
 			};
 
-		// compute number of workgroups
-		// to reach computation time of about 20ms
+		// compute number of workgroups in the next iteration
+		// to eventually reach singleMeasurementTargetTime
 		auto computeNumWorkgroups =
 			[](size_t lastNumWorkgroups, float lastTime) -> size_t
 			{
@@ -786,7 +786,7 @@ int main(int argc, char* argv[])
 						// print dispersion using IQR (Interquartile Range);
 						// Q1 is the value in 25% and Q3 in 75%
 						cout << "  (Q1: " << formatFloatSI(performanceList[performanceList.size()/4]) << "FLOPS,"
-						        " Q3: " << formatFloatSI(performanceList[performanceList.size()/4*3]) << "FLOPS,"
+						        " Q3: " << formatFloatSI(performanceList[(performanceList.size()*3)/4]) << "FLOPS,"
 						        " num measurements: " << performanceList.size() << ")";
 						cout << endl;
 					}
