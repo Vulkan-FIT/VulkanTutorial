@@ -5,7 +5,7 @@
 #include <cstring>
 #include <iostream>
 #include <vector>
-#include "cpu.h"
+#include "cpuInfo.h"
 #if !defined(NO_MULTITHREADING)
 #include <latch>
 #include <thread>
@@ -215,7 +215,7 @@ template<typename T> static void shaderInvocation2(
 	FMA2_1000; \
 	FMA2_1000
 
-	// initial values of x, y and z
+	// initial values for the computation
 	T x1 = globalInvocationIdX;
 	T y1 = globalInvocationIdY;
 	T z = globalInvocationIdZ;
@@ -289,7 +289,7 @@ template<typename T> static void shaderInvocation3(
 	FMA3_9; \
 	x1 = x1 * y1 + z
 
-	// initial values of x, y and z
+	// initial values for the computation
 	T x1 = globalInvocationIdX;
 	T y1 = globalInvocationIdY;
 	T z = globalInvocationIdZ;
@@ -366,7 +366,7 @@ template<typename T> static void shaderInvocation4(
 	FMA4_1000; \
 	FMA4_1000
 
-	// initial values of x, y and z
+	// initial values for the computation
 	T x1 = globalInvocationIdX;
 	T y1 = globalInvocationIdY;
 	T z = globalInvocationIdZ;
