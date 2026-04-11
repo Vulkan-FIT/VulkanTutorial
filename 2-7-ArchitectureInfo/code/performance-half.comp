@@ -63,18 +63,18 @@ layout(buffer_reference) restrict writeonly buffer OutputDataRef {
 void main()
 {
 	// initial values for the computation
-	float16_t x1 = float16_t(gl_GlobalInvocationID.x);
-	float16_t y1 = float16_t(gl_GlobalInvocationID.y);
-	float16_t z  = float16_t(gl_GlobalInvocationID.z);
-	float16_t x2 = x1 + float16_t(0.5);
-	float16_t y2 = y1 + float16_t(0.5);
+	float16_t x1 = float16_t(gl_GlobalInvocationID.x & 0x03ff) * float16_t(0.0001);
+	float16_t y2 = float16_t(gl_GlobalInvocationID.y & 0x03ff) * float16_t(0.0001);
+	float16_t z  = float16_t(gl_GlobalInvocationID.z & 0x03ff) * float16_t(0.0001);
+	float16_t x2 = x1 + float16_t(0.11);
+	float16_t y1 = y2 + float16_t(0.11);
 
 	FMA10000;
 
 	// condition that will never be true in reality
 	// (this avoids optimizer to consider the results of previous computations as unused
 	// and to optimize the final shader code by their removal)
-	if(x1 == 0.1 || x2 == 0.1) {
+	if(x1 == float16_t(10) || x2 == float16_t(10)) {
 		// write to artificially generated address
 		// (the write will never happen in reality)
 		OutputDataRef data = OutputDataRef(uint64_t(0));

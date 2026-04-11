@@ -62,16 +62,16 @@ layout(buffer_reference) restrict writeonly buffer OutputDataRef {
 void main()
 {
 	// initial values of x, y and z
-	float x = gl_GlobalInvocationID.x;
-	float y = gl_GlobalInvocationID.y;
-	float z = gl_GlobalInvocationID.z;
+	float x = float(gl_GlobalInvocationID.x & 0x3fff) * 0.00001;
+	float y = float(gl_GlobalInvocationID.y & 0x3fff) * 0.00001;
+	float z = float(gl_GlobalInvocationID.z & 0x3fff) * 0.00001;
 
 	FMA10000;
 
 	// condition that will never be true in reality
 	// (this avoids optimizer to consider the results of previous computations as unused
 	// and to optimize the final shader code by their removal)
-	if(x == 0.1) {
+	if(x == 10.) {
 		// write to artificially generated address
 		// (the write will never happen in reality)
 		OutputDataRef data = OutputDataRef(uint64_t(0));
