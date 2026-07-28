@@ -14,6 +14,7 @@ set(PACKAGES
     2-5-TimestampQueries
     2-6-FloatPrecision
     2-7-ArchitectureInfo
+    3-1-HelloWindow
    )
 
 foreach(pkg ${PACKAGES})
