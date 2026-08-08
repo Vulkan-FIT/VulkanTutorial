@@ -7,8 +7,8 @@
 #include <vector>
 #include "cpuInfo.h"
 #if !defined(NO_MULTITHREADING)
-#include <latch>
-#include <thread>
+# include <latch>
+# include <thread>
 #endif
 
 using namespace std;
@@ -95,9 +95,10 @@ static auto formatFloatSI(float v)
 }
 
 
-template<typename T> static void shaderInvocation1(
+template<typename T> static void shaderFmaComputation1(
 	unsigned globalInvocationIdX, unsigned globalInvocationIdY, unsigned globalInvocationIdZ)
 {
+	// no parallelism, number of used registers: 3
 #define FMA1_10 \
 	x = x * y + z; \
 	x = x * y + z; \
@@ -134,24 +135,30 @@ template<typename T> static void shaderInvocation1(
 	FMA1_100; \
 	FMA1_100
 
-#define FMA1_10000 \
-	FMA1_1000; \
-	FMA1_1000; \
-	FMA1_1000; \
-	FMA1_1000; \
-	FMA1_1000; \
-	FMA1_1000; \
-	FMA1_1000; \
-	FMA1_1000; \
-	FMA1_1000; \
-	FMA1_1000
+	// initial values for the computation
+	// (make each variable in the range 0.0 to 0.16383)
+	T x = T(globalInvocationIdX & 0x3fff) * 0.00001;
+	T y = T(globalInvocationIdY & 0x3fff) * 0.00001;
+	T z = T(globalInvocationIdZ & 0x3fff) * 0.00001;
 
+	FMA1_1000;
+
+	// condition that will never be true in reality
+	// (this avoids optimizer to consider the results of previous computations as unused
+	// and to optimize the final shader code by their removal)
+	if(x == T(10)) {
+		// write to artificially generated address
+		// (the write will never happen in reality)
+		*reinterpret_cast<T*>(size_t(globalInvocationIdZ)) = y;
+	}
+
+#if 0
 	// initial values of x, y and z
 	T x = globalInvocationIdX;
 	T y = globalInvocationIdY;
 	T z = globalInvocationIdZ;
 
-	FMA1_10000;
+	FMA1_1000;
 
 	// condition that will never be true in reality
 	// (this avoids optimizer to consider the results of previous computations as unused
@@ -161,12 +168,14 @@ template<typename T> static void shaderInvocation1(
 		// (the write will never happen in reality)
 		*reinterpret_cast<T*>(size_t(globalInvocationIdZ)) = y;
 	}
+#endif
 }
 
 
-template<typename T> static void shaderInvocation2(
+template<typename T> static void shaderFmaComputation2(
 	unsigned globalInvocationIdX, unsigned globalInvocationIdY, unsigned globalInvocationIdZ)
 {
+	// two computations in parallel, number of used registers: 5
 #define FMA2_10 \
 	x1 = x1 * y1 + z; \
 	x2 = x2 * y2 + z; \
@@ -203,18 +212,27 @@ template<typename T> static void shaderInvocation2(
 	FMA2_100; \
 	FMA2_100
 
-#define FMA2_10000 \
-	FMA2_1000; \
-	FMA2_1000; \
-	FMA2_1000; \
-	FMA2_1000; \
-	FMA2_1000; \
-	FMA2_1000; \
-	FMA2_1000; \
-	FMA2_1000; \
-	FMA2_1000; \
-	FMA2_1000
+	// initial values for the computation
+	// (make x1, y1 and z in the range 0.0 to 0.16383,
+	// and x2 and y2 less than 0.333)
+	T x1 = T(globalInvocationIdX & 0x3fff) * 0.00001;
+	T y1 = T(globalInvocationIdY & 0x3fff) * 0.00001;
+	T z = T(globalInvocationIdZ & 0x3fff) * 0.00001;
+	T x2 = x1 + 0.165f;
+	T y2 = y1 + 0.165f;
 
+	FMA2_1000;
+
+	// condition that will never be true in reality
+	// (this avoids optimizer to consider the results of previous computations as unused
+	// and to optimize the final shader code by their removal)
+	if(x1 == T(10) || x2 == T(10)) {
+		// write to artificially generated address
+		// (the write will never happen in reality)
+		*reinterpret_cast<T*>(size_t(globalInvocationIdZ)) = y1 + y2;
+	}
+
+#if 0
 	// initial values for the computation
 	T x1 = globalInvocationIdX;
 	T y1 = globalInvocationIdY;
@@ -222,7 +240,7 @@ template<typename T> static void shaderInvocation2(
 	T x2 = x1 + 0.5f;
 	T y2 = y1 + 0.5f;
 
-	FMA2_10000;
+	FMA2_1000;
 
 	// condition that will never be true in reality
 	// (this avoids optimizer to consider the results of previous computations as unused
@@ -232,12 +250,14 @@ template<typename T> static void shaderInvocation2(
 		// (the write will never happen in reality)
 		*reinterpret_cast<T*>(size_t(globalInvocationIdZ)) = y1 + y2;
 	}
+#endif
 }
 
 
-template<typename T> static void shaderInvocation3(
+template<typename T> static void shaderFmaComputation3(
 	unsigned globalInvocationIdX, unsigned globalInvocationIdY, unsigned globalInvocationIdZ)
 {
+	// three computations in parallel, number of used registers: 7
 #define FMA3_9 \
 	x1 = x1 * y1 + z; \
 	x2 = x2 * y2 + z; \
@@ -262,7 +282,7 @@ template<typename T> static void shaderInvocation3(
 	FMA3_9; \
 	FMA3_9
 
-#define FMA3_999 \
+#define FMA3_1000 \
 	FMA3_99; \
 	FMA3_99; \
 	FMA3_99; \
@@ -273,22 +293,32 @@ template<typename T> static void shaderInvocation3(
 	FMA3_99; \
 	FMA3_99; \
 	FMA3_99; \
-	FMA3_9
-
-#define FMA3_10000 \
-	FMA3_999; \
-	FMA3_999; \
-	FMA3_999; \
-	FMA3_999; \
-	FMA3_999; \
-	FMA3_999; \
-	FMA3_999; \
-	FMA3_999; \
-	FMA3_999; \
-	FMA3_999; \
 	FMA3_9; \
 	x1 = x1 * y1 + z
 
+	// initial values for the computation
+	// (make x1, y1 and z in the range 0.0 to 0.16383,
+	// and x2, y2, x3 and y3 less than 0.333)
+	T x1 = T(globalInvocationIdX & 0x3fff) * 0.00001;
+	T y1 = T(globalInvocationIdY & 0x3fff) * 0.00001;
+	T z = T(globalInvocationIdZ & 0x3fff) * 0.00001;
+	T x2 = x1 + 0.165f;
+	T y2 = y1 + 0.1f;
+	T x3 = x1 + 0.1f;
+	T y3 = y1 + 0.165f;
+
+	FMA3_1000;
+
+	// condition that will never be true in reality
+	// (this avoids optimizer to consider the results of previous computations as unused
+	// and to optimize the final shader code by their removal)
+	if(x1 == T(10) || x2 == T(10) || x3 == T(10)) {
+		// write to artificially generated address
+		// (the write will never happen in reality)
+		*reinterpret_cast<T*>(size_t(globalInvocationIdZ)) = y1 + y2 + y3;
+	}
+
+#if 0
 	// initial values for the computation
 	T x1 = globalInvocationIdX;
 	T y1 = globalInvocationIdY;
@@ -298,7 +328,7 @@ template<typename T> static void shaderInvocation3(
 	T x3 = x1 + 0.25f;
 	T y3 = y1 + 0.25f;
 
-	FMA3_10000;
+	FMA3_1000;
 
 	// condition that will never be true in reality
 	// (this avoids optimizer to consider the results of previous computations as unused
@@ -308,12 +338,119 @@ template<typename T> static void shaderInvocation3(
 		// (the write will never happen in reality)
 		*reinterpret_cast<T*>(size_t(globalInvocationIdZ)) = y1 + y2 + y3;
 	}
+#endif
 }
 
 
-template<typename T> static void shaderInvocation4(
+template<typename T> static void shaderMulAddComputation3(
 	unsigned globalInvocationIdX, unsigned globalInvocationIdY, unsigned globalInvocationIdZ)
 {
+	// three computations in parallel, number of used registers: 7
+
+#define MulAdd_Prologue \
+	x2 *= y2
+
+#define MulAdd_9 \
+	x1 *= y1; \
+	x2 += z;  \
+	x3 *= y3; \
+	x1 += z;  \
+	x2 *= y2; \
+	x3 += z;  \
+	x1 *= y1; \
+	x2 += z;  \
+	x3 *= y3; \
+	x1 += z;  \
+	x2 *= y2; \
+	x3 += z;  \
+	x1 *= y1; \
+	x2 += z;  \
+	x3 *= y3; \
+	x1 += z;  \
+	x2 *= y2; \
+	x3 += z
+
+#define MulAdd_Epilogue \
+	x2 += z
+
+#define MulAdd_99 \
+	MulAdd_9; \
+	MulAdd_9; \
+	MulAdd_9; \
+	MulAdd_9; \
+	MulAdd_9; \
+	MulAdd_9; \
+	MulAdd_9; \
+	MulAdd_9; \
+	MulAdd_9; \
+	MulAdd_9; \
+	MulAdd_9
+
+#define MulAdd_1000 \
+	MulAdd_Prologue; \
+	MulAdd_99; \
+	MulAdd_99; \
+	MulAdd_99; \
+	MulAdd_99; \
+	MulAdd_99; \
+	MulAdd_99; \
+	MulAdd_99; \
+	MulAdd_99; \
+	MulAdd_99; \
+	MulAdd_99; \
+	MulAdd_9; \
+	MulAdd_Epilogue
+
+	// initial values for the computation
+	// (make x1, y1 and z in the range 0.0 to 0.16383,
+	// and x2, y2, x3 and y3 less than 0.333)
+	T x1 = T(globalInvocationIdX & 0x3fff) * 0.00001;
+	T y1 = T(globalInvocationIdY & 0x3fff) * 0.00001;
+	T z = T(globalInvocationIdZ & 0x3fff) * 0.00001;
+	T x2 = x1 + 0.165f;
+	T y2 = y1 + 0.1f;
+	T x3 = x1 + 0.1f;
+	T y3 = y1 + 0.165f;
+
+	MulAdd_1000;
+
+	// condition that will never be true in reality
+	// (this avoids optimizer to consider the results of previous computations as unused
+	// and to optimize the final shader code by their removal)
+	if(x1 == T(10) || x2 == T(10) || x3 == T(10)) {
+		// write to artificially generated address
+		// (the write will never happen in reality)
+		*reinterpret_cast<T*>(size_t(globalInvocationIdZ)) = y1 + y2 + y3;
+	}
+
+#if 0
+	// initial values for the computation
+	T x1 = globalInvocationIdX;
+	T y1 = globalInvocationIdY;
+	T z = globalInvocationIdZ;
+	T x2 = x1 + 0.5f;
+	T y2 = y1 + 0.5f;
+	T x3 = x1 + 0.25f;
+	T y3 = y1 + 0.25f;
+
+	MulAdd_1000;
+
+	// condition that will never be true in reality
+	// (this avoids optimizer to consider the results of previous computations as unused
+	// and to optimize the final shader code by their removal)
+	if(x1 == 0.1f || x2 == 0.1f || x3 == 0.1f) {
+		// write to artificially generated address
+		// (the write will never happen in reality)
+		*reinterpret_cast<T*>(size_t(globalInvocationIdZ)) = y1 + y2 + y3;
+	}
+#endif
+}
+
+
+template<typename T> static void shaderFmaComputation4(
+	unsigned globalInvocationIdX, unsigned globalInvocationIdY, unsigned globalInvocationIdZ)
+{
+	// four computations in parallel, number of used registers: 9
 #define FMA4_8 \
 	x1 = x1 * y1 + z; \
 	x2 = x2 * y2 + z; \
@@ -354,18 +491,31 @@ template<typename T> static void shaderInvocation4(
 	FMA4_100; \
 	FMA4_100
 
-#define FMA4_10000 \
-	FMA4_1000; \
-	FMA4_1000; \
-	FMA4_1000; \
-	FMA4_1000; \
-	FMA4_1000; \
-	FMA4_1000; \
-	FMA4_1000; \
-	FMA4_1000; \
-	FMA4_1000; \
-	FMA4_1000
+	// initial values for the computation
+	// (make x1, y1 and z in the range 0.0 to 0.16383,
+	// and x2, y2, x3, y3, x4 and y4 less than 0.333)
+	T x1 = T(globalInvocationIdX & 0x3fff) * 0.00001;
+	T y1 = T(globalInvocationIdY & 0x3fff) * 0.00001;
+	T z = T(globalInvocationIdZ & 0x3fff) * 0.00001;
+	T x2 = x1 + 0.165f;
+	T y2 = y1 + 0.1f;
+	T x3 = x1 + 0.05f;
+	T y3 = y1 + 0.165f;
+	T x4 = x1 + 0.1f;
+	T y4 = y1 + 0.05f;
 
+	FMA4_1000;
+
+	// condition that will never be true in reality
+	// (this avoids optimizer to consider the results of previous computations as unused
+	// and to optimize the final shader code by their removal)
+	if(x1 == T(10) || x2 == T(10) || x3 == T(10) || x4 == T(10)) {
+		// write to artificially generated address
+		// (the write will never happen in reality)
+		*reinterpret_cast<T*>(size_t(globalInvocationIdZ)) = y1 + y2 + y3 + y4;
+	}
+
+#if 0
 	// initial values for the computation
 	T x1 = globalInvocationIdX;
 	T y1 = globalInvocationIdY;
@@ -377,7 +527,7 @@ template<typename T> static void shaderInvocation4(
 	T x4 = x1 + 0.75f;
 	T y4 = y1 + 0.75f;
 
-	FMA4_10000;
+	FMA4_1000;
 
 	// condition that will never be true in reality
 	// (this avoids optimizer to consider the results of previous computations as unused
@@ -387,6 +537,40 @@ template<typename T> static void shaderInvocation4(
 		// (the write will never happen in reality)
 		*reinterpret_cast<T*>(size_t(globalInvocationIdZ)) = y1 + y2 + y3 + y4;
 	}
+#endif
+
+#if 0
+	array<T,4> x;
+	array<T,4> y;
+	array<T,4> z;
+	x[0] = T(globalInvocationIdX);
+	x[1] = T(globalInvocationIdX) + 0.5f;
+	x[2] = T(globalInvocationIdX) + 0.25f;
+	x[3] = T(globalInvocationIdX) + 0.75f;
+	y[0] = T(globalInvocationIdY);
+	y[1] = T(globalInvocationIdY) + 0.5f;
+	y[2] = T(globalInvocationIdY) + 0.25f;
+	y[3] = T(globalInvocationIdY) + 0.75f;
+	z[0] = T(globalInvocationIdZ);
+	z[1] = T(globalInvocationIdZ);
+	z[2] = T(globalInvocationIdZ);
+	z[3] = T(globalInvocationIdZ);
+	for(size_t i=0; i<10000; i++) {
+		x[0] = x[0] * y[0] + z[0];
+		x[1] = x[1] * y[1] + z[1];
+		x[2] = x[2] * y[2] + z[2];
+		x[3] = x[3] * y[3] + z[3];
+	}
+
+	// condition that will never be true in reality
+	// (this avoids optimizer to consider the results of previous computations as unused
+	// and to optimize the final shader code by their removal)
+	if(x[0] == 0.1f || x[1] == 0.1f || x[2] == 0.1f || x[3] == 0.1f) {
+		// write to artificially generated address
+		// (the write will never happen in reality)
+		*reinterpret_cast<T*>(size_t(globalInvocationIdZ)) = y[0] + y[1] + y[2] + y[3];
+	}
+#endif
 }
 
 
@@ -561,7 +745,7 @@ int main(int argc, char* argv[])
 		auto processResult =
 			[](float time, size_t numWorkgroups, vector<float>& performanceList) {
 				if(time >= 0.01f) {
-					uint64_t numInstructions = uint64_t(20000) * 128 * numWorkgroups;
+					uint64_t numInstructions = uint64_t(2000) * 128 * numWorkgroups;
 					float performance = float(numInstructions) / time;
 					performanceList.push_back(performance);
 				}
@@ -589,8 +773,8 @@ int main(int argc, char* argv[])
 		cout << "Running tests using ";
 		if(numThreads == 1)  cout << "1 thread..." << endl;
 		else  cout << numThreads << " threads..." << endl;
-		constexpr const size_t arraySize = 8;
-		array<size_t,arraySize> numWorkgroups = { 1,1,1,1, 1,1,1,1 };
+		constexpr const size_t arraySize = 10;
+		array<size_t,arraySize> numWorkgroups = { 1,1,1,1,1, 1,1,1,1,1 };
 		array<vector<float>,arraySize> performanceList;
 		cpuTimestampPeriod = getCpuTimestampPeriod();
 		chrono::time_point startTime = chrono::high_resolution_clock::now();
@@ -598,14 +782,16 @@ int main(int argc, char* argv[])
 
 			// perform tests
 			array<float,arraySize> t;
-			t[0] = performTest(shaderInvocation1<float>, numWorkgroups[0]);
-			t[1] = performTest(shaderInvocation2<float>, numWorkgroups[1]);
-			t[2] = performTest(shaderInvocation3<float>, numWorkgroups[2]);
-			t[3] = performTest(shaderInvocation4<float>, numWorkgroups[3]);
-			t[4] = performTest(shaderInvocation1<double>, numWorkgroups[4]);
-			t[5] = performTest(shaderInvocation2<double>, numWorkgroups[5]);
-			t[6] = performTest(shaderInvocation4<double>, numWorkgroups[6]);
-			t[7] = performTest(shaderInvocation4<double>, numWorkgroups[7]);
+			t[0] = performTest(shaderFmaComputation1<float>, numWorkgroups[0]);
+			t[1] = performTest(shaderFmaComputation2<float>, numWorkgroups[1]);
+			t[2] = performTest(shaderFmaComputation3<float>, numWorkgroups[2]);
+			t[3] = performTest(shaderFmaComputation4<float>, numWorkgroups[3]);
+			t[4] = performTest(shaderMulAddComputation3<float>, numWorkgroups[4]);
+			t[5] = performTest(shaderFmaComputation1<double>, numWorkgroups[5]);
+			t[6] = performTest(shaderFmaComputation2<double>, numWorkgroups[6]);
+			t[7] = performTest(shaderFmaComputation3<double>, numWorkgroups[7]);
+			t[8] = performTest(shaderFmaComputation4<double>, numWorkgroups[8]);
+			t[9] = performTest(shaderMulAddComputation3<double>, numWorkgroups[9]);
 			for(size_t i=0; i<arraySize; i++)
 				processResult(t[i], numWorkgroups[i], performanceList[i]);
 
@@ -638,22 +824,26 @@ int main(int argc, char* argv[])
 
 						// print dispersion using IQR (Interquartile Range);
 						// Q1 is the value in 25% and Q3 in 75%
-						cout << "  (Q1: " << formatFloatSI(performanceList[performanceList.size()/4]) << "FLOPS";
-						cout << " Q3: " << formatFloatSI(performanceList[performanceList.size()/4*3]) << "FLOPS)";
+						cout << "  (Q1: " << formatFloatSI(performanceList[performanceList.size()/4]) << "FLOPS,";
+						cout << " Q3: " << formatFloatSI(performanceList[performanceList.size()*3/4]) << "FLOPS)";
 						cout << endl;
 					}
 				}
 				else
 					cout << "not supported" << endl;
 			};
-		printResult("Float (float32) performance for parallelism level 1:   ", true, performanceList[0]);
-		printResult("Float (float32) performance for parallelism level 2:   ", true, performanceList[1]);
-		printResult("Float (float32) performance for parallelism level 3:   ", true, performanceList[2]);
-		printResult("Float (float32) performance for parallelism level 4:   ", true, performanceList[3]);
-		printResult("Double (float64) performance for parallelism level 1:  ", true, performanceList[4]);
-		printResult("Double (float64) performance for parallelism level 2:  ", true, performanceList[5]);
-		printResult("Double (float64) performance for parallelism level 3:  ", true, performanceList[6]);
-		printResult("Double (float64) performance for parallelism level 4:  ", true, performanceList[7]);
+		cout << "Float (float32) performance\n";
+		printResult("   non-parallel FMA:    ", true, performanceList[0]);
+		printResult("   2 parallel FMA:      ", true, performanceList[1]);
+		printResult("   3 parallel FMA:      ", true, performanceList[2]);
+		printResult("   4 parallel FMA:      ", true, performanceList[3]);
+		printResult("   3 parallel Mul+Add:  ", true, performanceList[4]);
+		cout << "Double (float64) performance\n";
+		printResult("   non-parallel FMA:    ", true, performanceList[5]);
+		printResult("   2 parallel FMA:      ", true, performanceList[6]);
+		printResult("   3 parallel FMA:      ", true, performanceList[7]);
+		printResult("   4 parallel FMA:      ", true, performanceList[8]);
+		printResult("   3 parallel Mul+Add:  ", true, performanceList[9]);
 
 	// catch exceptions
 	} catch(exception& e) {
