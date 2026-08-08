@@ -14,7 +14,7 @@ using namespace std;
 
 // constants
 constexpr const char* appName = "2-7-ArchitectureInfo";
-constexpr const float totalMeasuringTime = 3.f;  // total time in seconds for which measurements are made and median time of the measurements is taken at the end
+constexpr const float totalMeasuringTime = 10.f;  // total time in seconds for which measurements are made and median time of the measurements is taken at the end
 constexpr const float singleMeasurementTargetTime = 0.02f;  // single measurement time in seconds; the load will be continually adjusted to target this time
 constexpr const float minTimeOfValidMeasurement = 0.005f;  // minimal measurement time to consider it valid measurement
 constexpr const float maxNumWorkgroupsMultiplier = 10.f;  // limits number of workgroups in the next measurement to not be more than 10 times higher then in the current measurement
@@ -232,7 +232,7 @@ int main(int argc, char* argv[])
 		cout << "List of devices:" << endl;
 		for(size_t i=0, c=compatibleDevices.size(); i<c; i++) {
 			auto& t = compatibleDevices[i];
-			cout << "   " << i+1 << ": " << get<2>(t).deviceName << " (compute queue: "
+			cout << "   " << i+1 << ": " << get<2>(t).deviceName << " (compute queue family: "
 			     << get<1>(t) << ", type: " << to_cstr(get<2>(t).deviceType) << ")" << endl;
 		}
 		for(size_t i=0, c=incompatibleDevices.size(); i<c; i++) {
@@ -832,6 +832,7 @@ int main(int argc, char* argv[])
 				}
 			};
 
+		cout << "Running tests..." << endl;
 		size_t halfNumWorkgroups = 1;
 		size_t floatNumWorkgroups = 1;
 		size_t doubleNumWorkgroups = 1;
