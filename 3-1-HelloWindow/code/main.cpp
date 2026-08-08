@@ -16,7 +16,7 @@ constexpr const char* appName = "HelloWindow";
 
 
 // global application data
-class App : public vk::Context {
+class App {
 public:
 
 	App(int argc, char* argv[]);
@@ -25,6 +25,10 @@ public:
 	void init();
 	void resize(VulkanWindow& window, uint32_t& widthToBeSet, uint32_t& heightToBeSet);
 	void frame(VulkanWindow& window);
+
+	// Vulkan device, instance and library release object
+	// (they need to be released as the last one)
+	vk::Context vulkanContext;
 
 	// window needs to be destroyed after the swapchain
 	// This is required especially by Wayland.
@@ -61,11 +65,9 @@ App::App(int argc, char** argv)
 App::~App()
 {
 	// wait for device idle state
-	// (to prevent errors during destruction of Vulkan resources);
-	// we ignore any returned error codes here
-	// because the device might be in the lost state already, etc.
+	// (do not throw here because the device might be in the lost state already, etc.)
 	if(vk::device())
-		vk::deviceWaitIdle();
+		vk::deviceWaitIdle_noThrow();
 }
 
 
@@ -78,7 +80,7 @@ void App::init()
 	// It is workaround for the known bug in libXext: https://gitlab.freedesktop.org/xorg/lib/libxext/-/issues/3,
 	// that crashes the application inside XCloseDisplay(). The problem seems to be present
 	// especially on Nvidia drivers (reproduced on versions 470.129.06 and 515.65.01, for example).
-	Context::atDestroy([](void*){ VulkanWindow::finalize(); }, nullptr);
+	vulkanContext.atDestroy([](void*){ VulkanWindow::finalize(); }, nullptr);
 
 	// load Vulkan library
 	vk::loadLib();
@@ -106,9 +108,13 @@ void App::init()
 	vk::SurfaceKHR surface =
 		window.create(vk::instance().handle(), 1024, 768, appName, vk::funcs.vkGetInstanceProcAddr);
 
-	// find compatible devices
+	// get compatible and incompatible devices
+	//
+	// required functionality: VK_KHR_swapchain, queue presentation support, graphics queue
+	// optional functionality: < none >
 	vk::vector<vk::PhysicalDevice> deviceList = vk::enumeratePhysicalDevices();
 	vector<tuple<vk::PhysicalDevice, uint32_t, uint32_t, vk::PhysicalDeviceProperties>> compatibleDevices;
+	vector<tuple<string,string>> incompatibleDevices;
 	for(vk::PhysicalDevice pd : deviceList) {
 
 		// skip devices without VK_KHR_swapchain
@@ -116,6 +122,9 @@ void App::init()
 		for(vk::ExtensionProperties& e : extensionList)
 			if(strcmp(e.extensionName, "VK_KHR_swapchain") == 0)
 				goto swapchainSupported;
+		incompatibleDevices.emplace_back(
+			vk::getPhysicalDeviceProperties(pd).deviceName,
+			"VK_KHR_swapchain extension not supported");
 		continue;
 		swapchainSupported:
 
@@ -148,18 +157,36 @@ void App::init()
 			}
 		}
 
-		if(graphicsQueueFamily != UINT32_MAX && presentationQueueFamily != UINT32_MAX)
-			// presentation and graphics operations are supported on the different queues
+		if(graphicsQueueFamily == UINT32_MAX || presentationQueueFamily == UINT32_MAX) {
+			// missing graphics or presentation support
+			incompatibleDevices.emplace_back(
+				vk::getPhysicalDeviceProperties(pd).deviceName,
+				static_cast<const char*>((graphicsQueueFamily == UINT32_MAX)
+					? "no queue supporting graphics operations"
+					: "no queue supporting presentation"));
+			continue;
+		}
+		else
+			// graphics and presentation operations are supported on the different queues
 			compatibleDevices.emplace_back(pd, graphicsQueueFamily, presentationQueueFamily, vk::getPhysicalDeviceProperties(pd));
+
 		nextDevice:;
 	}
 
-	// print compatible devices
-	cout << "Compatible devices:" << endl;
-	for(auto& t : compatibleDevices)
-		cout << "   " << get<3>(t).deviceName << " (graphics queue: " << get<1>(t)
-		     << ", presentation queue: " << get<2>(t)
-		     << ", type: " << to_cstr(get<3>(t).deviceType) << ")" << endl;
+	// print device list
+	cout << "List of devices:" << endl;
+	for(size_t i=0, c=compatibleDevices.size(); i<c; i++) {
+		auto& t = compatibleDevices[i];
+		cout << "   " << i+1 << ": " << get<3>(t).deviceName
+		     << "\n         type:  " << to_cstr(get<3>(t).deviceType)
+		     << "\n         graphics queue family:  " << get<1>(t)
+		     << "\n         presentation queue family: " << get<2>(t) << endl;
+	}
+	for(size_t i=0, c=incompatibleDevices.size(); i<c; i++) {
+		auto& [name, reason] = incompatibleDevices[i];
+		cout << "   incompatible: " << name
+		     << "\n      reason: " << reason << endl;
+	}
 
 	// choose the best device
 	auto bestDevice = compatibleDevices.begin();
@@ -185,7 +212,7 @@ void App::init()
 			bestScore = score;
 		}
 	}
-	cout << "Using device:\n"
+	cout << "\nUsing device:\n"
 	        "   " << get<3>(*bestDevice).deviceName << endl;
 	vk::PhysicalDevice physicalDevice = get<0>(*bestDevice);
 	graphicsQueueFamily = get<1>(*bestDevice);
@@ -227,7 +254,7 @@ void App::init()
 	presentationQueue = vk::getDeviceQueue(presentationQueueFamily, 0);
 
 	// print surface formats
-	cout << "Surface formats:" << endl;
+	cout << "\nSurface formats:" << endl;
 	vk::vector<vk::SurfaceFormatKHR> availableSurfaceFormats = vk::getPhysicalDeviceSurfaceFormatsKHR(surface);
 	for(vk::SurfaceFormatKHR sf : availableSurfaceFormats)
 		cout << "   " << vk::to_cstr(sf.format) << ", color space: " << vk::to_cstr(sf.colorSpace) << endl;
@@ -256,8 +283,8 @@ void App::init()
 		surfaceFormat = availableSurfaceFormats[0];
 	surfaceFormatFound:;
 	}
-	cout << "Using format:\n"
-	     << "   " << to_cstr(surfaceFormat.format) << ", color space: " << to_cstr(surfaceFormat.colorSpace) << endl;
+	cout << "\nUsing format:\n"
+	     << "   " << to_cstr(surfaceFormat.format) << ", color space: " << to_cstr(surfaceFormat.colorSpace) << "\n" << endl;
 
 	// render pass
 	renderPass =

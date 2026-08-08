@@ -108,7 +108,7 @@ public:
     explicit UniqueHandle(Type value) noexcept : _value(value) {}
     UniqueHandle(const UniqueHandle&) = delete;
     UniqueHandle(UniqueHandle&& other) noexcept : _value(other._value) { other._value = nullptr; }
-    inline ~UniqueHandle() { destroy(_value); }
+    inline ~UniqueHandle() { if(_value) destroy(_value); }
     UniqueHandle& operator=(const UniqueHandle&) = delete;
     UniqueHandle& operator=(UniqueHandle&& other) noexcept { reset(other._value); other._value = nullptr; return *this; }
     Type get() const noexcept { return _value; }
@@ -116,7 +116,7 @@ public:
     Type* getPtr() noexcept { return &_value; }
     const Type& getRef() const noexcept { return _value; }
     const Type* getPtr() const noexcept { return &_value; }
-    void reset(Type value = nullptr) noexcept { if (value == _value) return; destroy(_value); _value = value; }
+    void reset(Type value = nullptr) noexcept { if (value == _value) return; if(_value) destroy(_value); _value = value; }
     Type release() noexcept { Type r = _value; _value = nullptr; return r; }
     void swap(UniqueHandle& other) { Type tmp = _value; _value = other._value; other._value = tmp; }
     explicit operator Type() const noexcept { return _value; }
