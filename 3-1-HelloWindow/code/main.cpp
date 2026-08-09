@@ -212,7 +212,7 @@ void App::init()
 			bestScore = score;
 		}
 	}
-	cout << "\nUsing device:\n"
+	cout << "Using device:\n"
 	        "   " << get<3>(*bestDevice).deviceName << endl;
 	vk::PhysicalDevice physicalDevice = get<0>(*bestDevice);
 	graphicsQueueFamily = get<1>(*bestDevice);
@@ -254,7 +254,7 @@ void App::init()
 	presentationQueue = vk::getDeviceQueue(presentationQueueFamily, 0);
 
 	// print surface formats
-	cout << "\nSurface formats:" << endl;
+	cout << "Surface formats:" << endl;
 	vk::vector<vk::SurfaceFormatKHR> availableSurfaceFormats = vk::getPhysicalDeviceSurfaceFormatsKHR(surface);
 	for(vk::SurfaceFormatKHR sf : availableSurfaceFormats)
 		cout << "   " << vk::to_cstr(sf.format) << ", color space: " << vk::to_cstr(sf.colorSpace) << endl;
@@ -283,8 +283,8 @@ void App::init()
 		surfaceFormat = availableSurfaceFormats[0];
 	surfaceFormatFound:;
 	}
-	cout << "\nUsing format:\n"
-	     << "   " << to_cstr(surfaceFormat.format) << ", color space: " << to_cstr(surfaceFormat.colorSpace) << "\n" << endl;
+	cout << "Using format:\n"
+	     << "   " << to_cstr(surfaceFormat.format) << ", color space: " << to_cstr(surfaceFormat.colorSpace) << endl;
 
 	// render pass
 	renderPass =
@@ -293,37 +293,37 @@ void App::init()
 				.flags = vk::RenderPassCreateFlags(),
 				.attachmentCount = 1,
 				.pAttachments = array{
-					vk::AttachmentDescription(
-						vk::AttachmentDescriptionFlags(),  // flags
-						surfaceFormat.format,              // format
-						vk::SampleCountFlagBits::e1,       // samples
-						vk::AttachmentLoadOp::eClear,      // loadOp
-						vk::AttachmentStoreOp::eStore,     // storeOp
-						vk::AttachmentLoadOp::eDontCare,   // stencilLoadOp
-						vk::AttachmentStoreOp::eDontCare,  // stencilStoreOp
-						vk::ImageLayout::eUndefined,       // initialLayout
-						vk::ImageLayout::ePresentSrcKHR    // finalLayout
-					),
+					vk::AttachmentDescription{
+						.flags = vk::AttachmentDescriptionFlags(),
+						.format = surfaceFormat.format,
+						.samples = vk::SampleCountFlagBits::e1,
+						.loadOp = vk::AttachmentLoadOp::eClear,
+						.storeOp = vk::AttachmentStoreOp::eStore,
+						.stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
+						.stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
+						.initialLayout = vk::ImageLayout::eUndefined,
+						.finalLayout = vk::ImageLayout::ePresentSrcKHR,
+					},
 				}.data(),
 				.subpassCount = 1,
 				.pSubpasses = array{
-					vk::SubpassDescription(
-						vk::SubpassDescriptionFlags(),     // flags
-						vk::PipelineBindPoint::eGraphics,  // pipelineBindPoint
-						0,        // inputAttachmentCount
-						nullptr,  // pInputAttachments
-						1,        // colorAttachmentCount
-						array{    // pColorAttachments
-							vk::AttachmentReference(
-								0,  // attachment
-								vk::ImageLayout::eColorAttachmentOptimal  // layout
-							),
+					vk::SubpassDescription{
+						.flags = vk::SubpassDescriptionFlags(),
+						.pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
+						.inputAttachmentCount = 0,
+						.pInputAttachments = nullptr,
+						.colorAttachmentCount = 1,
+						.pColorAttachments = array{
+							vk::AttachmentReference{
+								.attachment = 0,
+								.layout = vk::ImageLayout::eColorAttachmentOptimal,
+							},
 						}.data(),
-						nullptr,  // pResolveAttachments
-						nullptr,  // pDepthStencilAttachment
-						0,        // preserveAttachmentCount
-						nullptr   // pPreserveAttachments
-					),
+						.pResolveAttachments = nullptr,
+						.pDepthStencilAttachment = nullptr,
+						.preserveAttachmentCount = 0,
+						.pPreserveAttachments = nullptr,
+					},
 				}.data(),
 				.dependencyCount = 1,
 				.pDependencies = array{
