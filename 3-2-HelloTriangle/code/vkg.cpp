@@ -2,7 +2,6 @@
 #include <cassert>
 #include <cstdlib>
 #include <string>
-#include <vector>
 #include <filesystem>
 #ifdef _WIN32
 # define WIN32_LEAN_AND_MEAN  // this reduces win32 headers default namespace pollution
@@ -4465,7 +4464,7 @@ Result getDeviceImageSparseMemoryRequirements_noThrow(const DeviceImageMemoryReq
     return Result::eSuccess;
 }
 
-vk::vector<vk::SurfaceFormatKHR> __cdecl vk::getPhysicalDeviceSurfaceFormatsKHR_throw(vk::Handle<struct vk::ePhysicalDevice_T *> physicalDevice, vk::Handle<struct VkSurfaceKHR_T *> surface) {
+vector<SurfaceFormatKHR> getPhysicalDeviceSurfaceFormatsKHR_throw(PhysicalDevice physicalDevice, SurfaceKHR surface) {
     vector<SurfaceFormatKHR> v;
     uint32_t n;
     Result r;

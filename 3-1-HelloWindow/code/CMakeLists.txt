@@ -4,27 +4,28 @@ project(${APP_NAME})
 
 set(APP_SOURCES
 	main.cpp
-	vkg.cpp
 )
 
 set(APP_INCLUDES
-	vkg.hpp
 )
 
 set(APP_SHADERS
 )
 
 # executable
-include(vkgMacros.cmake)
-vkg_add_shaders("${APP_SHADERS}" APP_SHADER_DEPS)
-add_executable(${APP_NAME} ${APP_SOURCES} ${APP_INCLUDES} ${APP_SHADER_DEPS})
+add_executable(${APP_NAME} ${APP_SOURCES} ${APP_INCLUDES})
 
-# target
-set_property(TARGET ${APP_NAME} PROPERTY CXX_STANDARD 20)
+# vkg and shaders
+include(vkgMacros.cmake)
+vkg_configure(${APP_NAME} vkg.hpp vkg.cpp)
+vkg_add_shaders(${APP_NAME} "${APP_SHADERS}")
 
 # VulkanWindow
 include(VulkanWindow.cmake)
 VulkanWindowConfigure(${APP_NAME} VulkanWindow.h VulkanWindow.cpp)
+
+# target
+set_property(TARGET ${APP_NAME} PROPERTY CXX_STANDARD 20)
 
 # copy DLLs (SDL3.dll, SDL2.dll, glfw3.dll, Qt stuff,...)
 if(WIN32)

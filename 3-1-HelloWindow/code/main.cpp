@@ -95,7 +95,7 @@ void App::init()
 					.applicationVersion = 0,
 					.pEngineName = nullptr,
 					.engineVersion = 0,
-					.apiVersion = vk::ApiVersion13,  // highest api version used by the application
+					.apiVersion = vk::ApiVersion10,  // highest api version used by the application
 				},
 			.enabledLayerCount = 0,
 			.ppEnabledLayerNames = nullptr,

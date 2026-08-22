@@ -15,6 +15,7 @@ set(PACKAGES
     2-6-FloatPrecision
     2-7-ArchitectureInfo
     3-1-HelloWindow
+    3-2-HelloTriangle
    )
 
 foreach(pkg ${PACKAGES})
