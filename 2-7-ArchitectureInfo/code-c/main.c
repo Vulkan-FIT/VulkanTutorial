@@ -1,9 +1,11 @@
 #include <assert.h>
 #include <math.h>
+#include <string.h>  // memcmp()
 #include <stdio.h>
 #include <time.h>
 #if defined(__DOS__)
 # include <bios.h>
+# include <dos.h>  // dostime_t, _dos_gettime()
 #endif
 #include "FloatVector.h"
 
@@ -194,6 +196,55 @@ int main(int argc, char* argv[])
 
 	printf("%s prints the performance of the CPU\n\n", appName);
 	printCpuInfo();
+
+	printf("Measuring time precision...\n");
+	{
+		struct dostime_t tStart,t1,t2;
+		unsigned long tsStart,tsFinish,ts1,ts2;
+		unsigned long tNumChanges = 0;
+		unsigned long tsNumChanges = 0;
+		unsigned long deltaTime;
+		_dos_gettime(&t1);
+		do {
+			_dos_gettime(&t2);
+		} while(memcmp(&t1, &t2, sizeof(struct dostime_t)) == 0);
+		tStart = t2;
+		t1 = t2;
+		tsStart = getTimestamp();
+		tsFinish = tsStart + (unsigned long)(0.5 / timestampPeriod);  // make finish time half of second ahead
+		ts1 = tsStart;
+		do {
+			_dos_gettime(&t2);  // make _dos_gettime() before getTimestamp(), just because we expect that _dos_gettime() is always driven by interrupt 8 (each ~55ms)
+			ts2 = getTimestamp();
+			if(ts2 != ts1) {
+				tsNumChanges++;
+				ts1 = ts2;
+			}
+			if(memcmp(&t2, &t1, sizeof(struct dostime_t)) != 0) {
+				tNumChanges++;
+				t1 = t2;
+
+				// stop the measurement after certain time
+				// (ts2 and tsFinish are used because unsigned long is
+				// simpler to compare than dostime_t structs t2 and tStart)
+				if(ts2 >= tsFinish)
+					break;
+			}
+		} while(1);
+		deltaTime =
+			(t2.hour >= tStart.hour)
+				? (t2.hour - tStart.hour) * 3600 * 100
+				: 86400 * 100 + ((int)t2.hour - tStart.hour) * 3600 * 100;
+		deltaTime += ((int)t2.minute - tStart.minute) * 60 * 100;
+		deltaTime += ((int)t2.second - tStart.second) * 100;
+		deltaTime += (int)t2.hsecond - tStart.hsecond;
+		printf("   In %lu ms, _dos_gettime() provided %lu time updates\n"
+		       "   (update frequency %f Hz) and getTimestamp() provided\n"
+		       "   %lu time updates (update frequency %f Hz)\n"
+		       "   with total value difference of %lu.\n",
+		       deltaTime*10, tNumChanges, ((float)tNumChanges) / (deltaTime * 0.01f),
+		       tsNumChanges, ((float)tsNumChanges) / (deltaTime * 0.01f), ts2 - tsStart);
+	}
 
 	printf("Running tests...\n");
 	{
