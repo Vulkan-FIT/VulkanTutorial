@@ -712,7 +712,7 @@ void printCpuInfo()
 		// print processor name
 		cout << "   Name:  ";
 		if(processorName[0] == '\0')
-			cout << "< unknown>" << endl;
+			cout << "< unknown >" << endl;
 		else
 			cout << processorName << endl;
 
