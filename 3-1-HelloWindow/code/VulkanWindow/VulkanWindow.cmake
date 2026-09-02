@@ -2,9 +2,7 @@
 #
 # SPDX-License-Identifier: MIT-0
 
-
-# configure target to use VulkanWindow
-macro(VulkanWindowConfigure target vulkanWindowHeaderFile vulkanWindowCppFile)
+function(VulkanWindowConfigure target)
 
 	# set VULKAN_WINDOW_GUI if not already set or if set to "default" string
 	string(TOLOWER "${VULKAN_WINDOW_GUI}" vulkanWindowGuiLowerCased)
@@ -42,26 +40,28 @@ macro(VulkanWindowConfigure target vulkanWindowHeaderFile vulkanWindowCppFile)
 
 
 	# append VulkanWindow source files to the target
-	target_sources(${target} PRIVATE "${vulkanWindowHeaderFile}" "${vulkanWindowCppFile}")
+	target_sources(${target} PRIVATE
+		"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/VulkanWindow.h"
+		"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/VulkanWindow.cpp")
 
-	# append include directory to the target to find VulkanWindow header file
-	get_filename_component(vulkanWindowHeaderPath "${vulkanWindowHeaderFile}" DIRECTORY)
-	if(NOT "${vulkanWindowHeaderPath}" STREQUAL "${CMAKE_SOURCE_DIR}")
-		target_include_directories(${target} PRIVATE "${vulkanWindowHeaderPath}")
-	endif()
+	# append VulkanWindow include directory
+	target_include_directories(${target} PRIVATE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}")
+
+	# append VulkanWindow directory to the module search path
+	set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_FUNCTION_LIST_DIR};${CMAKE_MODULE_PATH}")
 
 
 	# platform specific stuff
 	if("${VULKAN_WINDOW_GUI}" STREQUAL "Win32")
 
 		# configure for Win32
-		set_property(SOURCE "${vulkanWindowCppFile}" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_WIN32)
+		set_property(SOURCE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/VulkanWindow.cpp" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_WIN32)
 
 	elseif("${VULKAN_WINDOW_GUI}" STREQUAL "Xlib")
 
 		# configure for Xlib
 		find_package(X11 REQUIRED)
-		set_property(SOURCE "${vulkanWindowCppFile}" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_XLIB)
+		set_property(SOURCE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/VulkanWindow.cpp" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_XLIB)
 		target_link_libraries(${target} X11 -l:libxkbcommon.so.0)
 
 	elseif("${VULKAN_WINDOW_GUI}" STREQUAL "Wayland")
@@ -82,7 +82,7 @@ macro(VulkanWindowConfigure target vulkanWindowHeaderFile vulkanWindowCppFile)
 
 			target_sources(${target} PRIVATE xdg-shell-protocol.c xdg-decoration-protocol.c
 			                                 xdg-shell-client-protocol.h xdg-decoration-client-protocol.h)
-			set_property(SOURCE "${vulkanWindowCppFile}" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_WAYLAND)
+			set_property(SOURCE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/VulkanWindow.cpp" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_WAYLAND)
 			target_link_libraries(${target} Wayland::client Wayland::cursor -lrt -l:libxkbcommon.so.0)
 
 		else()
@@ -93,28 +93,28 @@ macro(VulkanWindowConfigure target vulkanWindowHeaderFile vulkanWindowCppFile)
 
 		# configure for SDL3
 		find_package(SDL3 REQUIRED)
-		set_property(SOURCE "${vulkanWindowCppFile}" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_SDL3)
+		set_property(SOURCE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/VulkanWindow.cpp" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_SDL3)
 		target_link_libraries(${target} SDL3::SDL3)
 
 	elseif("${VULKAN_WINDOW_GUI}" STREQUAL "SDL2")
 
 		# configure for SDL2
 		find_package(SDL2 REQUIRED)
-		set_property(SOURCE "${vulkanWindowCppFile}" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_SDL2)
+		set_property(SOURCE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/VulkanWindow.cpp" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_SDL2)
 		target_link_libraries(${target} SDL2::SDL2)
 
 	elseif("${VULKAN_WINDOW_GUI}" STREQUAL "GLFW")
 
 		# configure for GLFW
 		find_package(glfw3 3.3 REQUIRED)
-		set_property(SOURCE "${vulkanWindowCppFile}" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_GLFW)
+		set_property(SOURCE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/VulkanWindow.cpp" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_GLFW)
 		target_link_libraries(${target} glfw)
 
 	elseif("${VULKAN_WINDOW_GUI}" STREQUAL "Qt6")
 
 		# configure for Qt6
 		find_package(Qt6 REQUIRED COMPONENTS Core Gui)
-		set_property(SOURCE "${vulkanWindowCppFile}" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_QT)
+		set_property(SOURCE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/VulkanWindow.cpp" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_QT)
 		target_link_libraries(${target} Qt6::Gui)
 
 	elseif("${VULKAN_WINDOW_GUI}" STREQUAL "Qt5")
@@ -122,7 +122,7 @@ macro(VulkanWindowConfigure target vulkanWindowHeaderFile vulkanWindowCppFile)
 		# configure for Qt5
 		# (we need at least version 5.10 because of Vulkan support)
 		find_package(Qt5 5.10 REQUIRED COMPONENTS Core Gui)
-		set_property(SOURCE "${vulkanWindowCppFile}" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_QT)
+		set_property(SOURCE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/VulkanWindow.cpp" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_QT)
 		target_link_libraries(${target} Qt5::Gui)
 		if(WIN32)
 			# windeployqt path
@@ -168,4 +168,4 @@ macro(VulkanWindowConfigure target vulkanWindowHeaderFile vulkanWindowCppFile)
 		endif()
 	endif()
 
-endmacro()
+endfunction()
