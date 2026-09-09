@@ -23,7 +23,7 @@ vkg_configure(${APP_NAME} vkg.hpp vkg.cpp)
 vkg_add_shaders(${APP_NAME} "${APP_SHADERS}")
 
 # VulkanWindow
-include("VulkanWindow/VulkanWindow.cmake")
+include("VulkanWindow.cmake")
 VulkanWindowConfigure(${APP_NAME})
 
 # target

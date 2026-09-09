@@ -92,62 +92,38 @@ function(VulkanWindowConfigure target)
 	elseif("${VULKAN_WINDOW_GUI}" STREQUAL "SDL3")
 
 		# configure for SDL3
-		find_package(SDL3 REQUIRED)
+		# (SDL3Config.cmake file is distributed with precompiled binaries on Win32
+		# with all SDL3 versions)
+		find_package(SDL3 CONFIG REQUIRED)
 		set_property(SOURCE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/VulkanWindow.cpp" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_SDL3)
 		target_link_libraries(${target} SDL3::SDL3)
+		add_custom_command(TARGET ${target} POST_BUILD
+			COMMAND ${CMAKE_COMMAND} -E copy -t $<TARGET_FILE_DIR:${target}> $<TARGET_RUNTIME_DLLS:${target}> COMMAND_EXPAND_LISTS)
 
 	elseif("${VULKAN_WINDOW_GUI}" STREQUAL "SDL2")
 
 		# configure for SDL2
+		# (SDL2Config.cmake file is distributed with precompiled binaries on Win32
+		# since SDL2 version 2.24.0. For CMake 4.x and latest CMake 3.x versions
+		# you might need latest SDL2 versions to be compatible with
+		# cmake_minimum_required inside SDL2Config.cmake. Otherwise, you might get
+		# deprecation warning or even CMake compatibility error with CMake 4.x.)
 		find_package(SDL2 REQUIRED)
 		set_property(SOURCE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/VulkanWindow.cpp" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_SDL2)
 		target_link_libraries(${target} SDL2::SDL2)
-
-	elseif("${VULKAN_WINDOW_GUI}" STREQUAL "GLFW")
-
-		# configure for GLFW
-		find_package(glfw3 3.3 REQUIRED)
-		set_property(SOURCE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/VulkanWindow.cpp" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_GLFW)
-		target_link_libraries(${target} glfw)
+		add_custom_command(TARGET ${target} POST_BUILD
+			COMMAND ${CMAKE_COMMAND} -E copy -t $<TARGET_FILE_DIR:${target}> $<TARGET_RUNTIME_DLLS:${target}> COMMAND_EXPAND_LISTS)
 
 	elseif("${VULKAN_WINDOW_GUI}" STREQUAL "Qt6")
 
 		# configure for Qt6
+		# (Point Qt6_DIR to lib/cmake/Qt6 in your Qt installation.)
 		find_package(Qt6 REQUIRED COMPONENTS Core Gui)
 		set_property(SOURCE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/VulkanWindow.cpp" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_QT)
 		target_link_libraries(${target} Qt6::Gui)
 
-	elseif("${VULKAN_WINDOW_GUI}" STREQUAL "Qt5")
-
-		# configure for Qt5
-		# (we need at least version 5.10 because of Vulkan support)
-		find_package(Qt5 5.10 REQUIRED COMPONENTS Core Gui)
-		set_property(SOURCE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/VulkanWindow.cpp" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_QT)
-		target_link_libraries(${target} Qt5::Gui)
+		# copy dependencies on Win32
 		if(WIN32)
-			# windeployqt path
-			get_target_property(_qmake_executable Qt5::qmake IMPORTED_LOCATION)
-			get_filename_component(_qt_bin_dir "${_qmake_executable}" DIRECTORY)
-			set(QT5_WINDEPLOYQT_EXECUTABLE "${_qt_bin_dir}/windeployqt.exe")
-		endif()
-
-	else()
-		message(FATAL_ERROR "Invalid VULKAN_WINDOW_GUI value: ${VULKAN_WINDOW_GUI}")
-	endif()
-
-
-	# copy DLLs and other stuff on Wind32 (SDL3.dll, SDL2.dll, glfw3.dll, Qt stuff,...)
-	if(WIN32)
-		if(${VULKAN_WINDOW_GUI} STREQUAL "SDL3" AND SDL3_DLL)
-			add_custom_command(TARGET ${target}
-				POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${SDL3_DLL}" $<TARGET_FILE_DIR:${target}>)
-		elseif(${VULKAN_WINDOW_GUI} STREQUAL "SDL2" AND SDL2_DLL)
-			add_custom_command(TARGET ${target}
-				POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${SDL2_DLL}" $<TARGET_FILE_DIR:${target}>)
-		elseif(${VULKAN_WINDOW_GUI} STREQUAL "GLFW" AND glfw3_DLL)
-			add_custom_command(TARGET ${target}
-				POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${glfw3_DLL}" $<TARGET_FILE_DIR:${target}>)
-		elseif(${VULKAN_WINDOW_GUI} STREQUAL "Qt6")
 			add_custom_command(TARGET ${target}
 				POST_BUILD COMMAND Qt6::windeployqt
 						--no-translations  # skip Qt translations
@@ -156,7 +132,28 @@ function(VulkanWindowConfigure target)
 						--no-svg  # skip svg support
 						$<TARGET_FILE_DIR:${target}>
 						COMMENT "Deploying Qt related dependencies...")
-		elseif(${VULKAN_WINDOW_GUI} STREQUAL "Qt5")
+		endif()
+
+	elseif("${VULKAN_WINDOW_GUI}" STREQUAL "Qt5")
+
+		# configure for Qt5
+		# (version 5.10 brings Vulkan support, latest Qt 5.15.x might be needed
+		# on C++20 or in other circumstances)
+		find_package(Qt5 5.10 REQUIRED COMPONENTS Core Gui)
+		find_package(Vulkan)
+		set_property(SOURCE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/VulkanWindow.cpp" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_QT)
+		set_property(SOURCE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/VulkanWindow.cpp" PROPERTY INCLUDE_DIRECTORIES "${Vulkan_INCLUDE_DIR}")
+		target_link_libraries(${target} Qt5::Gui)
+
+		# copy dependencies on Win32
+		if(WIN32)
+
+			# windeployqt path
+			get_target_property(_qmake_executable Qt5::qmake IMPORTED_LOCATION)
+			get_filename_component(_qt_bin_dir "${_qmake_executable}" DIRECTORY)
+			set(QT5_WINDEPLOYQT_EXECUTABLE "${_qt_bin_dir}/windeployqt.exe")
+
+			# deploy command
 			add_custom_command(TARGET ${target}
 				POST_BUILD COMMAND "${QT5_WINDEPLOYQT_EXECUTABLE}"
 						--no-translations  # skip Qt translations
@@ -165,7 +162,49 @@ function(VulkanWindowConfigure target)
 						--no-angle  # skip software OpenGL (ANGLE)
 						$<TARGET_FILE_DIR:${target}>
 						COMMENT "Deploying Qt related dependencies...")
+
 		endif()
+
+	elseif("${VULKAN_WINDOW_GUI}" STREQUAL "GLFW")
+
+		# find GLFW include path
+		find_path(glfw3_INCLUDE_DIR GLFW/glfw3.h)
+
+		# find GLFW library
+		if(WIN32)
+			find_library(glfw3_LIBRARY
+				NAMES
+					glfw3.lib glfw3_mt.lib glfw3dll.lib
+			)
+		else()
+			find_library(glfw3_LIBRARY
+				NAMES
+					libglfw.so libglfw.so.3
+			)
+		endif()
+
+		# find GLFW DLL
+		# (leave it empty if you are not using glfw3dll.lib to not copy dll that is not used)
+		if(WIN32)
+			find_file(glfw3_DLL
+				NAMES
+					glfw3.dll
+			)
+		endif()
+
+		# configure for GLFW
+		# (No glfw3Config.cmake provided by glfw library for precompiled Win64 MSVC build
+		# even for version 3.5.1. So, we go without glfw3 target.)
+		set_property(SOURCE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/VulkanWindow.cpp" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_GLFW)
+		set_property(SOURCE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/VulkanWindow.cpp" PROPERTY INCLUDE_DIRECTORIES "${glfw3_INCLUDE_DIR}")
+		target_link_libraries(${target} "${glfw3_LIBRARY}")
+		if(WIN32 AND glfw3_DLL)
+			add_custom_command(TARGET ${target}
+				POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${glfw3_DLL}" $<TARGET_FILE_DIR:${target}>)
+		endif()
+
+	else()
+		message(FATAL_ERROR "Invalid VULKAN_WINDOW_GUI value: ${VULKAN_WINDOW_GUI}")
 	endif()
 
 endfunction()
