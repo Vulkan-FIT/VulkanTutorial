@@ -102,7 +102,7 @@ void printCpuInfo()
 #  if defined(__I86__)  // __I86__ is defined on Watcom for 16-bit applications
 			// 16-bit application
 			printf("   80386 or newer cpu detected\n");
-			printf("   (use 32-bit version of this application for further cpu detection)\n");
+			printf("   (use 32-bit version of this application for more cpu info)\n");
 #  else
 			// 32-bit application can use 32-bit instructions
 			// to detect 386 processor

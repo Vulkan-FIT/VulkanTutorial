@@ -194,15 +194,17 @@ int main(int argc, char* argv[])
 {
 	assert(sizeof(long) == 4 && "Wrong long type size.");
 
-	printf("%s prints the performance of the CPU\n\n", appName);
+	printf("\n%s prints the performance of the CPU\n\n", appName);
 	printCpuInfo();
 
-	printf("Measuring time precision...\n");
+	printf("\nMeasuring time precision...\n");
 	{
 		struct dostime_t tStart,t1,t2;
-		unsigned long tsStart,tsFinish,ts1,ts2;
+		clock_t clockStart,clockFinish,clock1,clock2;
+		long todStart,tod1,tod2;
 		unsigned long tNumChanges = 0;
-		unsigned long tsNumChanges = 0;
+		unsigned long todNumChanges = 0;
+		unsigned long clockNumChanges = 0;
 		unsigned long deltaTime;
 		_dos_gettime(&t1);
 		do {
@@ -210,15 +212,22 @@ int main(int argc, char* argv[])
 		} while(memcmp(&t1, &t2, sizeof(struct dostime_t)) == 0);
 		tStart = t2;
 		t1 = t2;
-		tsStart = getTimestamp();
-		tsFinish = tsStart + (unsigned long)(0.5 / timestampPeriod);  // make finish time half of second ahead
-		ts1 = tsStart;
+		clockStart = clock();
+		clockFinish = clockStart + (CLOCKS_PER_SEC / 2);  // make finish time half of second ahead
+		clock1 = clockStart;
+		_bios_timeofday(_TIME_GETCLOCK, &todStart);
+		tod1 = todStart;
 		do {
 			_dos_gettime(&t2);  // make _dos_gettime() before getTimestamp(), just because we expect that _dos_gettime() is always driven by interrupt 8 (each ~55ms)
-			ts2 = getTimestamp();
-			if(ts2 != ts1) {
-				tsNumChanges++;
-				ts1 = ts2;
+			clock2 = clock();
+			_bios_timeofday(_TIME_GETCLOCK, &tod2);
+			if(clock2 != clock1) {
+				clockNumChanges++;
+				clock1 = clock2;
+			}
+			if(tod2 != tod1) {
+				todNumChanges++;
+				tod1 = tod2;
 			}
 			if(memcmp(&t2, &t1, sizeof(struct dostime_t)) != 0) {
 				tNumChanges++;
@@ -227,7 +236,7 @@ int main(int argc, char* argv[])
 				// stop the measurement after certain time
 				// (ts2 and tsFinish are used because unsigned long is
 				// simpler to compare than dostime_t structs t2 and tStart)
-				if(ts2 >= tsFinish)
+				if(clock2 >= clockFinish)
 					break;
 			}
 		} while(1);
@@ -238,15 +247,25 @@ int main(int argc, char* argv[])
 		deltaTime += ((int)t2.minute - tStart.minute) * 60 * 100;
 		deltaTime += ((int)t2.second - tStart.second) * 100;
 		deltaTime += (int)t2.hsecond - tStart.hsecond;
-		printf("   In %lu ms, _dos_gettime() provided %lu time updates\n"
-		       "   (update frequency %f Hz) and getTimestamp() provided\n"
-		       "   %lu time updates (update frequency %f Hz)\n"
-		       "   with total value difference of %lu.\n",
-		       deltaTime*10, tNumChanges, ((float)tNumChanges) / (deltaTime * 0.01f),
-		       tsNumChanges, ((float)tsNumChanges) / (deltaTime * 0.01f), ts2 - tsStart);
+		printf("   Measurement time:  %lu\n", deltaTime * 10);
+		printf("   _dos_gettime() update time: %f ms, update frequency: %f Hz\n"
+		       "      (it was updated %lu times while indicating %lu ms time difference)\n",
+		       ((float)deltaTime * 10.f) / (float)tNumChanges,
+		       (float)tNumChanges / ((float)deltaTime * 0.01f),
+		       tNumChanges, deltaTime * 10);
+		printf("   clock() update time: %f ms, update frequency: %f Hz\n"
+		       "      (it was updated %lu times while indicating %u ms time difference)\n",
+		       ((float)deltaTime * 10.f) / (float)clockNumChanges,
+		       (float)clockNumChanges / ((float)deltaTime * 0.01f),
+		       clockNumChanges, (unsigned)((float)(clock2 - clockStart) / (float)CLOCKS_PER_SEC * 1000.f + 0.5f));
+		printf("   _bios_timeofday() update time: %f ms, update frequency: %f Hz\n"
+		       "      (it was updated %lu times while indicating %u ms time difference)\n",
+		       ((float)deltaTime * 10.f) / (float)todNumChanges,
+		       (float)todNumChanges / ((float)deltaTime * 0.01f),
+		       todNumChanges, (unsigned)(((float)todNumChanges) * 65536.f / 1193181.6666f * 1000.f + 0.5f));  // 1 193 182 / 65 536 = ~18.2
 	}
 
-	printf("Running tests...\n");
+	printf("\nRunning tests...\n");
 	{
 		enum { arraySize = 2 };
 		unsigned i;
