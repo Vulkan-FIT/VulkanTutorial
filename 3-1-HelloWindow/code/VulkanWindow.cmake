@@ -66,11 +66,46 @@ function(VulkanWindowConfigure target)
 
 	elseif("${VULKAN_WINDOW_GUI}" STREQUAL "Wayland")
 
-		# configure for Wayland
-		find_package(Wayland REQUIRED)
+		# detect paths
+		find_path(Wayland_client_INCLUDE_DIR NAMES wayland-client.h)
+		find_path(Wayland_cursor_INCLUDE_DIR NAMES wayland-cursor.h)
+		find_library(Wayland_client_LIBRARY  NAMES wayland-client)
+		find_library(Wayland_cursor_LIBRARY  NAMES wayland-cursor)
+		find_program(Wayland_SCANNER         NAMES wayland-scanner)
+
+		# Wayland protocols directory
+		find_package(PkgConfig QUIET)
+		pkg_check_modules(Wayland_PROTOCOLS wayland-protocols QUIET)
+		if(PKG_CONFIG_FOUND AND Wayland_PROTOCOLS_FOUND)
+			pkg_get_variable(Wayland_PROTOCOLS_DIR wayland-protocols pkgdatadir)
+		endif()
+		set(Wayland_PROTOCOLS_DIR "${Wayland_PROTOCOLS_DIR}" CACHE PATH "Wayland protocols directory.")
+
+		# Wayland::client target
+		if(Wayland_client_INCLUDE_DIR AND Wayland_client_LIBRARY)
+			set(Wayland_client_FOUND TRUE)
+			if(NOT TARGET Wayland::client)
+				add_library(Wayland::client UNKNOWN IMPORTED)
+				set_target_properties(Wayland::client PROPERTIES
+					IMPORTED_LOCATION "${Wayland_client_LIBRARY}"
+					INTERFACE_INCLUDE_DIRECTORIES "${Wayland_client_INCLUDE_DIR}")
+			endif()
+		endif()
+
+		# Wayland::cursor target
+		if(Wayland_cursor_INCLUDE_DIR AND Wayland_cursor_LIBRARY)
+			set(Wayland_cursor_FOUND TRUE)
+			if(NOT TARGET Wayland::cursor)
+				add_library(Wayland::cursor UNKNOWN IMPORTED)
+				set_target_properties(Wayland::cursor PROPERTIES
+					IMPORTED_LOCATION "${Wayland_cursor_LIBRARY}"
+					INTERFACE_INCLUDE_DIRECTORIES "${Wayland_cursor_INCLUDE_DIR}")
+			endif()
+		endif()
 
 		if(Wayland_client_FOUND AND Wayland_SCANNER AND Wayland_PROTOCOLS_DIR)
 
+			# Wayland protocols
 			add_custom_command(OUTPUT xdg-shell-client-protocol.h
 			                   COMMAND ${Wayland_SCANNER} client-header ${Wayland_PROTOCOLS_DIR}/stable/xdg-shell/xdg-shell.xml xdg-shell-client-protocol.h)
 			add_custom_command(OUTPUT xdg-shell-protocol.c
@@ -80,6 +115,7 @@ function(VulkanWindowConfigure target)
 			add_custom_command(OUTPUT xdg-decoration-protocol.c
 			                   COMMAND ${Wayland_SCANNER} private-code  ${Wayland_PROTOCOLS_DIR}/unstable/xdg-decoration/xdg-decoration-unstable-v1.xml xdg-decoration-protocol.c)
 
+			# target and sources
 			target_sources(${target} PRIVATE xdg-shell-protocol.c xdg-decoration-protocol.c
 			                                 xdg-shell-client-protocol.h xdg-decoration-client-protocol.h)
 			set_property(SOURCE "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/VulkanWindow.cpp" PROPERTY COMPILE_FLAGS -DVULKAN_WINDOW_WAYLAND)

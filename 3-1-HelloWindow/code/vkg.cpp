@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <string>
 #include <filesystem>
+#include <vector>
 #ifdef _WIN32
 # define WIN32_LEAN_AND_MEAN  // this reduces win32 headers default namespace pollution
 # include <windows.h>
