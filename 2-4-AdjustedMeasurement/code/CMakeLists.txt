@@ -3,23 +3,23 @@ set(APP_NAME 2-4-AdjustedMeasurement)
 project(${APP_NAME})
 
 set(APP_SOURCES
-    main.cpp
-    vkg.cpp
-   )
+	main.cpp
+)
 
 set(APP_INCLUDES
-    vkg.h
-   )
+)
 
 set(APP_SHADERS
-    performance.comp
-   )
+	performance.comp
+)
 
 # executable
+add_executable(${APP_NAME} ${APP_SOURCES} ${APP_INCLUDES})
+
+# vkg and shaders
 include(vkgMacros.cmake)
-vkg_add_shaders("${APP_SHADERS}" APP_SHADER_DEPS)
-add_executable(${APP_NAME} ${APP_SOURCES} ${APP_INCLUDES} ${APP_SHADER_DEPS})
+vkg_configure(${APP_NAME} vkg.hpp vkg.cpp)
+vkg_add_shaders(${APP_NAME} "${APP_SHADERS}")
 
 # target
 set_property(TARGET ${APP_NAME} PROPERTY CXX_STANDARD 20)
-target_include_directories(${APP_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})

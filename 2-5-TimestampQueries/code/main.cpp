@@ -8,7 +8,7 @@
 #include <iostream>
 #include <tuple>
 #include <vector>
-#include "vkg.h"
+#include "vkg.hpp"
 
 using namespace std;
 
@@ -576,7 +576,7 @@ int main(int argc, char* argv[])
 				vk::checkForSuccessValue(r, "vkWaitForFences");
 
 			// reset fence
-			vk::resetFence(computingFinishedFence);
+			vk::resetFences(computingFinishedFence);
 
 			// read timestamps
 			array<uint64_t, 2> timestamps;
