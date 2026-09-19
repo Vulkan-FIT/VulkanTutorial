@@ -5,7 +5,7 @@
 #include <iostream>
 #include <tuple>
 #include <vector>
-#include "vkg.h"
+#include "vkg.hpp"
 
 using namespace std;
 
