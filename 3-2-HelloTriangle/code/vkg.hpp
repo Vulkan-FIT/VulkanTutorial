@@ -35,6 +35,8 @@ class Handle {
         Handle& operator=(const Handle rhs) noexcept { _handle = rhs._handle; return *this; }
         Handle& operator=(const UniqueHandle<T>& rhs) noexcept { _handle = rhs._handle; return *this; }
         T handle() const noexcept { return _handle; }
+        T* handlePtr() noexcept { return &_handle; }
+        const T* handlePtr() const noexcept { return &_handle; }
         explicit operator bool() const noexcept { return _handle != nullptr; }
         bool operator==(const Handle rhs) const noexcept { return _handle == rhs._handle; }
         bool operator!=(const Handle rhs) const noexcept { return _handle != rhs._handle; }
@@ -19202,6 +19204,9 @@ inline void getFenceStatus(Fence fence) { getFenceStatus_throw(fence); }
 inline void waitForFences_throw(const span<Fence> fences, Bool32 waitAll, uint64_t timeout) { Result r = funcs.vkWaitForFences(detail::_device.handle(), fences.size(), fences.data(), waitAll, timeout); checkForSuccessValue(r, "vkWaitForFences"); }
 inline Result waitForFences_noThrow(const span<Fence> fences, Bool32 waitAll, uint64_t timeout) noexcept { return funcs.vkWaitForFences(detail::_device.handle(), fences.size(), fences.data(), waitAll, timeout); }
 inline void waitForFences(const span<Fence> fences, Bool32 waitAll, uint64_t timeout) { waitForFences_throw(fences, waitAll, timeout); }
+inline void waitForFence_throw(Fence fence, uint64_t timeout) { Result r = funcs.vkWaitForFences(detail::_device.handle(), 1, fence.handlePtr(), vk::True, timeout); checkForSuccessValue(r, "vkWaitForFences"); }
+inline Result waitForFence_noThrow(Fence fence, uint64_t timeout) noexcept { return funcs.vkWaitForFences(detail::_device.handle(), 1, fence.handlePtr(), vk::True, timeout); }
+inline void waitForFence(const Fence fence, uint64_t timeout) { waitForFence_throw(fence, timeout); }
 inline Semaphore createSemaphore_throw(const SemaphoreCreateInfo& pCreateInfo) { Semaphore::HandleType h; Result r = funcs.vkCreateSemaphore(detail::_device.handle(), &pCreateInfo, detail::_allocator, &h); detail::processResult(r, h, "vkCreateSemaphore"); return h; }
 inline Result createSemaphore_noThrow(const SemaphoreCreateInfo& pCreateInfo, Semaphore& pSemaphore) noexcept { return funcs.vkCreateSemaphore(detail::_device.handle(), &pCreateInfo, detail::_allocator, reinterpret_cast<Semaphore::HandleType*>(&pSemaphore)); }
 inline Semaphore createSemaphore(const SemaphoreCreateInfo& pCreateInfo) { return createSemaphore_throw(pCreateInfo); }

@@ -11,7 +11,7 @@ endmacro()
 
 macro(vkg_find_glslang)
 
-	# glslangValidator executable
+	# glslang executable
 	find_program(vkg_GLSLANG_EXECUTABLE
 		NAMES
 			glslang glslangValidator
@@ -32,15 +32,14 @@ endmacro()
 
 
 # add_shaders macro converts GLSL shaders to spir-v
-# and creates depsList containing name of files that should be included in the list of source files
-macro(vkg_add_shaders targetName nameList)
+macro(vkg_add_shaders targetName glslFileList)
 
-	vkg_find_glslangValidator()
-	if(NOT TARGET vkg::glslangValidator)
-		message(FATAL_ERROR "vkg: glslangValidator executable not found.")
+	vkg_find_glslang()
+	if(NOT vkg_GLSLANG_EXECUTABLE)
+		message(FATAL_ERROR "vkg: glslang executable not found.")
 	endif()
 
-	foreach(name ${nameList})
+	foreach(name ${glslFileList})
 		get_filename_component(directory ${name} DIRECTORY)
 		if(directory)
 			file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${directory}")
@@ -48,7 +47,7 @@ macro(vkg_add_shaders targetName nameList)
 		add_custom_command(COMMENT "Converting ${name} to spir-v..."
 		                   MAIN_DEPENDENCY ${name}
 		                   OUTPUT ${name}.spv
-		                   COMMAND ${vkg_GLSLANG_VALIDATOR_EXECUTABLE} --target-env vulkan1.0 -x ${CMAKE_CURRENT_SOURCE_DIR}/${name} -o ${name}.spv)
+		                   COMMAND ${vkg_GLSLANG_EXECUTABLE} --target-env vulkan1.0 -x ${CMAKE_CURRENT_SOURCE_DIR}/${name} -o ${name}.spv)
 		source_group("Shaders" FILES ${name} ${CMAKE_CURRENT_BINARY_DIR}/${name}.spv)
 		target_sources(${targetName} PRIVATE ${name} ${CMAKE_CURRENT_BINARY_DIR}/${name}.spv)
 	endforeach()
