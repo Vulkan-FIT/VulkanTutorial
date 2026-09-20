@@ -1,5 +1,5 @@
 #include <iostream>
-#include "vkg.h"
+#include "vkg.hpp"
 
 using namespace std;
 
