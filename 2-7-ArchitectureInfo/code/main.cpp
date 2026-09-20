@@ -7,7 +7,7 @@
 #include <iostream>
 #include <tuple>
 #include <vector>
-#include "vkg.h"
+#include "vkg.hpp"
 
 using namespace std;
 
@@ -563,8 +563,7 @@ int main(int argc, char* argv[])
 				vk::Result r =
 					vk::createComputePipelinesUnique_noThrow(
 						nullptr,
-						numPipelines1,
-						createInfos.data(),
+						vk::span(createInfos.data(), numPipelines1),
 						pipelineList1.data()
 					);
 				chrono::time_point creationEnd = chrono::high_resolution_clock::now();
@@ -614,8 +613,7 @@ int main(int argc, char* argv[])
 				// create pipelines without using cache
 				vk::createComputePipelinesUnique(
 					nullptr,
-					numPipelines2,
-					createInfos.data(),
+					vk::span(createInfos.data(), numPipelines2),
 					pipelineList2.data()
 				);
 				creationEnd = chrono::high_resolution_clock::now();
@@ -770,8 +768,9 @@ int main(int argc, char* argv[])
 
 				// wait for the work
 				vk::Result r =
-					vk::waitForFence_noThrow(
-						computingFinishedFence,
+					vk::waitForFences_noThrow(
+						computingFinishedFence,  // fences
+						vk::True,  // waitAll
 						uint64_t(1.5e9)  // timeout (1.5 seconds)
 					);
 				if(r == vk::Result::eTimeout) {
@@ -787,7 +786,7 @@ int main(int argc, char* argv[])
 					vk::checkForSuccessValue(r, "vkWaitForFences");
 
 				// reset fence
-				vk::resetFence(computingFinishedFence);
+				vk::resetFences(computingFinishedFence);
 
 				// read timestamps
 				array<uint64_t, 2> timestamps;
