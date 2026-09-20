@@ -200,8 +200,9 @@ int main(int argc, char* argv[])
 		// wait for the work
 		cout << "Waiting for the work..." << endl;
 		vk::Result r =
-			vk::waitForFence_noThrow(
-				computingFinishedFence,
+			vk::waitForFences_noThrow(
+				computingFinishedFence,  // fences
+				vk::True,  // waitAll
 				uint64_t(1.5e9)  // timeout (1.5 seconds)
 			);
 		if(r == vk::Result::eTimeout) {

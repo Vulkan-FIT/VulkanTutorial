@@ -521,8 +521,9 @@ int main(int argc, char* argv[])
 
 			// wait for the work
 			vk::Result r =
-				vk::waitForFence_noThrow(
-					computingFinishedFence,
+				vk::waitForFences_noThrow(
+					computingFinishedFence,  // fences
+					vk::True,  // waitAll
 					uint64_t(1.5e9)  // timeout (1.5 seconds)
 				);
 			chrono::time_point t2 = chrono::high_resolution_clock::now();
