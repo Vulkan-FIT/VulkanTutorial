@@ -2,15 +2,16 @@
 #include <math.h>
 #include <string.h>  // memcmp()
 #include <stdio.h>
+#include <stdlib.h>  // exit()
 #include <time.h>
 #if defined(__DOS__)
 # include <bios.h>
 # include <dos.h>  // dostime_t, _dos_gettime()
 #endif
 #include "FloatVector.h"
+#include "PIT0Timer.h"
 
 static const char appName[] = "2-7-ArchtectureInfo-c";
-static float timestampPeriod = 1.f / CLOCKS_PER_SEC;
 
 void printCpuInfo();
 void fmaFloatComputation1(
@@ -19,24 +20,12 @@ void fmaDoubleComputation1(
 	unsigned globalInvocationIdX, unsigned globalInvocationIdY, unsigned globalInvocationIdZ);
 
 
-static unsigned long getTimestamp()
-{
-#if 0
-	long startTicks;
-	_bios_timeofday(_TIME_GETCLOCK, &startTicks);
-	return startTicks;
-#else
-	return (unsigned long)clock();
-#endif
-}
-
-
 float performTest(void (*invocationFunc)(unsigned,unsigned,unsigned), unsigned long numWorkgroups)
 {
 	unsigned workgroupCountX;
 	unsigned workgroupCountY;
 	unsigned workgroupCountZ;
-	unsigned long ts1, ts2;
+	__int64 ts1, ts2;
 	unsigned x,y,z;
 
 	// compute workgroup grid dimensions
@@ -57,15 +46,15 @@ float performTest(void (*invocationFunc)(unsigned,unsigned,unsigned), unsigned l
 	}
 
 	// perform computation
-	ts1 = getTimestamp();
+	ts1 = readPIT0Ticks();
 	for(z=0; z<workgroupCountZ; z++)
 		for(y=0; y<workgroupCountY; y++)
 			for(x=0; x<workgroupCountX; x++)
 				invocationFunc(x, y, z);
-	ts2 = getTimestamp();
+	ts2 = readPIT0Ticks();
 
 	// return time as float in seconds
-	return (float)(ts2 - ts1) * timestampPeriod;
+	return ((float)(ts2 - ts1)) * getPIT0TickTime();
 }
 
 
@@ -197,8 +186,15 @@ int main(int argc, char* argv[])
 	printf("\n%s prints the performance of the CPU\n\n", appName);
 	printCpuInfo();
 
+	// init Intel 8253 Programmable Interval Timer (PIT)
+	// (channel 0 controlling interrupt 8 needs to be switched
+	// to mode 2 (Rate Generator) while default mode is 3 (Square Wave Generator))
+	initPIT0Timer();
+
 	printf("\nMeasuring time precision...\n");
 	{
+		// variables
+		__int64 ticks1,ticks2,ticks3,ticks4;
 		struct dostime_t tStart,t1,t2;
 		clock_t clockStart,clockFinish,clock1,clock2;
 		long todStart,tod1,tod2;
@@ -206,10 +202,15 @@ int main(int argc, char* argv[])
 		unsigned long todNumChanges = 0;
 		unsigned long clockNumChanges = 0;
 		unsigned long deltaTime;
+		long i,n;
+
+		// wait for the time update
 		_dos_gettime(&t1);
 		do {
 			_dos_gettime(&t2);
 		} while(memcmp(&t1, &t2, sizeof(struct dostime_t)) == 0);
+
+		// init start time variables
 		tStart = t2;
 		t1 = t2;
 		clockStart = clock();
@@ -217,6 +218,9 @@ int main(int argc, char* argv[])
 		clock1 = clockStart;
 		_bios_timeofday(_TIME_GETCLOCK, &todStart);
 		tod1 = todStart;
+		ticks1 = readPIT0Ticks();
+
+		// measure for half of second
 		do {
 			_dos_gettime(&t2);  // make _dos_gettime() before getTimestamp(), just because we expect that _dos_gettime() is always driven by interrupt 8 (each ~55ms)
 			clock2 = clock();
@@ -240,6 +244,9 @@ int main(int argc, char* argv[])
 					break;
 			}
 		} while(1);
+		ticks2 = readPIT0Ticks();
+
+		// print results
 		deltaTime =
 			(t2.hour >= tStart.hour)
 				? (t2.hour - tStart.hour) * 3600 * 100
@@ -247,22 +254,58 @@ int main(int argc, char* argv[])
 		deltaTime += ((int)t2.minute - tStart.minute) * 60 * 100;
 		deltaTime += ((int)t2.second - tStart.second) * 100;
 		deltaTime += (int)t2.hsecond - tStart.hsecond;
-		printf("   Measurement time:  %lu\n", deltaTime * 10);
-		printf("   _dos_gettime() update time: %f ms, update frequency: %f Hz\n"
-		       "      (it was updated %lu times while indicating %lu ms time difference)\n",
+		printf("   Measurement time:  %lu ms\n", deltaTime * 10);
+		printf("   _dos_gettime() update time: %.2f ms, update frequency: %.2f Hz\n"
+		       "      (the time was updated %lu times while indicating %lu ms time difference)\n",
 		       ((float)deltaTime * 10.f) / (float)tNumChanges,
 		       (float)tNumChanges / ((float)deltaTime * 0.01f),
 		       tNumChanges, deltaTime * 10);
-		printf("   clock() update time: %f ms, update frequency: %f Hz\n"
-		       "      (it was updated %lu times while indicating %u ms time difference)\n",
+		printf("   clock() update time: %.2f ms, update frequency: %.2f Hz\n"
+		       "      (the time was updated %lu times while indicating %u ms time difference)\n",
 		       ((float)deltaTime * 10.f) / (float)clockNumChanges,
 		       (float)clockNumChanges / ((float)deltaTime * 0.01f),
 		       clockNumChanges, (unsigned)((float)(clock2 - clockStart) / (float)CLOCKS_PER_SEC * 1000.f + 0.5f));
-		printf("   _bios_timeofday() update time: %f ms, update frequency: %f Hz\n"
-		       "      (it was updated %lu times while indicating %u ms time difference)\n",
+		printf("   _bios_timeofday() update time: %.2f ms, update frequency: %.2f Hz\n"
+		       "      (the time was updated %lu times while indicating %u ms time difference)\n",
 		       ((float)deltaTime * 10.f) / (float)todNumChanges,
 		       (float)todNumChanges / ((float)deltaTime * 0.01f),
 		       todNumChanges, (unsigned)(((float)todNumChanges) * 65536.f / 1193181.6666f * 1000.f + 0.5f));  // 1 193 182 / 65 536 = ~18.2
+
+		// PIT0 results
+		printf("   PIT0 reports %ld ticks in %lu ms.\n", (long)(ticks2 - ticks1), deltaTime * 10);
+		printf("   PIT0 frequency: %f Hz, tick time: %f us\n", getPIT0Frequency(), getPIT0TickTime() * (float)1e6);
+		for(n=100; n<1000000000; n*=10) {
+			ticks1 = readPIT0Ticks();
+			for(i=1; i<n; i++)
+				readPIT0Ticks();
+			ticks2 = readPIT0Ticks();
+			if(ticks2 < ticks1) {
+				printf("Time going backward!\n");
+				exit(-100);
+			}
+			ticks3 = ticks2 - ticks1;
+			if((float)ticks3 * getPIT0TickTime() > 0.05f)
+				break;
+		}
+		printf("   PIT0 read time: ");
+		printFloatSI((float)ticks3 / n * getPIT0TickTime());
+		printf("s (%ld reads in %ld ticks)\n", n, (long)ticks3);
+		ticks1 = readPIT0Ticks();
+		ticks4 = 0;
+		for(i=0; i<n; i++) {
+			ticks2 = readPIT0Ticks();
+			if(ticks2 < ticks1) {
+				printf("Time going backward!\n");
+				exit(-100);
+			}
+			ticks3 = ticks2 - ticks1;
+			if(ticks4 < ticks3)
+				ticks4 = ticks3;
+			ticks1 = ticks2;
+		}
+		printf("   PIT0 biggest tick difference: %ld (", (long)ticks4);
+		printFloatSI((float)(long)ticks4 * getPIT0TickTime());
+		printf("s)\n");
 	}
 
 	printf("\nRunning tests...\n");
@@ -271,7 +314,7 @@ int main(int argc, char* argv[])
 		unsigned i;
 		unsigned numWorkgroups[arraySize] = { 1,1 };
 		struct FloatVector performanceList[arraySize];
-		unsigned long startTick = getTimestamp();
+		__int64 startTick = readPIT0Ticks();
 		for(i=0; i<arraySize; i++)
 			vector_init(&performanceList[i]);
 		do {
@@ -285,7 +328,7 @@ int main(int argc, char* argv[])
 				processResult(t[i], numWorkgroups[i], &performanceList[i]);
 
 			// stop measurements after three seconds
-			totalTime = (float)(getTimestamp() - startTick) * timestampPeriod;
+			totalTime = ((float)(readPIT0Ticks() - startTick)) * getPIT0TickTime();
 			if(totalTime >= 20.f)
 				break;
 
@@ -311,5 +354,8 @@ int main(int argc, char* argv[])
 			vector_destroy(&performanceList[i]);
 	}
 
+	// restore Intel 8253 Programmable Interval Timer (PIT)
+	// channel 0 mode back to 3
+	restoreDefaultPIT0Timer();
 	return 0;
 }
