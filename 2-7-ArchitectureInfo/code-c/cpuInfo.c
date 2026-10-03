@@ -29,6 +29,28 @@ void printCpuInfo()
 
 	printf("Processor info:\n");
 
+	// get CPU type and Mask Revision
+	// more info:
+	//    http://ibmmuseum.com/Interrupts/INT15h/INT15hC9.htm
+	//    https://ardent-tool.com/CPU/486_Step.html
+	//    https://www.geoffchappell.com/studies/windows/km/cpu/precpuid.htm
+	__asm {
+		mov   ah,0c9h  // function
+		mov   al,10h   // may be required on some non-PS BIOSes according to https://fd.lod.bz/rbil/interrup/bios/15c9.html or https://mirror.math.princeton.edu/pub/oldlinux/Linux.old/docs/interrupts/int-html/rb-1613.htm
+		int   15h
+		jnc   success
+		mov   result,0
+		jmp   end
+		success:
+		mov   result,cx
+		end:
+	};
+	printf("   Info from BIOS:  ");
+	if(result == 0)
+		printf("n/a\n");
+	else
+		printf("0x%x\n", result);
+
 # if defined(__X86__)  // __X86__ is defined on Watcom when compiling using Intel instruction set
 	// detect 286+ processor
 	// (286+ processors allows writing flag bits 12..15
@@ -387,6 +409,12 @@ void printCpuInfo()
 						       "   SSE4.2:   n/a\n"
 						       "   AVX:      n/a\n");
 
+				#if 1  // print only AVX2 support of all extended features
+					if(hasExtendedFeatures0)
+						printf("   AVX2:     %s\n", (extendedFeatureFlags0EBX & 0x00000020) ? "yes" : "no");
+					else
+						printf("   AVX2:     n/a\n");
+				#else
 					// print extended features 0
 					if(hasExtendedFeatures0) {
 						printf("   AVX2:     %s\n", (extendedFeatureFlags0EBX & 0x00000020) ? "yes" : "no");
@@ -420,6 +448,7 @@ void printCpuInfo()
 						printf("   AVX10 version:  %u\n", avx10FeatureInfo & 0xff);
 					else
 						printf("   AVX10 version:  n/a\n");
+				#endif
 				}
 			}
 #  endif
