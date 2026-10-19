@@ -14,10 +14,14 @@
 static const char appName[] = "2-7-ArchtectureInfo-c";
 
 void printCpuInfo();
-void fmaFloatComputation1(
+void floatComputationC(
 	unsigned globalInvocationIdX, unsigned globalInvocationIdY, unsigned globalInvocationIdZ);
-void fmaDoubleComputation1(
+void doubleComputationC(
 	unsigned globalInvocationIdX, unsigned globalInvocationIdY, unsigned globalInvocationIdZ);
+void setFloatPrecisionX87();
+void setDoublePrecisionX87();
+void restorePrecisionX87();
+void straightComputationX87();
 
 
 float performTest(void (*invocationFunc)(unsigned,unsigned,unsigned), unsigned long numWorkgroups)
@@ -47,9 +51,9 @@ float performTest(void (*invocationFunc)(unsigned,unsigned,unsigned), unsigned l
 
 	// perform computation
 	ts1 = readPIT0Ticks();
-	for(z=0; z<workgroupCountZ; z++)
-		for(y=0; y<workgroupCountY; y++)
-			for(x=0; x<workgroupCountX; x++)
+	for(z=1; z<=workgroupCountZ; z++)
+		for(y=1; y<=workgroupCountY; y++)
+			for(x=1; x<=workgroupCountX; x++)
 				invocationFunc(x, y, z);
 	ts2 = readPIT0Ticks();
 
@@ -62,7 +66,7 @@ float performTest(void (*invocationFunc)(unsigned,unsigned,unsigned), unsigned l
 void processResult(float time, unsigned numWorkgroups, struct FloatVector* performanceList)
 {
 	if(time >= 0.01f) {
-		unsigned long numInstructions = (unsigned long)2000 * numWorkgroups;
+		unsigned long numInstructions = (unsigned long)1000 * numWorkgroups;
 		float performance = (float)numInstructions / time;
 		vector_push_back(performanceList, performance);
 	}
@@ -172,6 +176,10 @@ void printResult(const char* text, int supported, struct FloatVector* performanc
 			printf("FLOPS, Q3: ");
 			printFloatSI(vector_get(performanceList, vector_size(performanceList) * 3 / 4));
 			printf("FLOPS)\n");
+
+			// print number of measurements
+			printf("      (number of measurements: %lu)\n", vector_size(performanceList));
+
 		}
 	}
 	else
@@ -310,9 +318,9 @@ int main(int argc, char* argv[])
 
 	printf("\nRunning tests...\n");
 	{
-		enum { arraySize = 2 };
+		enum { arraySize = 4 };
 		unsigned i;
-		unsigned numWorkgroups[arraySize] = { 1,1 };
+		unsigned numWorkgroups[arraySize] = { 1,1,1,1 };
 		struct FloatVector performanceList[arraySize];
 		__int64 startTick = readPIT0Ticks();
 		for(i=0; i<arraySize; i++)
@@ -322,8 +330,14 @@ int main(int argc, char* argv[])
 			// perform tests
 			float totalTime;
 			float t[arraySize];
-			t[0] = performTest(fmaFloatComputation1, numWorkgroups[0]);
-			t[1] = performTest(fmaDoubleComputation1, numWorkgroups[1]);
+			t[0] = performTest(floatComputationC, numWorkgroups[0]);
+			t[1] = performTest(doubleComputationC, numWorkgroups[1]);
+			setFloatPrecisionX87();
+			t[2] = performTest(straightComputationX87, numWorkgroups[2]);
+			restorePrecisionX87();
+			setDoublePrecisionX87();
+			t[3] = performTest(straightComputationX87, numWorkgroups[3]);
+			restorePrecisionX87();
 			for(i=0; i<arraySize; i++)
 				processResult(t[i], numWorkgroups[i], &performanceList[i]);
 
@@ -344,9 +358,11 @@ int main(int argc, char* argv[])
 
 		// print results
 		printf("Float (float32) performance\n");
-		printResult("   non-parallel FMA:    ", 1, &performanceList[0]);
+		printResult("   mul+add C code:   ", 1, &performanceList[0]);
+		printResult("   mul+add x87 asm:  ", 1, &performanceList[2]);
 		printf("Double (float64) performance\n");
-		printResult("   non-parallel FMA:    ", 1, &performanceList[1]);
+		printResult("   mul+add C code:   ", 1, &performanceList[1]);
+		printResult("   mul+add x87 asm:  ", 1, &performanceList[3]);
 		printf("\n");
 
 		// destroy lists
