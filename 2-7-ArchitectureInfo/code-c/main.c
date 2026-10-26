@@ -21,7 +21,8 @@ void doubleComputationC(
 void setFloatPrecisionX87();
 void setDoublePrecisionX87();
 void restorePrecisionX87();
-void straightComputationX87();
+void straightComputation1kX87();
+void straightComputation20kX87();
 
 
 float performTest(void (*invocationFunc)(unsigned,unsigned,unsigned), unsigned long numWorkgroups)
@@ -63,11 +64,12 @@ float performTest(void (*invocationFunc)(unsigned,unsigned,unsigned), unsigned l
 
 
 // record the performance in the list
-void processResult(float time, unsigned numWorkgroups, struct FloatVector* performanceList)
+void processResult(float time, unsigned numWorkgroups, unsigned long numInstructions,
+	struct FloatVector* performanceList)
 {
 	if(time >= 0.01f) {
-		unsigned long numInstructions = (unsigned long)1000 * numWorkgroups;
-		float performance = (float)numInstructions / time;
+		unsigned long totalInstructionsExecuted = numInstructions * numWorkgroups;
+		float performance = (float)totalInstructionsExecuted / time;
 		vector_push_back(performanceList, performance);
 	}
 }
@@ -157,7 +159,7 @@ static void printFloatSI(float v)
 
 
 // print results
-void printResult(const char* text, int supported, struct FloatVector* performanceList)
+void printResult(const char* text, int supported, struct FloatVector* performanceList, unsigned numWorkgroups)
 {
 	printf(text);
 	if(supported) {
@@ -178,7 +180,8 @@ void printResult(const char* text, int supported, struct FloatVector* performanc
 			printf("FLOPS)\n");
 
 			// print number of measurements
-			printf("      (number of measurements: %lu)\n", vector_size(performanceList));
+			printf("      (number of measurements: %lu, final number of workgroups: %u)\n",
+				vector_size(performanceList), numWorkgroups);
 
 		}
 	}
@@ -199,7 +202,7 @@ int main(int argc, char* argv[])
 	// to mode 2 (Rate Generator) while default mode is 3 (Square Wave Generator))
 	initPIT0Timer();
 
-	printf("\nMeasuring time precision...\n");
+	if(argc > 1 && strcmp(argv[1], "-t"))
 	{
 		// variables
 		__int64 ticks1,ticks2,ticks3,ticks4;
@@ -211,6 +214,9 @@ int main(int argc, char* argv[])
 		unsigned long clockNumChanges = 0;
 		unsigned long deltaTime;
 		long i,n;
+
+		// initial print
+		printf("\nMeasuring time precision...\n");
 
 		// wait for the time update
 		_dos_gettime(&t1);
@@ -315,12 +321,14 @@ int main(int argc, char* argv[])
 		printFloatSI((float)(long)ticks4 * getPIT0TickTime());
 		printf("s)\n");
 	}
+	else
+		printf("\nSkipping time precision measurements. Use -t to include them.\n");
 
 	printf("\nRunning tests...\n");
 	{
-		enum { arraySize = 4 };
+		enum { arraySize = 6 };
 		unsigned i;
-		unsigned numWorkgroups[arraySize] = { 1,1,1,1 };
+		unsigned numWorkgroups[arraySize] = { 1,1,1,1,1,1 };
 		struct FloatVector performanceList[arraySize];
 		__int64 startTick = readPIT0Ticks();
 		for(i=0; i<arraySize; i++)
@@ -333,13 +341,17 @@ int main(int argc, char* argv[])
 			t[0] = performTest(floatComputationC, numWorkgroups[0]);
 			t[1] = performTest(doubleComputationC, numWorkgroups[1]);
 			setFloatPrecisionX87();
-			t[2] = performTest(straightComputationX87, numWorkgroups[2]);
+			t[2] = performTest(straightComputation1kX87, numWorkgroups[2]);
+			t[4] = performTest(straightComputation20kX87, numWorkgroups[4]);
 			restorePrecisionX87();
 			setDoublePrecisionX87();
-			t[3] = performTest(straightComputationX87, numWorkgroups[3]);
+			t[3] = performTest(straightComputation1kX87, numWorkgroups[3]);
+			t[5] = performTest(straightComputation20kX87, numWorkgroups[5]);
 			restorePrecisionX87();
-			for(i=0; i<arraySize; i++)
-				processResult(t[i], numWorkgroups[i], &performanceList[i]);
+			for(i=0; i<=3; i++)
+				processResult(t[i], numWorkgroups[i],  1000, &performanceList[i]);
+			for(i=4; i<=5; i++)
+				processResult(t[i], numWorkgroups[i], 20000, &performanceList[i]);
 
 			// stop measurements after three seconds
 			totalTime = ((float)(readPIT0Ticks() - startTick)) * getPIT0TickTime();
@@ -358,11 +370,13 @@ int main(int argc, char* argv[])
 
 		// print results
 		printf("Float (float32) performance\n");
-		printResult("   mul+add C code:   ", 1, &performanceList[0]);
-		printResult("   mul+add x87 asm:  ", 1, &performanceList[2]);
+		printResult("   mul+add C code:                      ", 1, &performanceList[0], numWorkgroups[0]);
+		printResult("   mul+add x87 asm (1k instructions):   ", 1, &performanceList[2], numWorkgroups[2]);
+		printResult("   mul+add x87 asm (20k instructions):  ", 1, &performanceList[4], numWorkgroups[4]);
 		printf("Double (float64) performance\n");
-		printResult("   mul+add C code:   ", 1, &performanceList[1]);
-		printResult("   mul+add x87 asm:  ", 1, &performanceList[3]);
+		printResult("   mul+add C code:                      ", 1, &performanceList[1], numWorkgroups[1]);
+		printResult("   mul+add x87 asm (1k instructions):   ", 1, &performanceList[3], numWorkgroups[3]);
+		printResult("   mul+add x87 asm (20k instructions):  ", 1, &performanceList[5], numWorkgroups[5]);
 		printf("\n");
 
 		// destroy lists
