@@ -21,8 +21,14 @@ void doubleComputationC(
 void setFloatPrecisionX87();
 void setDoublePrecisionX87();
 void restorePrecisionX87();
-void straightComputation1kX87();
-void straightComputation20kX87();
+void straightComputation1kOpX87(
+	unsigned globalInvocationIdX, unsigned globalInvocationIdY, unsigned globalInvocationIdZ);
+void straightComputation20kOpX87(
+	unsigned globalInvocationIdX, unsigned globalInvocationIdY, unsigned globalInvocationIdZ);
+void parallelComputation500OpX87(
+	unsigned globalInvocationIdX, unsigned globalInvocationIdY, unsigned globalInvocationIdZ);
+void parallelComputation10kOpX87(
+	unsigned globalInvocationIdX, unsigned globalInvocationIdY, unsigned globalInvocationIdZ);
 
 
 float performTest(void (*invocationFunc)(unsigned,unsigned,unsigned), unsigned long numWorkgroups)
@@ -326,9 +332,9 @@ int main(int argc, char* argv[])
 
 	printf("\nRunning tests...\n");
 	{
-		enum { arraySize = 6 };
+		enum { arraySize = 10 };
 		unsigned i;
-		unsigned numWorkgroups[arraySize] = { 1,1,1,1,1,1 };
+		unsigned numWorkgroups[arraySize] = { 1,1,1,1,1,1,1,1,1,1 };
 		struct FloatVector performanceList[arraySize];
 		__int64 startTick = readPIT0Ticks();
 		for(i=0; i<arraySize; i++)
@@ -341,17 +347,25 @@ int main(int argc, char* argv[])
 			t[0] = performTest(floatComputationC, numWorkgroups[0]);
 			t[1] = performTest(doubleComputationC, numWorkgroups[1]);
 			setFloatPrecisionX87();
-			t[2] = performTest(straightComputation1kX87, numWorkgroups[2]);
-			t[4] = performTest(straightComputation20kX87, numWorkgroups[4]);
+			t[2] = performTest(straightComputation1kOpX87, numWorkgroups[2]);
+			t[4] = performTest(straightComputation20kOpX87, numWorkgroups[4]);
+			t[6] = performTest(parallelComputation500OpX87, numWorkgroups[6]);
+			t[8] = performTest(parallelComputation10kOpX87, numWorkgroups[8]);
 			restorePrecisionX87();
 			setDoublePrecisionX87();
-			t[3] = performTest(straightComputation1kX87, numWorkgroups[3]);
-			t[5] = performTest(straightComputation20kX87, numWorkgroups[5]);
+			t[3] = performTest(straightComputation1kOpX87, numWorkgroups[3]);
+			t[5] = performTest(straightComputation20kOpX87, numWorkgroups[5]);
+			t[7] = performTest(parallelComputation500OpX87, numWorkgroups[7]);
+			t[9] = performTest(parallelComputation10kOpX87, numWorkgroups[9]);
 			restorePrecisionX87();
 			for(i=0; i<=3; i++)
 				processResult(t[i], numWorkgroups[i],  1000, &performanceList[i]);
 			for(i=4; i<=5; i++)
 				processResult(t[i], numWorkgroups[i], 20000, &performanceList[i]);
+			for(i=6; i<=7; i++)
+				processResult(t[i], numWorkgroups[i],   500, &performanceList[i]);
+			for(i=8; i<=9; i++)
+				processResult(t[i], numWorkgroups[i], 10000, &performanceList[i]);
 
 			// stop measurements after three seconds
 			totalTime = ((float)(readPIT0Ticks() - startTick)) * getPIT0TickTime();
@@ -370,13 +384,17 @@ int main(int argc, char* argv[])
 
 		// print results
 		printf("Float (float32) performance\n");
-		printResult("   mul+add C code:                      ", 1, &performanceList[0], numWorkgroups[0]);
-		printResult("   mul+add x87 asm (1k instructions):   ", 1, &performanceList[2], numWorkgroups[2]);
-		printResult("   mul+add x87 asm (20k instructions):  ", 1, &performanceList[4], numWorkgroups[4]);
+		printResult("   mul+add C code:            ", 1, &performanceList[0], numWorkgroups[0]);
+		printResult("   mul+add x87 asm (1k):      ", 1, &performanceList[2], numWorkgroups[2]);
+		printResult("   mul+add x87 asm (20k):     ", 1, &performanceList[4], numWorkgroups[4]);
+		printResult("   mul+add x87 asm (par500):  ", 1, &performanceList[6], numWorkgroups[6]);
+		printResult("   mul+add x87 asm (par10k):  ", 1, &performanceList[8], numWorkgroups[8]);
 		printf("Double (float64) performance\n");
-		printResult("   mul+add C code:                      ", 1, &performanceList[1], numWorkgroups[1]);
-		printResult("   mul+add x87 asm (1k instructions):   ", 1, &performanceList[3], numWorkgroups[3]);
-		printResult("   mul+add x87 asm (20k instructions):  ", 1, &performanceList[5], numWorkgroups[5]);
+		printResult("   mul+add C code:            ", 1, &performanceList[1], numWorkgroups[1]);
+		printResult("   mul+add x87 asm (1k):      ", 1, &performanceList[3], numWorkgroups[3]);
+		printResult("   mul+add x87 asm (20k):     ", 1, &performanceList[5], numWorkgroups[5]);
+		printResult("   mul+add x87 asm (par500):  ", 1, &performanceList[7], numWorkgroups[7]);
+		printResult("   mul+add x87 asm (par10k):  ", 1, &performanceList[9], numWorkgroups[9]);
 		printf("\n");
 
 		// destroy lists
