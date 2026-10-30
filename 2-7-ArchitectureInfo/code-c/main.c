@@ -208,7 +208,7 @@ int main(int argc, char* argv[])
 	// to mode 2 (Rate Generator) while default mode is 3 (Square Wave Generator))
 	initPIT0Timer();
 
-	if(argc > 1 && strcmp(argv[1], "-t"))
+	if(argc > 1 && strcmp(argv[1], "-t") == 0)
 	{
 		// variables
 		__int64 ticks1,ticks2,ticks3,ticks4;
