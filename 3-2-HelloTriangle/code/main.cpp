@@ -57,8 +57,8 @@ public:
 	vector<vk::UniqueFramebuffer> framebuffers;
 	vector<vk::UniqueSemaphore> renderingFinishedSemaphores;
 	uint32_t acquiredImageIndex;
-	vk::UniqueFence imageAvailableFence;
-	vk::UniqueFence renderFinishedFence;
+	vk::UniqueSemaphore imageAvailableSemaphore;
+	vk::UniqueFence renderingFinishedFence;
 	vk::UniqueCommandPool commandPool;
 	vk::CommandBuffer commandBuffer;
 	vk::UniqueShaderModule vsModule;
@@ -371,14 +371,14 @@ void App::init()
 			}
 		);
 
-	// rendering fences
-	imageAvailableFence =
-		vk::createFenceUnique(
-			vk::FenceCreateInfo{
-				.flags = {},
+	// rendering semaphore and fence
+	imageAvailableSemaphore =
+		vk::createSemaphoreUnique(
+			vk::SemaphoreCreateInfo{
+				.flags = vk::SemaphoreCreateFlags(),
 			}
 		);
-	renderFinishedFence =
+	renderingFinishedFence =
 		vk::createFenceUnique(
 			vk::FenceCreateInfo{
 				.flags = vk::FenceCreateFlagBits::eSignaled,
@@ -690,36 +690,33 @@ void App::resize(VulkanWindow&, uint32_t& widthToBeSet, uint32_t& heightToBeSet)
 
 void App::frame(VulkanWindow&)
 {
+	// wait for previous frame rendering work
+	// if still not finished
+	vk::Result r =
+		vk::waitForFences_noThrow(
+			renderingFinishedFence,  // fences
+			vk::True,  // waitAll
+			uint64_t(1.5e9)  // timeout
+		);
+	if(r != vk::Result::eSuccess) {
+		if(r == vk::Result::eTimeout)
+			throw runtime_error("GPU timeout. Task is probably hanging on GPU.");
+		throw runtime_error(string("Vulkan error: vkWaitForFences failed with error ") + vk::to_cstr(r) + ".");
+	}
+	vk::resetFences(renderingFinishedFence);
+
 	// acquire image
-	if(acquiredImageIndex == ~uint32_t(0)) {
-
-		vk::resetFences(imageAvailableFence);
-		vk::Result r =
+	if(acquiredImageIndex == ~uint32_t(0))
+	{
+		r =
 			vk::acquireNextImageKHR_noThrow(
-				swapchain,            // swapchain
-				uint64_t(1.5e9),      // timeout (1.5s)
-				nullptr,              // semaphore to signal
-				imageAvailableFence,  // fence to signal
-				&acquiredImageIndex   // pImageIndex
+				swapchain,                // swapchain
+				uint64_t(1.5e9),          // timeout (1.5s)
+				imageAvailableSemaphore,  // semaphore to signal
+				nullptr,                  // fence to signal
+				&acquiredImageIndex       // pImageIndex
 			);
-
-		// wait for previous frame rendering work and for imageAvailableFence
-		if(r == vk::Result::eSuccess || r == vk::Result::eSuboptimalKHR)
-		{
-			vk::Result waitResult =
-				vk::waitForFences_noThrow(
-					array{  // fences
-						renderFinishedFence.get(),
-						imageAvailableFence.get(),
-					},
-					vk::True,  // waitAll
-					uint64_t(1.5e9)  // timeout
-				);
-			if(waitResult != vk::Result::eSuccess) {
-				if(waitResult == vk::Result::eTimeout)
-					throw runtime_error("GPU timeout. Task is probably hanging on GPU.");
-				throw runtime_error(string("Vulkan error: vkWaitForFences failed with error ") + vk::to_cstr(r) + ".");
-			}
+		if(r != vk::Result::eSuccess) {
 
 			// resize swapchain on suboptimal result
 			if(r == vk::Result::eSuboptimalKHR) {
@@ -727,18 +724,13 @@ void App::frame(VulkanWindow&)
 				cout << "acquire result: Suboptimal" << endl;
 				return;
 			}
-		}
-		else
-		{
-			// handle errors
-			if(r == vk::Result::eErrorOutOfDateKHR) {
+			else if(r == vk::Result::eErrorOutOfDateKHR) {
 				window.scheduleResize();
 				cout << "acquire error: OutOfDate" << endl;
 				return;
 			} else
 				throw runtime_error(string("Vulkan error: vkAcquireNextImageKHR failed with error ") + vk::to_cstr(r) + ".");
 		}
-
 	}
 
 	// record command buffer
@@ -780,24 +772,24 @@ void App::frame(VulkanWindow&)
 	vk::endCommandBuffer(commandBuffer);
 
 	// submit frame
-	vk::resetFences(renderFinishedFence);
 	vk::Semaphore renderingFinishedSemaphore = renderingFinishedSemaphores[acquiredImageIndex];
 	vk::queueSubmit(
 		graphicsQueue,  // queue
 		vk::SubmitInfo{  // submits
-			.waitSemaphoreCount = 0,
-			.pWaitSemaphores = nullptr,
-			.pWaitDstStageMask = nullptr,
+			.waitSemaphoreCount = 1,
+			.pWaitSemaphores = imageAvailableSemaphore.getPtr(),
+			.pWaitDstStageMask = &(const vk::PipelineStageFlags&)vk::PipelineStageFlags(
+				vk::PipelineStageFlagBits::eColorAttachmentOutput),
 			.commandBufferCount = 1,
 			.pCommandBuffers = &commandBuffer,
 			.signalSemaphoreCount = 1,
 			.pSignalSemaphores = &renderingFinishedSemaphore,
 		},
-		renderFinishedFence  // fence
+		renderingFinishedFence  // fence
 	);
 
 	// present
-	vk::Result r =
+	r =
 		vk::queuePresentKHR_noThrow(
 			presentationQueue,  // queue
 			vk::PresentInfoKHR{
@@ -810,22 +802,16 @@ void App::frame(VulkanWindow&)
 			}
 		);
 	if(r == vk::Result::eSuccess)
-		acquiredImageIndex = ~uint32_t(0);
+		acquiredImageIndex = ~uint32_t(0);  // image was released
 	else {
 		if(r == vk::Result::eSuboptimalKHR) {
-			acquiredImageIndex = ~uint32_t(0);
+			acquiredImageIndex = ~uint32_t(0);  // image was released
 			window.scheduleResize();
 			cout << "present result: Suboptimal" << endl;
 		} else if(r == vk::Result::eErrorOutOfDateKHR) {
-			acquiredImageIndex = ~uint32_t(0);
 			window.scheduleResize();
 			cout << "present error: OutOfDate" << endl;
-	#if _WIN32
-		} else if(r == vk::Result(-1000255000)) {  // eErrorFullScreenExclusiveModeLostEXT
-			acquiredImageIndex = ~uint32_t(0);
-	#endif
 		} else if(r == vk::Result::eErrorSurfaceLostKHR) {
-			acquiredImageIndex = ~uint32_t(0);
 			throw runtime_error(string("Vulkan error: vkQueuePresentKHR() failed with error ") + to_cstr(r) + ".");
 		} else
 			throw runtime_error(string("Vulkan error: vkQueuePresentKHR() failed with error ") + to_cstr(r) + ".");

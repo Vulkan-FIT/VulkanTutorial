@@ -14,9 +14,9 @@ layout(location = 0) out vec3 outColor;
 // color primaries
 vec2 positions[] =
 	vec2[](
-		vec2( 0.433,  0.250),
-		vec2( 0.000, -0.500),
-		vec2(-0.433,  0.250)
+		vec2( 0.700,  0.700),
+		vec2( 0.000, -0.700),
+		vec2(-0.700,  0.700)
 	);
 
 vec3 colors[3] =
