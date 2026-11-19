@@ -37,9 +37,9 @@ public:
 	// Vulkan variables, handles and objects
 	// (unique objects are not in arbitrary order;
 	// some unique objects need to be destructed before others in the destructor)
-	uint32_t graphicsQueueFamily;
+	uint32_t renderingQueueFamily;
 	uint32_t presentationQueueFamily;
-	vk::Queue graphicsQueue;
+	vk::Queue renderingQueue;
 	vk::Queue presentationQueue;
 	vk::SurfaceFormatKHR surfaceFormat;
 	vk::UniqueRenderPass renderPass;
@@ -215,7 +215,7 @@ void App::init()
 	cout << "Using device:\n"
 	        "   " << get<3>(*bestDevice).deviceName << endl;
 	vk::PhysicalDevice physicalDevice = get<0>(*bestDevice);
-	graphicsQueueFamily = get<1>(*bestDevice);
+	renderingQueueFamily = get<1>(*bestDevice);
 	presentationQueueFamily = get<2>(*bestDevice);
 
 	// create device
@@ -224,12 +224,12 @@ void App::init()
 		vk::DeviceCreateInfo{  // pCreateInfo
 			.flags = {},
 			.queueCreateInfoCount =
-				graphicsQueueFamily==presentationQueueFamily ? uint32_t(1) : uint32_t(2),
+				renderingQueueFamily==presentationQueueFamily ? uint32_t(1) : uint32_t(2),
 			.pQueueCreateInfos =
 				array{
 					vk::DeviceQueueCreateInfo{
 						.flags = vk::DeviceQueueCreateFlags(),
-						.queueFamilyIndex = graphicsQueueFamily,
+						.queueFamilyIndex = renderingQueueFamily,
 						.queueCount = 1,
 						.pQueuePriorities = &(const float&)1.f,
 					},
@@ -250,7 +250,7 @@ void App::init()
 	);
 
 	// get queues
-	graphicsQueue = vk::getDeviceQueue(graphicsQueueFamily, 0);
+	renderingQueue = vk::getDeviceQueue(renderingQueueFamily, 0);
 	presentationQueue = vk::getDeviceQueue(presentationQueueFamily, 0);
 
 	// print surface formats
@@ -346,7 +346,7 @@ void App::init()
 			vk::CommandPoolCreateInfo{
 				.flags = vk::CommandPoolCreateFlagBits::eTransient |
 					vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-				.queueFamilyIndex = graphicsQueueFamily,
+				.queueFamilyIndex = renderingQueueFamily,
 			}
 		);
 	commandBuffer =
@@ -441,11 +441,11 @@ void App::resize(VulkanWindow&, uint32_t& widthToBeSet, uint32_t& heightToBeSet)
 				.imageArrayLayers = 1,
 				.imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
 				.imageSharingMode =
-					(graphicsQueueFamily==presentationQueueFamily)
+					(renderingQueueFamily==presentationQueueFamily)
 						? vk::SharingMode::eExclusive
 						: vk::SharingMode::eConcurrent,
 				.queueFamilyIndexCount = 2,
-				.pQueueFamilyIndices = array<uint32_t, 2>{ graphicsQueueFamily, presentationQueueFamily }.data(),
+				.pQueueFamilyIndices = array<uint32_t, 2>{ renderingQueueFamily, presentationQueueFamily }.data(),
 				.preTransform = surfaceCapabilities.currentTransform,
 				.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
 				.presentMode = vk::PresentModeKHR::eFifo,
@@ -539,15 +539,34 @@ void App::frame(VulkanWindow&)
 				nullptr,                  // fence to signal
 				&acquiredImageIndex       // pImageIndex
 			);
-		if(r != vk::Result::eSuccess) {
+		if(r != vk::Result::eSuccess)
+		{
+			// suboptimal -> resize swapchain (rendering will follow after the resize)
+			if(r == vk::Result::eSuboptimalKHR)
+			{
+				// neutralize _imageAvailableSemaphore
+				vk::queueSubmit(
+					renderingQueue,  // queue
+					vk::SubmitInfo{
+						.waitSemaphoreCount = 1,
+						.pWaitSemaphores = imageAvailableSemaphore.getPtr(),
+						.pWaitDstStageMask = &(const vk::PipelineStageFlags&)vk::PipelineStageFlags(
+							vk::PipelineStageFlagBits::eBottomOfPipe),
+						.commandBufferCount = 0,
+						.pCommandBuffers = nullptr,
+						.signalSemaphoreCount = 0,
+						.pSignalSemaphores = nullptr,
+					},
+					renderingFinishedFence  // fence
+				);
 
-			// resize swapchain on suboptimal result
-			if(r == vk::Result::eSuboptimalKHR) {
+				// schedule the resize
 				window.scheduleResize();
 				cout << "acquire result: Suboptimal" << endl;
 				return;
 			}
 			else if(r == vk::Result::eErrorOutOfDateKHR) {
+				// out of date swapchain -> schedule resize
 				window.scheduleResize();
 				cout << "acquire error: OutOfDate" << endl;
 				return;
@@ -587,7 +606,7 @@ void App::frame(VulkanWindow&)
 	// submit frame
 	vk::Semaphore renderingFinishedSemaphore = renderingFinishedSemaphores[acquiredImageIndex];
 	vk::queueSubmit(
-		graphicsQueue,  // queue
+		renderingQueue,  // queue
 		vk::SubmitInfo{  // submits
 			.waitSemaphoreCount = 1,
 			.pWaitSemaphores = imageAvailableSemaphore.getPtr(),
